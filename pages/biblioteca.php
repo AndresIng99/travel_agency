@@ -575,6 +575,56 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                 grid-template-columns: 1fr;
             }
         }
+      
+.image-count {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.card-category,
+.card-type,
+.card-transport {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: #4a5568;
+}
+
+.image-preview.existing {
+    border-color: #10b981 !important;
+}
+
+.image-preview.new {
+    border-color: #3b82f6 !important;
+}
+
+.existing-image-indicator {
+    background: #10b981 !important;
+}
+
+.new-image-indicator {
+    background: #3b82f6 !important;
+}
+
+/* Hover effect para cards con imágenes */
+.item-card:hover .card-image img {
+    transform: scale(1.05);
+    transition: transform 0.3s ease;
+}
+
+.card-image {
+    overflow: hidden;
+}
+
     </style>
 </head>
 <body>
@@ -1103,6 +1153,43 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             }).join('');
         }
 
+        // NUEVA FUNCIÓN: Obtener imagen principal
+function getPrimaryImage(item, type) {
+    switch(type) {
+        case 'dias':
+        case 'actividades':
+            return item.imagen1 || item.imagen2 || item.imagen3 || null;
+        case 'alojamientos':
+            return item.imagen || null;
+        default:
+            return null;
+    }
+}
+// NUEVA FUNCIÓN: Contar imágenes
+function getImageCount(item, type) {
+    let count = 0;
+    switch(type) {
+        case 'dias':
+        case 'actividades':
+            if (item.imagen1) count++;
+            if (item.imagen2) count++;
+            if (item.imagen3) count++;
+            break;
+        case 'alojamientos':
+            if (item.imagen) count++;
+            break;
+    }
+    return count;
+}
+
+// NUEVA FUNCIÓN: Escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
         // Crear card de recurso
         function createResourceCard(item) {
             const icons = {
@@ -1112,18 +1199,28 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                 transportes: '🚗'
             };
 
-            const title = item.titulo || item.nombre || item.titulo;
+            const title = item.titulo || item.nombre || 'Sin título';
             const location = item.ubicacion || `${item.lugar_salida} → ${item.lugar_llegada}` || '';
+            
+            // Obtener la primera imagen disponible
+            const primaryImage = getPrimaryImage(item, currentTab);
             
             return `
                 <div class="item-card" onclick="viewResource(${item.id})">
                     <div class="card-image">
-                        ${item.imagen1 ? `<img src="${item.imagen1}" alt="${title}">` : icons[currentTab]}
+                        ${primaryImage ? 
+                            `<img src="${primaryImage}" alt="${title}" style="width: 100%; height: 100%; object-fit: cover;">` : 
+                            icons[currentTab]
+                        }
+                        ${getImageCount(item, currentTab) > 0 ? `<div class="image-count">📷 ${getImageCount(item, currentTab)}</div>` : ''}
                     </div>
                     <div class="card-content">
-                        <h3 class="card-title">${title}</h3>
-                        <p class="card-description">${item.descripcion}</p>
-                        <div class="card-location">📍 ${location}</div>
+                        <h3 class="card-title">${escapeHtml(title)}</h3>
+                        <p class="card-description">${escapeHtml(item.descripcion || 'Sin descripción')}</p>
+                        <div class="card-location">📍 ${escapeHtml(location)}</div>
+                        ${item.categoria ? `<div class="card-category">⭐ ${item.categoria} estrellas</div>` : ''}
+                        ${item.tipo ? `<div class="card-type">🏷️ ${item.tipo}</div>` : ''}
+                        ${item.medio ? `<div class="card-transport">🚗 ${item.medio}</div>` : ''}
                     </div>
                     <div class="card-actions">
                         <button class="action-btn edit" onclick="event.stopPropagation(); editResource(${item.id})">
@@ -1190,198 +1287,359 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             }
         }
 
-        // Cargar campos específicos según el tipo
-        function loadSpecificFields() {
-            const container = document.getElementById('specificFields');
-            let fieldsHTML = '';
-            
-            switch(currentTab) {
-                case 'dias':
-                    fieldsHTML = `
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="titulo">Título de la Jornada</label>
-                                <input type="text" id="titulo" name="titulo" required placeholder="Ej: Día en París">
-                            </div>
-                            <div class="form-group">
-                                <label for="ubicacion">Ubicación</label>
-                                <input type="text" id="ubicacion" name="ubicacion" required placeholder="Ciudad, País">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="descripcion">Descripción</label>
-                            <textarea id="descripcion" name="descripcion" required placeholder="Describe las actividades del día..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Imágenes (máximo 3)</label>
-                            <div class="images-grid">
-                                <div class="image-upload" onclick="document.getElementById('imagen1').click()">
-                                    <input type="file" id="imagen1" name="imagen1" accept="image/*">
-                                    <div>📷 Imagen 1</div>
-                                </div>
-                                <div class="image-upload" onclick="document.getElementById('imagen2').click()">
-                                    <input type="file" id="imagen2" name="imagen2" accept="image/*">
-                                    <div>📷 Imagen 2</div>
-                                </div>
-                                <div class="image-upload" onclick="document.getElementById('imagen3').click()">
-                                    <input type="file" id="imagen3" name="imagen3" accept="image/*">
-                                    <div>📷 Imagen 3</div>
-                                </div>
-                            </div>
-                        </div>
-                        <input type="hidden" id="latitud" name="latitud">
-                        <input type="hidden" id="longitud" name="longitud">
-                    `;
-                    break;
-                    
-                case 'alojamientos':
-                    fieldsHTML = `
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="nombre">Nombre del Alojamiento</label>
-                                <input type="text" id="nombre" name="nombre" required placeholder="Ej: Hotel París Centro">
-                            </div>
-                            <div class="form-group">
-                                <label for="ubicacion">Ubicación</label>
-                                <input type="text" id="ubicacion" name="ubicacion" required placeholder="Dirección completa">
-                            </div>
-                            <div class="form-group">
-                                <label for="tipo">Tipo de Alojamiento</label>
-                                <select id="tipo" name="tipo" required onchange="updateCategoryField()">
-                                    <option value="">Seleccionar tipo</option>
-                                    <option value="hotel">Hotel</option>
-                                    <option value="camping">Camping</option>
-                                    <option value="casa_huespedes">Casa de Huéspedes</option>
-                                    <option value="crucero">Crucero</option>
-                                    <option value="lodge">Lodge</option>
-                                    <option value="atipico">Atípico</option>
-                                    <option value="campamento">Campamento</option>
-                                    <option value="camping_car">Camping Car</option>
-                                    <option value="tren">Tren</option>
-                                </select>
-                            </div>
-                            <div class="form-group" id="categoryGroup" style="display: none;">
-                                <label for="categoria">Categoría (Estrellas)</label>
-                                <select id="categoria" name="categoria">
-                                    <option value="">Sin categoría</option>
-                                    <option value="1">⭐ 1 Estrella</option>
-                                    <option value="2">⭐⭐ 2 Estrellas</option>
-                                    <option value="3">⭐⭐⭐ 3 Estrellas</option>
-                                    <option value="4">⭐⭐⭐⭐ 4 Estrellas</option>
-                                    <option value="5">⭐⭐⭐⭐⭐ 5 Estrellas</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="sitio_web">Sitio Web (Opcional)</label>
-                                <input type="url" id="sitio_web" name="sitio_web" placeholder="https://...">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="descripcion">Descripción</label>
-                            <textarea id="descripcion" name="descripcion" required placeholder="Describe el alojamiento..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Imagen Representativa</label>
-                            <div class="image-upload" onclick="document.getElementById('imagen').click()">
-                                <input type="file" id="imagen" name="imagen" accept="image/*">
-                                <div>📷 Subir Imagen</div>
-                            </div>
-                        </div>
-                        <input type="hidden" id="latitud" name="latitud">
-                        <input type="hidden" id="longitud" name="longitud">
-                    `;
-                    break;
-                    
-                case 'actividades':
-                    fieldsHTML = `
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="nombre">Nombre de la Actividad</label>
-                                <input type="text" id="nombre" name="nombre" required placeholder="Ej: Tour Eiffel">
-                            </div>
-                            <div class="form-group">
-                                <label for="ubicacion">Ubicación</label>
-                                <input type="text" id="ubicacion" name="ubicacion" required placeholder="Lugar donde se realiza">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="descripcion">Descripción</label>
-                            <textarea id="descripcion" name="descripcion" required placeholder="Describe la actividad..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Imágenes (máximo 3)</label>
-                            <div class="images-grid">
-                                <div class="image-upload" onclick="document.getElementById('imagen1').click()">
-                                    <input type="file" id="imagen1" name="imagen1" accept="image/*">
-                                    <div>📷 Imagen 1</div>
-                                </div>
-                                <div class="image-upload" onclick="document.getElementById('imagen2').click()">
-                                    <input type="file" id="imagen2" name="imagen2" accept="image/*">
-                                    <div>📷 Imagen 2</div>
-                                </div>
-                                <div class="image-upload" onclick="document.getElementById('imagen3').click()">
-                                    <input type="file" id="imagen3" name="imagen3" accept="image/*">
-                                    <div>📷 Imagen 3</div>
-                                </div>
-                            </div>
-                        </div>
-                        <input type="hidden" id="latitud" name="latitud">
-                        <input type="hidden" id="longitud" name="longitud">
-                    `;
-                    break;
-                    
-                case 'transportes':
-                    fieldsHTML = `
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="medio">Medio de Transporte</label>
-                                <select id="medio" name="medio" required>
-                                    <option value="">Seleccionar medio</option>
-                                    <option value="bus">🚌 Bus</option>
-                                    <option value="avion">✈️ Avión</option>
-                                    <option value="coche">🚗 Coche</option>
-                                    <option value="barco">🚢 Barco</option>
-                                    <option value="tren">🚂 Tren</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="titulo">Título del Transporte</label>
-                                <input type="text" id="titulo" name="titulo" required placeholder="Ej: Vuelo París-Roma">
-                            </div>
-                            <div class="form-group">
-                                <label for="lugar_salida">Lugar de Salida</label>
-                                <input type="text" id="lugar_salida" name="lugar_salida" required placeholder="Ciudad/Aeropuerto de salida">
-                            </div>
-                            <div class="form-group">
-                                <label for="lugar_llegada">Lugar de Llegada</label>
-                                <input type="text" id="lugar_llegada" name="lugar_llegada" required placeholder="Ciudad/Aeropuerto de llegada">
-                            </div>
-                            <div class="form-group">
-                                <label for="duracion">Duración</label>
-                                <input type="text" id="duracion" name="duracion" placeholder="Ej: 2 horas 30 minutos">
-                            </div>
-                            <div class="form-group">
-                                <label for="distancia_km">Distancia (km)</label>
-                                <input type="number" id="distancia_km" name="distancia_km" step="0.01" placeholder="Distancia en kilómetros">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="descripcion">Descripción</label>
-                            <textarea id="descripcion" name="descripcion" placeholder="Detalles adicionales del transporte..."></textarea>
-                        </div>
-                        <input type="hidden" id="lat_salida" name="lat_salida">
-                        <input type="hidden" id="lng_salida" name="lng_salida">
-                        <input type="hidden" id="lat_llegada" name="lat_llegada">
-                        <input type="hidden" id="lng_llegada" name="lng_llegada">
-                    `;
-                    break;
-            }
-            
-            container.innerHTML = fieldsHTML;
-            setTimeout(() => {
-                setupTransportLocationFields();
-            }, 100);
+        // Submit del formulario - CORREGIDO PARA MANEJAR IMÁGENES
+document.getElementById('resourceForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Guardando...';
+        
+        // Crear FormData para manejar archivos
+        const formData = new FormData(this);
+        
+        const id = document.getElementById('resourceId').value;
+        const type = document.getElementById('resourceType').value;
+        
+        if (id) {
+            formData.append('action', 'update');
+            formData.append('id', id);
+        } else {
+            formData.append('action', 'create');
         }
+        
+        formData.append('type', type);
+        
+        // Realizar petición
+        const response = await fetch(`${APP_URL}/biblioteca/api`, {
+            method: 'POST',
+            body: formData // No establecer Content-Type, el navegador lo hará automáticamente
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error desconocido');
+        }
+        
+        // Éxito
+        alert(result.message || 'Operación exitosa');
+        closeModal();
+        loadResources();
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al guardar: ' + error.message);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+});
+
+// Función mejorada para manejar la vista previa de imágenes
+function setupImagePreviews() {
+    // Configurar vista previa para todos los inputs de imagen
+    const imageInputs = document.querySelectorAll('input[type="file"][accept*="image"]');
+    
+    imageInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            handleImagePreview(this);
+        });
+    });
+}
+
+// Función mejorada para manejar la vista previa de imágenes
+function handleImagePreview(input) {
+    const file = input.files[0];
+    const container = input.closest('.image-upload') || input.parentElement;
+    
+    // Remover vista previa anterior
+    const existingPreview = container.querySelector('.image-preview');
+    const existingIndicator = container.querySelector('.existing-image-indicator');
+    if (existingPreview) existingPreview.remove();
+    if (existingIndicator) existingIndicator.remove();
+    
+    if (file) {
+        // Validar archivo
+        if (!file.type.startsWith('image/')) {
+            alert('Por favor selecciona un archivo de imagen válido');
+            input.value = '';
+            return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) {
+            alert('El archivo es demasiado grande. Máximo 5MB permitido');
+            input.value = '';
+            return;
+        }
+        
+        // Crear vista previa
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.createElement('img');
+            preview.src = e.target.result;
+            preview.className = 'image-preview new';
+            preview.style.cssText = `
+                max-width: 100%;
+                max-height: 150px;
+                border-radius: 8px;
+                margin-top: 10px;
+                object-fit: cover;
+                border: 2px solid #3b82f6;
+            `;
+            
+            // Agregar indicador de nueva imagen
+            const indicator = document.createElement('div');
+            indicator.className = 'new-image-indicator';
+            indicator.style.cssText = `
+                background: #3b82f6;
+                color: white;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 10px;
+                margin-top: 5px;
+                text-align: center;
+            `;
+            indicator.textContent = '🆕 Nueva imagen';
+            
+            container.appendChild(preview);
+            container.appendChild(indicator);
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Función mejorada para cargar campos específicos
+function loadSpecificFields() {
+    const container = document.getElementById('specificFields');
+    let fieldsHTML = '';
+    
+    switch(currentTab) {
+        case 'dias':
+            fieldsHTML = `
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="titulo">Título de la Jornada</label>
+                        <input type="text" id="titulo" name="titulo" required placeholder="Ej: Día en París">
+                    </div>
+                    <div class="form-group">
+                        <label for="ubicacion">Ubicación</label>
+                        <input type="text" id="ubicacion" name="ubicacion" required placeholder="Ciudad, País">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="descripcion">Descripción</label>
+                    <textarea id="descripcion" name="descripcion" required placeholder="Describe las actividades del día..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Imágenes (máximo 3)</label>
+                    <div class="images-grid">
+                        <div class="image-upload" onclick="document.getElementById('imagen1').click()">
+                            <input type="file" id="imagen1" name="imagen1" accept="image/*" style="display: none;">
+                            <div class="upload-content">
+                                <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
+                                <div>Imagen 1</div>
+                                <div style="font-size: 12px; color: #718096;">Click para seleccionar</div>
+                            </div>
+                        </div>
+                        <div class="image-upload" onclick="document.getElementById('imagen2').click()">
+                            <input type="file" id="imagen2" name="imagen2" accept="image/*" style="display: none;">
+                            <div class="upload-content">
+                                <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
+                                <div>Imagen 2</div>
+                                <div style="font-size: 12px; color: #718096;">Click para seleccionar</div>
+                            </div>
+                        </div>
+                        <div class="image-upload" onclick="document.getElementById('imagen3').click()">
+                            <input type="file" id="imagen3" name="imagen3" accept="image/*" style="display: none;">
+                            <div class="upload-content">
+                                <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
+                                <div>Imagen 3</div>
+                                <div style="font-size: 12px; color: #718096;">Click para seleccionar</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="latitud" name="latitud">
+                <input type="hidden" id="longitud" name="longitud">
+            `;
+            break;
+            
+        case 'alojamientos':
+            fieldsHTML = `
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="nombre">Nombre del Alojamiento</label>
+                        <input type="text" id="nombre" name="nombre" required placeholder="Ej: Hotel París Centro">
+                    </div>
+                    <div class="form-group">
+                        <label for="ubicacion">Ubicación</label>
+                        <input type="text" id="ubicacion" name="ubicacion" required placeholder="Dirección completa">
+                    </div>
+                    <div class="form-group">
+                        <label for="tipo">Tipo de Alojamiento</label>
+                        <select id="tipo" name="tipo" required onchange="updateCategoryField()">
+                            <option value="">Seleccionar tipo</option>
+                            <option value="hotel">Hotel</option>
+                            <option value="camping">Camping</option>
+                            <option value="casa_huespedes">Casa de Huéspedes</option>
+                            <option value="crucero">Crucero</option>
+                            <option value="lodge">Lodge</option>
+                            <option value="atipico">Atípico</option>
+                            <option value="campamento">Campamento</option>
+                            <option value="camping_car">Camping Car</option>
+                            <option value="tren">Tren</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="categoryGroup" style="display: none;">
+                        <label for="categoria">Categoría (Estrellas)</label>
+                        <select id="categoria" name="categoria">
+                            <option value="">Sin categoría</option>
+                            <option value="1">⭐ 1 Estrella</option>
+                            <option value="2">⭐⭐ 2 Estrellas</option>
+                            <option value="3">⭐⭐⭐ 3 Estrellas</option>
+                            <option value="4">⭐⭐⭐⭐ 4 Estrellas</option>
+                            <option value="5">⭐⭐⭐⭐⭐ 5 Estrellas</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sitio_web">Sitio Web (Opcional)</label>
+                        <input type="url" id="sitio_web" name="sitio_web" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="descripcion">Descripción</label>
+                    <textarea id="descripcion" name="descripcion" required placeholder="Describe el alojamiento..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Imagen Representativa</label>
+                    <div class="image-upload" onclick="document.getElementById('imagen').click()">
+                        <input type="file" id="imagen" name="imagen" accept="image/*" style="display: none;">
+                        <div class="upload-content">
+                            <div style="font-size: 32px; margin-bottom: 8px;">📷</div>
+                            <div>Subir Imagen</div>
+                            <div style="font-size: 12px; color: #718096;">Click para seleccionar archivo</div>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="latitud" name="latitud">
+                <input type="hidden" id="longitud" name="longitud">
+            `;
+            break;
+            
+        case 'actividades':
+            fieldsHTML = `
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="nombre">Nombre de la Actividad</label>
+                        <input type="text" id="nombre" name="nombre" required placeholder="Ej: Tour Eiffel">
+                    </div>
+                    <div class="form-group">
+                        <label for="ubicacion">Ubicación</label>
+                        <input type="text" id="ubicacion" name="ubicacion" required placeholder="Lugar donde se realiza">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="descripcion">Descripción</label>
+                    <textarea id="descripcion" name="descripcion" required placeholder="Describe la actividad..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Imágenes (máximo 3)</label>
+                    <div class="images-grid">
+                        <div class="image-upload" onclick="document.getElementById('imagen1').click()">
+                            <input type="file" id="imagen1" name="imagen1" accept="image/*" style="display: none;">
+                            <div class="upload-content">
+                                <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
+                                <div>Imagen 1</div>
+                                <div style="font-size: 12px; color: #718096;">Click para seleccionar</div>
+                            </div>
+                        </div>
+                        <div class="image-upload" onclick="document.getElementById('imagen2').click()">
+                            <input type="file" id="imagen2" name="imagen2" accept="image/*" style="display: none;">
+                            <div class="upload-content">
+                                <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
+                                <div>Imagen 2</div>
+                                <div style="font-size: 12px; color: #718096;">Click para seleccionar</div>
+                            </div>
+                        </div>
+                        <div class="image-upload" onclick="document.getElementById('imagen3').click()">
+                            <input type="file" id="imagen3" name="imagen3" accept="image/*" style="display: none;">
+                            <div class="upload-content">
+                                <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
+                                <div>Imagen 3</div>
+                                <div style="font-size: 12px; color: #718096;">Click para seleccionar</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="latitud" name="latitud">
+                <input type="hidden" id="longitud" name="longitud">
+            `;
+            break;
+            
+        case 'transportes':
+            fieldsHTML = `
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="medio">Medio de Transporte</label>
+                        <select id="medio" name="medio" required>
+                            <option value="">Seleccionar medio</option>
+                            <option value="bus">🚌 Bus</option>
+                            <option value="avion">✈️ Avión</option>
+                            <option value="coche">🚗 Coche</option>
+                            <option value="barco">🚢 Barco</option>
+                            <option value="tren">🚂 Tren</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="titulo">Título del Transporte</label>
+                        <input type="text" id="titulo" name="titulo" required placeholder="Ej: Vuelo París-Roma">
+                    </div>
+                    <div class="form-group">
+                        <label for="lugar_salida">Lugar de Salida</label>
+                        <input type="text" id="lugar_salida" name="lugar_salida" required placeholder="Ciudad/Aeropuerto de salida">
+                    </div>
+                    <div class="form-group">
+                        <label for="lugar_llegada">Lugar de Llegada</label>
+                        <input type="text" id="lugar_llegada" name="lugar_llegada" required placeholder="Ciudad/Aeropuerto de llegada">
+                    </div>
+                    <div class="form-group">
+                        <label for="duracion">Duración</label>
+                        <input type="text" id="duracion" name="duracion" placeholder="Ej: 2 horas 30 minutos">
+                    </div>
+                    <div class="form-group">
+                        <label for="distancia_km">Distancia (km)</label>
+                        <input type="number" id="distancia_km" name="distancia_km" step="0.01" placeholder="Distancia en kilómetros">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="descripcion">Descripción</label>
+                    <textarea id="descripcion" name="descripcion" placeholder="Detalles adicionales del transporte..."></textarea>
+                </div>
+                <input type="hidden" id="lat_salida" name="lat_salida">
+                <input type="hidden" id="lng_salida" name="lng_salida">
+                <input type="hidden" id="lat_llegada" name="lat_llegada">
+                <input type="hidden" id="lng_llegada" name="lng_llegada">
+            `;
+            break;
+    }
+    
+    container.innerHTML = fieldsHTML;
+    
+    // Configurar vista previa de imágenes después de cargar los campos
+    setTimeout(() => {
+        setupImagePreviews();
+        setupTransportLocationFields();
+    }, 100);
+}
+        
         // Función para configurar autocompletado bidireccional
 function setupLocationAutocomplete() {
     const ubicacionField = document.getElementById('ubicacion');
@@ -1809,21 +2067,124 @@ function removeSuggestions() {
             }
         }
 
-        function loadResourceData(id) {
-            const resource = resources[currentTab].find(item => item.id == id);
-            if (resource) {
-                Object.keys(resource).forEach(key => {
-                    const field = document.getElementById(key);
-                    if (field) {
-                        field.value = resource[key];
-                    }
-                });
+        // Cargar datos de recurso para editar - MEJORADO
+function loadResourceData(id) {
+    const resource = resources[currentTab].find(r => r.id == id);
+    if (resource) {
+        console.log('Cargando recurso:', resource);
+        
+        document.getElementById('resourceId').value = resource.id;
+        
+        // Cargar campos comunes
+        const commonFields = ['idioma', 'descripcion'];
+        commonFields.forEach(field => {
+            const element = document.getElementById(field);
+            if (element && resource[field]) {
+                element.value = resource[field];
+            }
+        });
+        
+        // Cargar campos específicos por tipo
+        switch(currentTab) {
+            case 'dias':
+                setFieldValue('titulo', resource.titulo);
+                setFieldValue('ubicacion', resource.ubicacion);
+                setFieldValue('latitud', resource.latitud);
+                setFieldValue('longitud', resource.longitud);
+                loadImagePreviews(['imagen1', 'imagen2', 'imagen3'], resource);
+                break;
                 
-                if (currentTab === 'alojamientos') {
-                    updateCategoryField();
+            case 'alojamientos':
+                setFieldValue('nombre', resource.nombre);
+                setFieldValue('ubicacion', resource.ubicacion);
+                setFieldValue('tipo', resource.tipo);
+                setFieldValue('categoria', resource.categoria);
+                setFieldValue('sitio_web', resource.sitio_web);
+                setFieldValue('latitud', resource.latitud);
+                setFieldValue('longitud', resource.longitud);
+                loadImagePreviews(['imagen'], resource);
+                updateCategoryField(); // Actualizar visibilidad de categoría
+                break;
+                
+            case 'actividades':
+                setFieldValue('nombre', resource.nombre);
+                setFieldValue('ubicacion', resource.ubicacion);
+                setFieldValue('latitud', resource.latitud);
+                setFieldValue('longitud', resource.longitud);
+                loadImagePreviews(['imagen1', 'imagen2', 'imagen3'], resource);
+                break;
+                
+            case 'transportes':
+                setFieldValue('medio', resource.medio);
+                setFieldValue('titulo', resource.titulo);
+                setFieldValue('lugar_salida', resource.lugar_salida);
+                setFieldValue('lugar_llegada', resource.lugar_llegada);
+                setFieldValue('duracion', resource.duracion);
+                setFieldValue('distancia_km', resource.distancia_km);
+                setFieldValue('lat_salida', resource.lat_salida);
+                setFieldValue('lng_salida', resource.lng_salida);
+                setFieldValue('lat_llegada', resource.lat_llegada);
+                setFieldValue('lng_llegada', resource.lng_llegada);
+                break;
+        }
+    }
+}
+
+// NUEVA FUNCIÓN: Establecer valor de campo
+function setFieldValue(fieldId, value) {
+    const element = document.getElementById(fieldId);
+    if (element && value) {
+        element.value = value;
+    }
+}
+
+// NUEVA FUNCIÓN: Cargar previsualizaciones de imágenes existentes
+function loadImagePreviews(imageFields, resource) {
+    imageFields.forEach(field => {
+        if (resource[field]) {
+            const input = document.getElementById(field);
+            if (input) {
+                const container = input.closest('.image-upload') || input.parentElement;
+                
+                // Remover vista previa anterior
+                const existingPreview = container.querySelector('.image-preview');
+                if (existingPreview) {
+                    existingPreview.remove();
                 }
+                
+                // Crear vista previa de imagen existente
+                const preview = document.createElement('img');
+                preview.src = resource[field];
+                preview.className = 'image-preview existing';
+                preview.style.cssText = `
+                    max-width: 100%;
+                    max-height: 150px;
+                    border-radius: 8px;
+                    margin-top: 10px;
+                    object-fit: cover;
+                    border: 2px solid #10b981;
+                `;
+                
+                // Agregar indicador de imagen existente
+                const indicator = document.createElement('div');
+                indicator.className = 'existing-image-indicator';
+                indicator.style.cssText = `
+                    background: #10b981;
+                    color: white;
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    margin-top: 5px;
+                    text-align: center;
+                `;
+                indicator.textContent = '✅ Imagen actual';
+                
+                container.appendChild(preview);
+                container.appendChild(indicator);
             }
         }
+    });
+}
 
         // Submit del formulario
         document.getElementById('resourceForm').addEventListener('submit', function(e) {
@@ -1988,6 +2349,13 @@ function removeSuggestions() {
                 fieldsFound: document.querySelectorAll('#ubicacion, #lugar_salida, #lugar_llegada').length
             });
         };
+
+        // Agregar los estilos adicionales
+document.addEventListener('DOMContentLoaded', function() {
+    const style = document.createElement('style');
+    style.textContent = additionalCSS;
+    document.head.appendChild(style);
+});
 </script>
 
 </body>

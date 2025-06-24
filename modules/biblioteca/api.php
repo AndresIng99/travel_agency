@@ -1,6 +1,6 @@
 <?php
 // =====================================
-// ARCHIVO: modules/biblioteca/api.php - API Completa de Biblioteca
+// ARCHIVO: modules/biblioteca/api.php - API CON SISTEMA ORGANIZADO DE IMÁGENES
 // =====================================
 
 App::requireLogin();
@@ -36,6 +36,7 @@ class BibliotecaAPI {
                     throw new Exception('Acción no válida');
             }
         } catch(Exception $e) {
+            error_log("BibliotecaAPI Error: " . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
@@ -90,46 +91,238 @@ class BibliotecaAPI {
     
     private function createResource($type) {
         $table = "biblioteca_" . $type;
+        
+        // Preparar datos del formulario primero
         $data = $this->prepareData($type, $_POST);
         $data['user_id'] = $_SESSION['user_id'];
         
         // Validar datos requeridos
         $this->validateData($type, $data);
         
-        $id = $this->db->insert($table, $data);
+        // Insertar el recurso primero para obtener el ID
+        $fields = array_keys($data);
+        $placeholders = array_fill(0, count($fields), '?');
+        $values = array_values($data);
+        
+        $sql = "INSERT INTO {$table} (`" . implode('`, `', $fields) . "`) VALUES (" . implode(', ', $placeholders) . ")";
+        
+        $stmt = $this->db->query($sql, $values);
+        $id = $this->db->getConnection()->lastInsertId();
+        
+        // Ahora procesar imágenes con el ID del recurso
+        $imageUrls = $this->processImagesOrganized($type, $id, $data);
+        
+        // Actualizar el recurso con las URLs de imágenes si existen
+        if (!empty($imageUrls)) {
+            $updateFields = [];
+            $updateValues = [];
+            
+            foreach ($imageUrls as $field => $url) {
+                $updateFields[] = "`{$field}` = ?";
+                $updateValues[] = $url;
+            }
+            
+            if (!empty($updateFields)) {
+                $updateValues[] = $id;
+                $updateSql = "UPDATE {$table} SET " . implode(', ', $updateFields) . " WHERE id = ?";
+                $this->db->query($updateSql, $updateValues);
+            }
+        }
+        
         return ['success' => true, 'id' => $id, 'message' => 'Recurso creado correctamente'];
     }
     
     private function updateResource($type) {
         $table = "biblioteca_" . $type;
-        $id = $_POST['id'];
-        $data = $this->prepareData($type, $_POST);
+        $id = (int)$_POST['id'];
+        
+        if (!$id) {
+            throw new Exception('ID de recurso no válido');
+        }
         
         // Validar que el recurso pertenece al usuario
-        $existing = $this->db->fetch("SELECT user_id FROM {$table} WHERE id = ?", [$id]);
-        if (!$existing || $existing['user_id'] != $_SESSION['user_id']) {
+        $existing = $this->db->fetch("SELECT * FROM {$table} WHERE id = ?", [$id]);
+        if (!$existing) {
+            throw new Exception('Recurso no encontrado');
+        }
+        
+        if ($existing['user_id'] != $_SESSION['user_id']) {
             throw new Exception('No tienes permisos para editar este recurso');
         }
         
+        // Preparar datos del formulario
+        $data = $this->prepareData($type, $_POST);
         $this->validateData($type, $data);
         
-        $this->db->update($table, $data, 'id = ?', [$id]);
+        // Procesar nuevas imágenes si existen
+        $imageUrls = $this->processImagesOrganized($type, $id, array_merge($existing, $data));
+        
+        // Agregar URLs de imágenes al update
+        foreach ($imageUrls as $field => $url) {
+            if (!empty($url)) {
+                $data[$field] = $url;
+            }
+        }
+        
+        // Actualizar recurso
+        if (!empty($data)) {
+            $setParts = [];
+            $values = [];
+            
+            foreach ($data as $key => $value) {
+                $setParts[] = "`{$key}` = ?";
+                $values[] = $value;
+            }
+            
+            $values[] = $id;
+            $sql = "UPDATE {$table} SET " . implode(', ', $setParts) . " WHERE id = ?";
+            
+            $this->db->query($sql, $values);
+        }
+        
         return ['success' => true, 'message' => 'Recurso actualizado correctamente'];
     }
     
     private function deleteResource($type) {
         $table = "biblioteca_" . $type;
-        $id = $_POST['id'];
+        $id = (int)$_POST['id'];
+        
+        if (!$id) {
+            throw new Exception('ID de recurso no válido');
+        }
         
         // Validar que el recurso pertenece al usuario
         $existing = $this->db->fetch("SELECT user_id FROM {$table} WHERE id = ?", [$id]);
-        if (!$existing || $existing['user_id'] != $_SESSION['user_id']) {
+        if (!$existing) {
+            throw new Exception('Recurso no encontrado');
+        }
+        
+        if ($existing['user_id'] != $_SESSION['user_id']) {
             throw new Exception('No tienes permisos para eliminar este recurso');
         }
         
         // Soft delete
-        $this->db->update($table, ['activo' => 0], 'id = ?', [$id]);
+        $this->db->query("UPDATE {$table} SET activo = 0 WHERE id = ?", [$id]);
         return ['success' => true, 'message' => 'Recurso eliminado correctamente'];
+    }
+    
+    // NUEVA FUNCIÓN: Procesar imágenes de forma organizada
+    private function processImagesOrganized($type, $resourceId, $resourceData) {
+        $imageFields = $this->getImageFields($type);
+        $imageUrls = [];
+        
+        foreach ($imageFields as $field) {
+            if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
+                try {
+                    $url = $this->uploadSingleImageOrganized($_FILES[$field], $type, $resourceId, $field, $resourceData);
+                    $imageUrls[$field] = $url;
+                } catch (Exception $e) {
+                    error_log("Error uploading image for field {$field}: " . $e->getMessage());
+                    throw new Exception("Error al subir {$field}: " . $e->getMessage());
+                }
+            }
+        }
+        
+        return $imageUrls;
+    }
+    
+    // NUEVA FUNCIÓN: Subir imagen con organización
+    private function uploadSingleImageOrganized($file, $type, $resourceId, $field, $resourceData) {
+        // Validar archivo
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!in_array($file['type'], $allowedTypes)) {
+            throw new Exception('Tipo de archivo no permitido. Solo JPG, PNG, GIF, WebP');
+        }
+        
+        if ($file['size'] > 5 * 1024 * 1024) { // 5MB
+            throw new Exception('El archivo es demasiado grande (máximo 5MB)');
+        }
+        
+        // Crear estructura de carpetas organizada
+        $baseDir = dirname(__DIR__, 2) . '/assets/uploads/biblioteca/';
+        $yearMonth = date('Y/m'); // Ej: 2025/01
+        $typeDir = $baseDir . $type . '/' . $yearMonth . '/';
+        
+        if (!is_dir($typeDir)) {
+            if (!mkdir($typeDir, 0755, true)) {
+                throw new Exception('No se pudo crear el directorio de uploads');
+            }
+        }
+        
+        // Generar nombre descriptivo
+        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $resourceName = $this->getResourceName($type, $resourceData);
+        $cleanName = $this->cleanFileName($resourceName);
+        
+        // Nomenclatura: tipo_id_nombre_campo_timestamp.ext
+        // Ej: dias_123_paris-dia1_imagen1_20250101120000.jpg
+        $fileName = sprintf(
+            "%s_%d_%s_%s_%s.%s",
+            $type,
+            $resourceId,
+            $cleanName,
+            $field,
+            date('YmdHis'),
+            $extension
+        );
+        
+        $filePath = $typeDir . $fileName;
+        
+        if (move_uploaded_file($file['tmp_name'], $filePath)) {
+            // Retornar URL relativa organizada
+            $relativeUrl = '/assets/uploads/biblioteca/' . $type . '/' . $yearMonth . '/' . $fileName;
+            return APP_URL . $relativeUrl;
+        } else {
+            throw new Exception('Error al mover el archivo subido');
+        }
+    }
+    
+    // NUEVA FUNCIÓN: Obtener nombre del recurso para el archivo
+    private function getResourceName($type, $data) {
+        switch($type) {
+            case 'dias':
+                return $data['titulo'] ?? 'sin-titulo';
+            case 'alojamientos':
+            case 'actividades':
+                return $data['nombre'] ?? 'sin-nombre';
+            case 'transportes':
+                return $data['titulo'] ?? 'sin-titulo';
+            default:
+                return 'recurso';
+        }
+    }
+    
+    // NUEVA FUNCIÓN: Limpiar nombre de archivo
+    private function cleanFileName($name) {
+        // Convertir a minúsculas
+        $name = strtolower($name);
+        
+        // Reemplazar caracteres especiales
+        $name = str_replace(['á','é','í','ó','ú','ñ','ü'], ['a','e','i','o','u','n','u'], $name);
+        
+        // Remover caracteres no permitidos
+        $name = preg_replace('/[^a-z0-9\s\-]/', '', $name);
+        
+        // Reemplazar espacios y múltiples guiones
+        $name = preg_replace('/[\s\-]+/', '-', $name);
+        
+        // Limitar longitud
+        $name = substr($name, 0, 30);
+        
+        // Remover guiones al inicio y final
+        return trim($name, '-');
+    }
+    
+    private function getImageFields($type) {
+        switch($type) {
+            case 'dias':
+            case 'actividades':
+                return ['imagen1', 'imagen2', 'imagen3'];
+            case 'alojamientos':
+                return ['imagen'];
+            default:
+                return [];
+        }
     }
     
     private function prepareData($type, $postData) {
@@ -137,15 +330,15 @@ class BibliotecaAPI {
         
         switch($type) {
             case 'dias':
-                $fields = [...$commonFields, 'titulo', 'ubicacion', 'latitud', 'longitud', 'imagen1', 'imagen2', 'imagen3'];
+                $fields = [...$commonFields, 'titulo', 'ubicacion', 'latitud', 'longitud'];
                 break;
                 
             case 'alojamientos':
-                $fields = [...$commonFields, 'nombre', 'ubicacion', 'tipo', 'categoria', 'latitud', 'longitud', 'sitio_web', 'imagen'];
+                $fields = [...$commonFields, 'nombre', 'ubicacion', 'tipo', 'categoria', 'latitud', 'longitud', 'sitio_web'];
                 break;
                 
             case 'actividades':
-                $fields = [...$commonFields, 'nombre', 'ubicacion', 'latitud', 'longitud', 'imagen1', 'imagen2', 'imagen3'];
+                $fields = [...$commonFields, 'nombre', 'ubicacion', 'latitud', 'longitud'];
                 break;
                 
             case 'transportes':
@@ -159,7 +352,10 @@ class BibliotecaAPI {
         $data = [];
         foreach($fields as $field) {
             if (isset($postData[$field])) {
-                $data[$field] = trim($postData[$field]);
+                $value = trim($postData[$field]);
+                if ($value !== '') {
+                    $data[$field] = $value;
+                }
             }
         }
         
@@ -213,18 +409,18 @@ class BibliotecaAPI {
         }
         
         // Crear directorio si no existe
-        $uploadDir = BASE_PATH . '/assets/uploads/biblioteca/';
+        $uploadDir = dirname(__DIR__, 2) . '/assets/uploads/biblioteca/misc/';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
         
         // Generar nombre único
         $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $fileName = uniqid() . '_' . time() . '.' . $extension;
+        $fileName = 'misc_' . uniqid() . '_' . time() . '.' . $extension;
         $filePath = $uploadDir . $fileName;
         
         if (move_uploaded_file($file['tmp_name'], $filePath)) {
-            $url = APP_URL . '/assets/uploads/biblioteca/' . $fileName;
+            $url = APP_URL . '/assets/uploads/biblioteca/misc/' . $fileName;
             return ['success' => true, 'url' => $url, 'filename' => $fileName];
         } else {
             throw new Exception('Error al subir la imagen');
