@@ -1910,5 +1910,85 @@ function removeSuggestions() {
             }
         });
     </script>
+
+    <!-- Script del sistema de autocompletado -->
+    <script src="<?= APP_URL ?>/assets/js/location-autocomplete.js"></script>
+    
+    <script>
+        // =====================================
+        // INTEGRACIÓN CON EL SISTEMA EXISTENTE
+        // =====================================
+        
+        // Modificar la función openModal existente
+        (function() {
+            const originalOpenModal = window.openModal;
+            window.openModal = function(mode, id = null) {
+                // Llamar función original
+                originalOpenModal.call(this, mode, id);
+                
+                // Inicializar súper autocompletado
+                setTimeout(() => {
+                    if (window.superLocationAutocomplete) {
+                        window.superLocationAutocomplete.initialize();
+                        console.log('🌍 SUPER autocompletado inicializado en modal');
+                    }
+                }, 300);
+            };
+        })();
+        
+        // Modificar función closeModal existente  
+        (function() {
+            const originalCloseModal = window.closeModal;
+            window.closeModal = function() {
+                // Limpiar súper autocompletado
+                if (window.superLocationAutocomplete) {
+                    window.superLocationAutocomplete.removeSuggestions();
+                }
+                
+                // Llamar función original
+                originalCloseModal.call(this);
+            };
+        })();
+        
+        // Modificar función loadSpecificFields existente
+        (function() {
+            const originalLoadSpecificFields = window.loadSpecificFields;
+            window.loadSpecificFields = function() {
+                // Llamar función original
+                originalLoadSpecificFields.call(this);
+                
+                // Inicializar súper autocompletado para nuevos campos
+                setTimeout(() => {
+                    if (window.superLocationAutocomplete) {
+                        window.superLocationAutocomplete.initialize();
+                        console.log('🗺️ Campos específicos configurados con SUPER autocompletado');
+                    }
+                }, 150);
+            };
+        })();
+        
+        // Inicialización automática cuando se detecten campos
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📚 Biblioteca con SÚPER autocompletado lista');
+            
+            // Verificar si ya hay campos presentes
+            const existingFields = document.querySelectorAll('#ubicacion, #lugar_salida, #lugar_llegada');
+            if (existingFields.length > 0) {
+                setTimeout(() => {
+                    initializeSuperLocationAutocomplete();
+                }, 500);
+            }
+        });
+
+        // Función para debugging desde consola del navegador
+        window.debugBibliotecaAutocomplete = function() {
+            console.log('🔍 DEBUG INFO:', {
+                autocompleteLoaded: !!window.superLocationAutocomplete,
+                debugInfo: window.superLocationAutocomplete ? window.superLocationAutocomplete.getDebugInfo() : null,
+                fieldsFound: document.querySelectorAll('#ubicacion, #lugar_salida, #lugar_llegada').length
+            });
+        };
+</script>
+
 </body>
 </html>
