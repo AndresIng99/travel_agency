@@ -1,6 +1,6 @@
 <?php
 // =====================================
-// ARCHIVO: pages/admin.php - Panel de Administrador Completo
+// ARCHIVO: pages/admin.php - Panel REAL de Administrador
 // =====================================
 ?>
 <?php 
@@ -84,6 +84,11 @@ $user = App::getUser();
             padding: 25px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             border-left: 4px solid #e53e3e;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
         }
 
         .stat-header {
@@ -111,17 +116,10 @@ $user = App::getUser();
             color: #2d3748;
         }
 
-        .stat-change {
-            font-size: 12px;
-            margin-top: 5px;
-        }
-
-        .stat-increase {
-            color: #2f855a;
-        }
-
-        .stat-decrease {
-            color: #e53e3e;
+        .stat-loading {
+            font-size: 16px;
+            color: #718096;
+            font-style: italic;
         }
 
         /* Management Sections */
@@ -167,6 +165,10 @@ $user = App::getUser();
         }
 
         /* Users Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
         .users-table {
             width: 100%;
             border-collapse: collapse;
@@ -259,6 +261,7 @@ $user = App::getUser();
         .action-buttons {
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
         }
 
         .action-btn {
@@ -297,42 +300,49 @@ $user = App::getUser();
             background: #c6f6d5;
         }
 
-        /* Configuration Section */
-        .config-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+        .btn-toggle.inactive {
+            background: #fbb6ce;
+            color: #97266d;
         }
 
-        .config-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 15px;
-            padding: 20px;
-            transition: all 0.3s ease;
-            cursor: pointer;
+        /* Loading Spinner */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
         }
 
-        .config-card:hover {
-            border-color: #e53e3e;
-            box-shadow: 0 5px 15px rgba(229, 62, 62, 0.1);
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #e53e3e;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
         }
 
-        .config-icon {
-            font-size: 32px;
-            margin-bottom: 15px;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        .config-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 8px;
+        .error-message {
+            background: #fed7d7;
+            color: #e53e3e;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #feb2b2;
         }
 
-        .config-description {
-            color: #718096;
-            font-size: 14px;
-            line-height: 1.5;
+        .success-message {
+            background: #c6f6d5;
+            color: #2f855a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #9ae6b4;
         }
 
         /* Modal Styles */
@@ -445,26 +455,30 @@ $user = App::getUser();
             font-weight: 500;
         }
 
-        /* Loading Spinner */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 10000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #e53e3e;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+        .toast.show {
+            transform: translateX(0);
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .toast.success {
+            background: #2f855a;
+        }
+
+        .toast.error {
+            background: #e53e3e;
         }
 
         /* Responsive */
@@ -474,10 +488,6 @@ $user = App::getUser();
             }
 
             .stats-section {
-                grid-template-columns: 1fr;
-            }
-
-            .config-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -497,6 +507,10 @@ $user = App::getUser();
 
             .form-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                flex-direction: column;
             }
         }
     </style>
@@ -524,8 +538,9 @@ $user = App::getUser();
                     <div class="stat-title">Total Usuarios</div>
                     <div class="stat-icon">👥</div>
                 </div>
-                <div class="stat-number" id="totalUsers">-</div>
-                <div class="stat-change stat-increase">↗ +2 este mes</div>
+                <div class="stat-number" id="totalUsers">
+                    <div class="stat-loading">Cargando...</div>
+                </div>
             </div>
 
             <div class="stat-card">
@@ -533,8 +548,9 @@ $user = App::getUser();
                     <div class="stat-title">Programas Activos</div>
                     <div class="stat-icon">✈️</div>
                 </div>
-                <div class="stat-number" id="totalPrograms">-</div>
-                <div class="stat-change stat-increase">↗ +15 esta semana</div>
+                <div class="stat-number" id="totalPrograms">
+                    <div class="stat-loading">Cargando...</div>
+                </div>
             </div>
 
             <div class="stat-card">
@@ -542,8 +558,9 @@ $user = App::getUser();
                     <div class="stat-title">Recursos Biblioteca</div>
                     <div class="stat-icon">📚</div>
                 </div>
-                <div class="stat-number" id="totalResources">-</div>
-                <div class="stat-change stat-increase">↗ +8 hoy</div>
+                <div class="stat-number" id="totalResources">
+                    <div class="stat-loading">Cargando...</div>
+                </div>
             </div>
 
             <div class="stat-card">
@@ -551,8 +568,9 @@ $user = App::getUser();
                     <div class="stat-title">Sesiones Activas</div>
                     <div class="stat-icon">🔗</div>
                 </div>
-                <div class="stat-number" id="activeSessions">-</div>
-                <div class="stat-change stat-decrease">↘ -3 vs ayer</div>
+                <div class="stat-number" id="activeSessions">
+                    <div class="stat-loading">Cargando...</div>
+                </div>
             </div>
         </div>
 
@@ -571,68 +589,24 @@ $user = App::getUser();
                 <p>Cargando usuarios...</p>
             </div>
 
-            <table class="users-table" id="usersTable" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>Usuario</th>
-                        <th>Email</th>
-                        <th>Rol</th>
-                        <th>Estado</th>
-                        <th>Último Acceso</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="usersTableBody">
-                    <!-- Los usuarios se cargan dinámicamente -->
-                </tbody>
-            </table>
-        </div>
+            <div id="usersError" class="error-message" style="display: none;"></div>
 
-        <!-- System Configuration -->
-        <div class="management-section">
-            <div class="section-header">
-                <h2 class="section-title">
-                    <span>⚙️</span>
-                    Configuración del Sistema
-                </h2>
-            </div>
-
-            <div class="config-grid">
-                <div class="config-card" onclick="openConfigModal('company')">
-                    <div class="config-icon">🏢</div>
-                    <div class="config-title">Información de Empresa</div>
-                    <div class="config-description">Configura el nombre, logo y colores de la empresa</div>
-                </div>
-
-                <div class="config-card" onclick="openConfigModal('appearance')">
-                    <div class="config-icon">🎨</div>
-                    <div class="config-title">Apariencia</div>
-                    <div class="config-description">Personaliza colores, temas y elementos visuales</div>
-                </div>
-
-                <div class="config-card" onclick="openConfigModal('integrations')">
-                    <div class="config-icon">🔗</div>
-                    <div class="config-title">Integraciones</div>
-                    <div class="config-description">Configura APIs de Mapbox, Google Translate y más</div>
-                </div>
-
-                <div class="config-card" onclick="openConfigModal('security')">
-                    <div class="config-icon">🔒</div>
-                    <div class="config-title">Seguridad</div>
-                    <div class="config-description">Gestiona políticas de seguridad y acceso</div>
-                </div>
-
-                <div class="config-card" onclick="openConfigModal('backup')">
-                    <div class="config-icon">💾</div>
-                    <div class="config-title">Respaldos</div>
-                    <div class="config-description">Configura respaldos automáticos de datos</div>
-                </div>
-
-                <div class="config-card" onclick="openConfigModal('reports')">
-                    <div class="config-icon">📊</div>
-                    <div class="config-title">Reportes</div>
-                    <div class="config-description">Configura reportes automáticos y estadísticas</div>
-                </div>
+            <div class="table-container">
+                <table class="users-table" id="usersTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Último Acceso</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Los usuarios se cargan dinámicamente -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -650,22 +624,22 @@ $user = App::getUser();
 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="username">Nombre de Usuario</label>
-                        <input type="text" id="username" name="username" required placeholder="usuario123">
+                        <label for="username">Nombre de Usuario *</label>
+                        <input type="text" id="username" name="username" required placeholder="usuario123" maxlength="50">
                     </div>
 
                     <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="email" required placeholder="usuario@ejemplo.com">
+                        <label for="email">Email *</label>
+                        <input type="email" id="email" name="email" required placeholder="usuario@ejemplo.com" maxlength="100">
                     </div>
 
                     <div class="form-group">
-                        <label for="full_name">Nombre Completo</label>
-                        <input type="text" id="full_name" name="full_name" required placeholder="Juan Pérez">
+                        <label for="full_name">Nombre Completo *</label>
+                        <input type="text" id="full_name" name="full_name" required placeholder="Juan Pérez" maxlength="100">
                     </div>
 
                     <div class="form-group">
-                        <label for="role">Rol</label>
+                        <label for="role">Rol *</label>
                         <select id="role" name="role" required>
                             <option value="">Seleccionar rol</option>
                             <option value="agent">Agente de Viajes</option>
@@ -674,8 +648,8 @@ $user = App::getUser();
                     </div>
 
                     <div class="form-group" id="passwordGroup">
-                        <label for="password">Contraseña</label>
-                        <input type="password" id="password" name="password" placeholder="Mínimo 6 caracteres">
+                        <label for="password">Contraseña *</label>
+                        <input type="password" id="password" name="password" placeholder="Mínimo 6 caracteres" minlength="6">
                     </div>
 
                     <div class="form-group">
@@ -689,7 +663,7 @@ $user = App::getUser();
 
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" onclick="closeUserModal()">Cancelar</button>
-                    <button type="submit" class="btn-primary">Guardar Usuario</button>
+                    <button type="submit" class="btn-primary" id="submitBtn">Guardar Usuario</button>
                 </div>
             </form>
         </div>
@@ -699,6 +673,7 @@ $user = App::getUser();
     <script>
         const APP_URL = '<?= APP_URL ?>';
         let users = [];
+        let isLoading = false;
 
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
@@ -707,27 +682,52 @@ $user = App::getUser();
             initializeGoogleTranslate();
         });
 
+        // Funciones de API
+        async function apiRequest(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${APP_URL}${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    ...options
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Error en la respuesta del servidor');
+                }
+
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
         // Cargar estadísticas
         async function loadStatistics() {
             try {
-                // Simulación de datos hasta tener API real
-                const stats = {
-                    totalUsers: 5,
-                    totalPrograms: 23,
-                    totalResources: 156,
-                    activeSessions: 3
-                };
+                const response = await apiRequest('/admin/api?action=statistics');
+                const stats = response.data;
 
                 document.getElementById('totalUsers').textContent = stats.totalUsers;
                 document.getElementById('totalPrograms').textContent = stats.totalPrograms;
                 document.getElementById('totalResources').textContent = stats.totalResources;
                 document.getElementById('activeSessions').textContent = stats.activeSessions;
-
-                // TODO: Conectar con API real
-                // const response = await fetch(`${APP_URL}/admin/api?action=stats`);
-                // const data = await response.json();
             } catch (error) {
                 console.error('Error al cargar estadísticas:', error);
+                
+                // Mostrar valores por defecto en caso de error
+                document.getElementById('totalUsers').textContent = '0';
+                document.getElementById('totalPrograms').textContent = '0';
+                document.getElementById('totalResources').textContent = '0';
+                document.getElementById('activeSessions').textContent = '0';
             }
         }
 
@@ -735,55 +735,25 @@ $user = App::getUser();
         async function loadUsers() {
             const loading = document.getElementById('usersLoading');
             const table = document.getElementById('usersTable');
+            const errorDiv = document.getElementById('usersError');
             
             loading.style.display = 'block';
             table.style.display = 'none';
-
+            errorDiv.style.display = 'none';
+            
             try {
-                // Datos de ejemplo hasta tener API real
-                const sampleUsers = [
-                    {
-                        id: 1,
-                        username: 'admin',
-                        email: 'admin@travelagency.com',
-                        full_name: 'Administrador',
-                        role: 'admin',
-                        active: 1,
-                        last_login: '2025-01-15 09:30:00'
-                    },
-                    {
-                        id: 2,
-                        username: 'agente1',
-                        email: 'agente@travelagency.com',
-                        full_name: 'Agente de Viajes',
-                        role: 'agent',
-                        active: 1,
-                        last_login: '2025-01-15 08:45:00'
-                    },
-                    {
-                        id: 3,
-                        username: 'maria.garcia',
-                        email: 'maria@travelagency.com',
-                        full_name: 'María García',
-                        role: 'agent',
-                        active: 1,
-                        last_login: '2025-01-14 16:20:00'
-                    }
-                ];
-
-                users = sampleUsers;
+                const response = await apiRequest('/admin/api?action=users');
+                users = response.data;
                 renderUsers();
-
-                // TODO: Conectar con API real
-                // const response = await fetch(`${APP_URL}/admin/api?action=users`);
-                // const data = await response.json();
-                // users = data.users;
-                // renderUsers();
-            } catch (error) {
-                console.error('Error al cargar usuarios:', error);
-            } finally {
+                
                 loading.style.display = 'none';
                 table.style.display = 'table';
+            } catch (error) {
+                console.error('Error al cargar usuarios:', error);
+                
+                loading.style.display = 'none';
+                errorDiv.textContent = `Error al cargar usuarios: ${error.message}`;
+                errorDiv.style.display = 'block';
             }
         }
 
@@ -793,14 +763,47 @@ $user = App::getUser();
             tbody.innerHTML = users.map(user => createUserRow(user)).join('');
         }
 
-        // Crear fila de usuario
+        // Crear fila de usuario - BOTONES DINÁMICOS CORREGIDOS
         function createUserRow(user) {
-            const lastLogin = user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Nunca';
             const roleClass = user.role === 'admin' ? 'role-admin' : 'role-agent';
             const roleText = user.role === 'admin' ? 'Administrador' : 'Agente';
             const statusClass = user.active ? 'status-active' : 'status-inactive';
             const statusText = user.active ? 'Activo' : 'Inactivo';
-            const initials = user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2);
+            const initials = user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            const lastLogin = user.last_login_formatted || 'Nunca';
+
+            // Lógica dinámica para botones según el estado del usuario
+            let actionButtons = `
+                <button class="action-btn btn-edit" onclick="editUser(${user.id})" title="Editar usuario">
+                    ✏️ Editar
+                </button>
+            `;
+
+            // Solo mostrar botones de estado si no es el admin principal
+            if (user.id !== 1) {
+                if (user.active) {
+                    // Usuario activo: mostrar "Desactivar" y "Deshabilitar"
+                    actionButtons += `
+                        <button class="action-btn btn-toggle" onclick="toggleUserStatus(${user.id})" title="Desactivar usuario">
+                            ⏸️ Desactivar
+                        </button>
+                    `;
+                } else {
+                    // Usuario inactivo: solo mostrar "Activar"
+                    actionButtons += `
+                        <button class="action-btn btn-toggle inactive" onclick="toggleUserStatus(${user.id})" title="Activar usuario">
+                            ▶️ Activar
+                        </button>
+                    `;
+                }
+            } else {
+                // Admin principal: solo botón de desactivar (deshabilitado)
+                actionButtons += `
+                    <button class="action-btn btn-toggle" style="opacity: 0.5; cursor: not-allowed;" title="No se puede desactivar el administrador principal">
+                        ⏸️ Desactivar
+                    </button>
+                `;
+            }
 
             return `
                 <tr>
@@ -808,32 +811,34 @@ $user = App::getUser();
                         <div class="user-info">
                             <div class="user-avatar">${initials}</div>
                             <div class="user-details">
-                                <h4>${user.full_name}</h4>
-                                <p>@${user.username}</p>
+                                <h4>${escapeHtml(user.full_name)}</h4>
+                                <p>@${escapeHtml(user.username)}</p>
                             </div>
                         </div>
                     </td>
-                    <td>${user.email}</td>
+                    <td>${escapeHtml(user.email)}</td>
                     <td><span class="role-badge ${roleClass}">${roleText}</span></td>
                     <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                     <td>${lastLogin}</td>
                     <td>
                         <div class="action-buttons">
-                            <button class="action-btn btn-edit" onclick="editUser(${user.id})">
-                                ✏️ Editar
-                            </button>
-                            <button class="action-btn btn-toggle" onclick="toggleUserStatus(${user.id})">
-                                ${user.active ? '⏸️' : '▶️'} ${user.active ? 'Desactivar' : 'Activar'}
-                            </button>
-                            ${user.id !== 1 ? `
-                            <button class="action-btn btn-delete" onclick="deleteUser(${user.id})">
-                                🗑️ Eliminar
-                            </button>
-                            ` : ''}
+                            ${actionButtons}
                         </div>
                     </td>
                 </tr>
             `;
+        }
+
+        // Escape HTML para prevenir XSS
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
         // Funciones del modal de usuario
@@ -841,19 +846,20 @@ $user = App::getUser();
             const modal = document.getElementById('userModal');
             const title = document.getElementById('userModalTitle');
             const passwordGroup = document.getElementById('passwordGroup');
+            const passwordField = document.getElementById('password');
 
             if (mode === 'create') {
                 title.textContent = 'Nuevo Usuario';
                 document.getElementById('userForm').reset();
                 document.getElementById('userId').value = '';
-                document.getElementById('password').required = true;
+                passwordField.required = true;
                 passwordGroup.style.display = 'block';
+                passwordGroup.querySelector('label').textContent = 'Contraseña *';
             } else if (mode === 'edit' && id) {
                 title.textContent = 'Editar Usuario';
                 loadUserData(id);
-                document.getElementById('password').required = false;
+                passwordField.required = false;
                 passwordGroup.style.display = 'block';
-                // Cambiar label de contraseña
                 passwordGroup.querySelector('label').textContent = 'Nueva Contraseña (opcional)';
             }
 
@@ -881,96 +887,168 @@ $user = App::getUser();
         document.getElementById('userForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const formData = new FormData(this);
-            const data = Object.fromEntries(formData.entries());
-            const id = document.getElementById('userId').value;
+            if (isLoading) return;
 
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = submitBtn.textContent;
+            
             try {
+                isLoading = true;
+                submitBtn.textContent = 'Guardando...';
+                submitBtn.disabled = true;
+
+                const formData = new FormData(this);
+                const id = document.getElementById('userId').value;
+
                 if (id) {
-                    // Actualizar usuario existente
-                    const index = users.findIndex(u => u.id == id);
-                    if (index !== -1) {
-                        users[index] = { ...users[index], ...data, id: parseInt(id) };
-                    }
-                    alert('Usuario actualizado correctamente');
+                    formData.append('action', 'update_user');
+                    formData.append('id', id);
                 } else {
-                    // Crear nuevo usuario
-                    const newUser = {
-                        id: Date.now(),
-                        ...data,
-                        active: parseInt(data.active),
-                        last_login: null
-                    };
-                    users.push(newUser);
-                    alert('Usuario creado correctamente');
+                    formData.append('action', 'create_user');
                 }
 
-                closeUserModal();
-                renderUsers();
-                loadStatistics(); // Actualizar estadísticas
+                // Debug: mostrar datos que se envían
+                console.log('Enviando datos:', Object.fromEntries(formData.entries()));
 
-                // TODO: Enviar a API real
-                // const response = await fetch(`${APP_URL}/admin/api`, {
-                //     method: 'POST',
-                //     body: formData
-                // });
+                const response = await fetch(`${APP_URL}/admin/api`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Error al guardar usuario');
+                }
+
+                showToast(data.message, 'success');
+                closeUserModal();
+                await loadUsers();
+                await loadStatistics();
+
             } catch (error) {
-                alert('Error al guardar usuario: ' + error.message);
+                console.error('Error al guardar usuario:', error);
+                showToast(`Error al guardar usuario: ${error.message}`, 'error');
+            } finally {
+                isLoading = false;
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
             }
         });
+
+        // Cargar datos de usuario para editar - CORREGIDO
+        function loadUserData(id) {
+            const user = users.find(u => u.id == id); // Usar == en lugar de ===
+            if (user) {
+                console.log('Cargando usuario:', user); // Debug
+                
+                document.getElementById('userId').value = user.id;
+                document.getElementById('username').value = user.username || '';
+                document.getElementById('email').value = user.email || '';
+                document.getElementById('full_name').value = user.full_name || '';
+                document.getElementById('role').value = user.role || '';
+                document.getElementById('active').value = user.active ? '1' : '0';
+                document.getElementById('password').value = '';
+            } else {
+                console.error('Usuario no encontrado:', id);
+                showToast('Usuario no encontrado', 'error');
+            }
+        }
+
+        // Función editUser mejorada
+        function editUser(id) {
+            console.log('Editando usuario ID:', id, typeof id); // Debug
+            openUserModal('edit', id);
+        }
 
         // Funciones CRUD de usuarios
         function editUser(id) {
             openUserModal('edit', id);
         }
 
-        function toggleUserStatus(id) {
+        async function toggleUserStatus(id) {
             const user = users.find(u => u.id === id);
-            if (user) {
-                const action = user.active ? 'desactivar' : 'activar';
-                if (confirm(`¿Estás seguro de que quieres ${action} este usuario?`)) {
-                    user.active = !user.active;
-                    renderUsers();
-                    alert(`Usuario ${action}do correctamente`);
-                    
-                    // TODO: Enviar a API real
+            if (!user) return;
+
+            const action = user.active ? 'desactivar' : 'activar';
+            if (!confirm(`¿Estás seguro de que quieres ${action} este usuario?`)) {
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'toggle_user');
+                formData.append('id', id);
+
+                const response = await fetch(`${APP_URL}/admin/api`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Error al cambiar estado del usuario');
                 }
+
+                showToast(data.message, 'success');
+                await loadUsers();
+                await loadStatistics();
+
+            } catch (error) {
+                console.error('Error al cambiar estado:', error);
+                showToast(`Error: ${error.message}`, 'error');
             }
         }
 
-        function deleteUser(id) {
-            if (confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.')) {
-                users = users.filter(u => u.id !== id);
-                renderUsers();
-                loadStatistics();
-                alert('Usuario eliminado correctamente');
-                
-                // TODO: Enviar a API real
+        async function deleteUser(id) {
+            const user = users.find(u => u.id === id);
+            if (!user) return;
+
+            if (!confirm(`¿Estás seguro de que quieres eliminar el usuario "${user.username}"? Esta acción no se puede deshacer.`)) {
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'delete_user');
+                formData.append('id', id);
+
+                const response = await fetch(`${APP_URL}/admin/api`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Error al eliminar usuario');
+                }
+
+                showToast(data.message, 'success');
+                await loadUsers();
+                await loadStatistics();
+
+            } catch (error) {
+                console.error('Error al eliminar usuario:', error);
+                showToast(`Error: ${error.message}`, 'error');
             }
         }
 
-        // Funciones de configuración
-        function openConfigModal(configType) {
-            switch(configType) {
-                case 'company':
-                    alert('Configuración de Empresa - En desarrollo');
-                    break;
-                case 'appearance':
-                    alert('Configuración de Apariencia - En desarrollo');
-                    break;
-                case 'integrations':
-                    alert('Configuración de Integraciones - En desarrollo');
-                    break;
-                case 'security':
-                    alert('Configuración de Seguridad - En desarrollo');
-                    break;
-                case 'backup':
-                    alert('Configuración de Respaldos - En desarrollo');
-                    break;
-                case 'reports':
-                    alert('Configuración de Reportes - En desarrollo');
-                    break;
-            }
+        // Mostrar notificaciones toast
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 4000);
         }
 
         // Google Translate
@@ -1026,5 +1104,6 @@ $user = App::getUser();
             }
         });
     </script>
+    <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 </body>
 </html>
