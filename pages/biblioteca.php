@@ -1077,80 +1077,124 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
         }
 
         // Cargar recursos según el tab activo
-        function loadResources() {
-            // Simular datos de ejemplo hasta que tengamos la API
-            const sampleData = {
-                dias: [
-                    {
-                        id: 1,
-                        titulo: 'Día en París',
-                        descripcion: 'Recorrido completo por los principales monumentos de París',
-                        ubicacion: 'París, Francia',
-                        idioma: 'es'
-                    },
-                    {
-                        id: 2,
-                        titulo: 'Day in Rome',
-                        descripcion: 'Visit to Colosseum, Roman Forum and Vatican',
-                        ubicacion: 'Rome, Italy',
-                        idioma: 'en'
+        async function loadResources() {
+            const grid = document.getElementById('contentGrid');
+            const emptyState = document.getElementById('emptyState');
+            
+            try {
+                // Mostrar loading
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><div style="font-size: 48px; margin-bottom: 20px;">⏳</div><p>Cargando recursos...</p></div>';
+                
+                // Llamar a la API real
+                const params = new URLSearchParams({
+                    action: 'list',
+                    type: currentTab
+                });
+                
+                const search = document.getElementById('searchInput').value.trim();
+                const language = document.getElementById('languageFilter').value;
+                
+                if (search) params.append('search', search);
+                if (language) params.append('language', language);
+                
+                const response = await fetch(`${APP_URL}/biblioteca/api?${params}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
                     }
-                ],
-                alojamientos: [
-                    {
-                        id: 1,
-                        nombre: 'Hotel París Centro',
-                        descripcion: 'Hotel 4 estrellas en el centro de París',
-                        ubicacion: 'París, Francia',
-                        tipo: 'hotel',
-                        categoria: 4,
-                        idioma: 'es'
-                    }
-                ],
-                actividades: [
-                    {
-                        id: 1,
-                        nombre: 'Tour Eiffel',
-                        descripcion: 'Visita guiada a la Torre Eiffel con subida incluida',
-                        ubicacion: 'París, Francia',
-                        idioma: 'es'
-                    }
-                ],
-                transportes: [
-                    {
-                        id: 1,
-                        titulo: 'Vuelo París-Roma',
-                        descripcion: 'Vuelo directo París CDG a Roma FCO',
-                        lugar_salida: 'París CDG',
-                        lugar_llegada: 'Roma FCO',
-                        medio: 'avion',
-                        duracion: '2h 15min',
-                        idioma: 'es'
-                    }
-                ]
-            };
-
-            resources[currentTab] = sampleData[currentTab] || [];
-            renderResources();
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Error desconocido');
+                }
+                
+                resources[currentTab] = result.data || [];
+                renderResources();
+                
+            } catch (error) {
+                console.error('Error al cargar recursos:', error);
+                
+                // Mostrar mensaje de error
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; background: #fed7d7; border-radius: 15px; margin: 20px 0;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+                        <h3 style="color: #e53e3e; margin-bottom: 10px;">Error al cargar recursos</h3>
+                        <p style="color: #c53030;">${error.message}</p>
+                        <button onclick="loadResources()" style="background: #e53e3e; color: white; border: none; padding: 10px 20px; border-radius: 20px; margin-top: 15px; cursor: pointer;">
+                            🔄 Reintentar
+                        </button>
+                    </div>
+                `;
+            }
         }
 
-        // Renderizar recursos en el grid
+        // Función mejorada para renderizar recursos con mejor manejo de errores:
         function renderResources() {
             const grid = document.getElementById('contentGrid');
             const emptyState = document.getElementById('emptyState');
             
-            if (resources[currentTab].length === 0) {
-                grid.style.display = 'none';
-                emptyState.style.display = 'block';
-                return;
-            }
+            try {
+                if (!resources[currentTab] || resources[currentTab].length === 0) {
+                    grid.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    
+                    // Personalizar mensaje según si hay filtros activos
+                    const search = document.getElementById('searchInput').value.trim();
+                    const language = document.getElementById('languageFilter').value;
+                    
+                    if (search || language) {
+                        emptyState.innerHTML = `
+                            <div class="empty-state-icon">🔍</div>
+                            <h3>No se encontraron resultados</h3>
+                            <p>No hay recursos que coincidan con los filtros aplicados</p>
+                            <button onclick="clearFilters()" style="background: var(--primary-gradient); color: white; border: none; padding: 10px 20px; border-radius: 20px; margin-top: 15px; cursor: pointer;">
+                                🗑️ Limpiar Filtros
+                            </button>
+                        `;
+                    } else {
+                        emptyState.innerHTML = `
+                            <div class="empty-state-icon">📂</div>
+                            <h3>No hay recursos disponibles</h3>
+                            <p>Comienza agregando tu primer recurso haciendo clic en "Agregar Nuevo"</p>
+                            <button onclick="openModal('create')" style="background: var(--primary-gradient); color: white; border: none; padding: 10px 20px; border-radius: 20px; margin-top: 15px; cursor: pointer;">
+                                ➕ Crear Primer Recurso
+                            </button>
+                        `;
+                    }
+                    return;
+                }
 
-            grid.style.display = 'grid';
-            emptyState.style.display = 'none';
-            
-            grid.innerHTML = resources[currentTab].map(item => {
-                return createResourceCard(item);
-            }).join('');
+                grid.style.display = 'grid';
+                emptyState.style.display = 'none';
+                
+                grid.innerHTML = resources[currentTab].map(item => {
+                    return createResourceCard(item);
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error al renderizar recursos:', error);
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; background: #fed7d7; border-radius: 15px;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                        <h3 style="color: #e53e3e;">Error al mostrar recursos</h3>
+                        <p style="color: #c53030;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Función para limpiar filtros
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('languageFilter').value = '';
+            loadResources();
         }
 
         // NUEVA FUNCIÓN: Obtener imagen principal
@@ -2005,13 +2049,26 @@ function removeSuggestions() {
             }
         }
 
-        // Configurar búsqueda en tiempo real
+        // Reemplazar la configuración de búsqueda para que funcione con la API real:
         function setupSearch() {
             const searchInput = document.getElementById('searchInput');
             const languageFilter = document.getElementById('languageFilter');
             
-            searchInput.addEventListener('input', filterResources);
-            languageFilter.addEventListener('change', filterResources);
+            let searchTimeout;
+            
+            // Función de búsqueda con delay
+            function performSearch() {
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
+                
+                searchTimeout = setTimeout(() => {
+                    loadResources(); // Recargar desde la API con los filtros
+                }, 500); // Esperar 500ms después de que el usuario deje de escribir
+            }
+            
+            searchInput.addEventListener('input', performSearch);
+            languageFilter.addEventListener('change', performSearch);
         }
 
         function filterResources() {
@@ -2058,133 +2115,415 @@ function removeSuggestions() {
         function editResource(id) {
             openModal('edit', id);
         }
+        // Agregar esta función para manejar errores de subida de imagen de forma más elegante:
+        function handleImageUploadError(field, error) {
+            const container = document.getElementById(field).closest('.image-upload') || document.getElementById(field).parentElement;
+            
+            // Remover mensaje de error anterior
+            const existingError = container.querySelector('.upload-error');
+            if (existingError) existingError.remove();
+            
+            // Agregar mensaje de error
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'upload-error';
+            errorDiv.style.cssText = `
+                background: #fed7d7;
+                color: #e53e3e;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                margin-top: 8px;
+                border: 1px solid #feb2b2;
+            `;
+            errorDiv.textContent = `❌ ${error}`;
+            
+            container.appendChild(errorDiv);
+            
+            // Remover el error después de 5 segundos
+            setTimeout(() => {
+                if (errorDiv.parentElement) {
+                    errorDiv.remove();
+                }
+            }, 5000);
+        }
+        // Función mejorada para mostrar mensajes de éxito
+        function showSuccessMessage(message) {
+            const toast = document.createElement('div');
+            toast.className = 'success-toast';
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: white;
+                padding: 16px 20px;
+                border-radius: 12px;
+                box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+                z-index: 10000;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+                max-width: 350px;
+            `;
+            
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="font-size: 20px;">✅</div>
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 2px;">Éxito</div>
+                        <div style="font-size: 13px; opacity: 0.9;">${message}</div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Animar entrada
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Remover después de 3 segundos
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (document.body.contains(toast)) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
 
-        function deleteResource(id) {
-            if (confirm('¿Estás seguro de que quieres eliminar este recurso?')) {
-                resources[currentTab] = resources[currentTab].filter(item => item.id !== id);
-                renderResources();
-                alert('Recurso eliminado correctamente');
+        // Función mejorada para mostrar mensajes de error
+        function showErrorMessage(message) {
+            const toast = document.createElement('div');
+            toast.className = 'error-toast';
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #e53e3e 0%, #dc2626 100%);
+                color: white;
+                padding: 16px 20px;
+                border-radius: 12px;
+                box-shadow: 0 8px 25px rgba(229, 62, 62, 0.3);
+                z-index: 10000;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+                max-width: 350px;
+            `;
+            
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="font-size: 20px;">❌</div>
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 2px;">Error</div>
+                        <div style="font-size: 13px; opacity: 0.9;">${message}</div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Animar entrada
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Remover después de 4 segundos
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (document.body.contains(toast)) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 4000);
+        }
+
+        async function deleteResource(id) {
+            if (!confirm('¿Estás seguro de que quieres eliminar este recurso? Esta acción no se puede deshacer.')) {
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('action', 'delete');
+                formData.append('type', currentTab);
+                formData.append('id', id);
+                
+                const response = await fetch(`${APP_URL}/biblioteca/api`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Error al eliminar recurso');
+                }
+                
+                alert(result.message || 'Recurso eliminado correctamente');
+                loadResources(); // Recargar la lista
+                
+            } catch (error) {
+                console.error('Error al eliminar recurso:', error);
+                alert('Error al eliminar el recurso: ' + error.message);
             }
         }
 
         // Cargar datos de recurso para editar - MEJORADO
-function loadResourceData(id) {
-    const resource = resources[currentTab].find(r => r.id == id);
-    if (resource) {
-        console.log('Cargando recurso:', resource);
-        
-        document.getElementById('resourceId').value = resource.id;
-        
-        // Cargar campos comunes
-        const commonFields = ['idioma', 'descripcion'];
-        commonFields.forEach(field => {
-            const element = document.getElementById(field);
-            if (element && resource[field]) {
-                element.value = resource[field];
-            }
-        });
-        
-        // Cargar campos específicos por tipo
-        switch(currentTab) {
-            case 'dias':
-                setFieldValue('titulo', resource.titulo);
-                setFieldValue('ubicacion', resource.ubicacion);
-                setFieldValue('latitud', resource.latitud);
-                setFieldValue('longitud', resource.longitud);
-                loadImagePreviews(['imagen1', 'imagen2', 'imagen3'], resource);
-                break;
+        async function loadResourceData(id) {
+            try {
+                const response = await fetch(`${APP_URL}/biblioteca/api?action=get&type=${currentTab}&id=${id}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
                 
-            case 'alojamientos':
-                setFieldValue('nombre', resource.nombre);
-                setFieldValue('ubicacion', resource.ubicacion);
-                setFieldValue('tipo', resource.tipo);
-                setFieldValue('categoria', resource.categoria);
-                setFieldValue('sitio_web', resource.sitio_web);
-                setFieldValue('latitud', resource.latitud);
-                setFieldValue('longitud', resource.longitud);
-                loadImagePreviews(['imagen'], resource);
-                updateCategoryField(); // Actualizar visibilidad de categoría
-                break;
-                
-            case 'actividades':
-                setFieldValue('nombre', resource.nombre);
-                setFieldValue('ubicacion', resource.ubicacion);
-                setFieldValue('latitud', resource.latitud);
-                setFieldValue('longitud', resource.longitud);
-                loadImagePreviews(['imagen1', 'imagen2', 'imagen3'], resource);
-                break;
-                
-            case 'transportes':
-                setFieldValue('medio', resource.medio);
-                setFieldValue('titulo', resource.titulo);
-                setFieldValue('lugar_salida', resource.lugar_salida);
-                setFieldValue('lugar_llegada', resource.lugar_llegada);
-                setFieldValue('duracion', resource.duracion);
-                setFieldValue('distancia_km', resource.distancia_km);
-                setFieldValue('lat_salida', resource.lat_salida);
-                setFieldValue('lng_salida', resource.lng_salida);
-                setFieldValue('lat_llegada', resource.lat_llegada);
-                setFieldValue('lng_llegada', resource.lng_llegada);
-                break;
-        }
-    }
-}
-
-// NUEVA FUNCIÓN: Establecer valor de campo
-function setFieldValue(fieldId, value) {
-    const element = document.getElementById(fieldId);
-    if (element && value) {
-        element.value = value;
-    }
-}
-
-// NUEVA FUNCIÓN: Cargar previsualizaciones de imágenes existentes
-function loadImagePreviews(imageFields, resource) {
-    imageFields.forEach(field => {
-        if (resource[field]) {
-            const input = document.getElementById(field);
-            if (input) {
-                const container = input.closest('.image-upload') || input.parentElement;
-                
-                // Remover vista previa anterior
-                const existingPreview = container.querySelector('.image-preview');
-                if (existingPreview) {
-                    existingPreview.remove();
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                // Crear vista previa de imagen existente
-                const preview = document.createElement('img');
-                preview.src = resource[field];
-                preview.className = 'image-preview existing';
-                preview.style.cssText = `
-                    max-width: 100%;
-                    max-height: 150px;
-                    border-radius: 8px;
-                    margin-top: 10px;
-                    object-fit: cover;
-                    border: 2px solid #10b981;
-                `;
+                const result = await response.json();
                 
-                // Agregar indicador de imagen existente
-                const indicator = document.createElement('div');
-                indicator.className = 'existing-image-indicator';
-                indicator.style.cssText = `
-                    background: #10b981;
-                    color: white;
-                    padding: 2px 8px;
-                    border-radius: 4px;
-                    font-size: 10px;
-                    margin-top: 5px;
-                    text-align: center;
-                `;
-                indicator.textContent = '✅ Imagen actual';
+                if (!result.success) {
+                    throw new Error(result.error || 'Error al cargar recurso');
+                }
                 
-                container.appendChild(preview);
-                container.appendChild(indicator);
+                const resource = result.data;
+                console.log('Cargando recurso desde API:', resource);
+                
+                document.getElementById('resourceId').value = resource.id;
+                
+                // Cargar campos comunes
+                const commonFields = ['idioma', 'descripcion'];
+                commonFields.forEach(field => {
+                    const element = document.getElementById(field);
+                    if (element && resource[field]) {
+                        element.value = resource[field];
+                    }
+                });
+                
+                // Cargar campos específicos por tipo
+                switch(currentTab) {
+                    case 'dias':
+                        setFieldValue('titulo', resource.titulo);
+                        setFieldValue('ubicacion', resource.ubicacion);
+                        setFieldValue('latitud', resource.latitud);
+                        setFieldValue('longitud', resource.longitud);
+                        loadImagePreviews(['imagen1', 'imagen2', 'imagen3'], resource);
+                        break;
+                        
+                    case 'alojamientos':
+                        setFieldValue('nombre', resource.nombre);
+                        setFieldValue('ubicacion', resource.ubicacion);
+                        setFieldValue('tipo', resource.tipo);
+                        setFieldValue('categoria', resource.categoria);
+                        setFieldValue('sitio_web', resource.sitio_web);
+                        setFieldValue('latitud', resource.latitud);
+                        setFieldValue('longitud', resource.longitud);
+                        loadImagePreviews(['imagen'], resource);
+                        updateCategoryField(); // Actualizar visibilidad de categoría
+                        break;
+                        
+                    case 'actividades':
+                        setFieldValue('nombre', resource.nombre);
+                        setFieldValue('ubicacion', resource.ubicacion);
+                        setFieldValue('latitud', resource.latitud);
+                        setFieldValue('longitud', resource.longitud);
+                        loadImagePreviews(['imagen1', 'imagen2', 'imagen3'], resource);
+                        break;
+                        
+                    case 'transportes':
+                        setFieldValue('medio', resource.medio);
+                        setFieldValue('titulo', resource.titulo);
+                        setFieldValue('lugar_salida', resource.lugar_salida);
+                        setFieldValue('lugar_llegada', resource.lugar_llegada);
+                        setFieldValue('duracion', resource.duracion);
+                        setFieldValue('distancia_km', resource.distancia_km);
+                        setFieldValue('lat_salida', resource.lat_salida);
+                        setFieldValue('lng_salida', resource.lng_salida);
+                        setFieldValue('lat_llegada', resource.lat_llegada);
+                        setFieldValue('lng_llegada', resource.lng_llegada);
+                        break;
+                }
+                
+                // Actualizar mapa si hay coordenadas
+                if (resource.latitud && resource.longitud && map) {
+                    setTimeout(() => {
+                        map.setView([resource.latitud, resource.longitud], 15);
+                        
+                        if (currentMarker) {
+                            map.removeLayer(currentMarker);
+                        }
+                        
+                        currentMarker = L.marker([resource.latitud, resource.longitud], {
+                            draggable: true
+                        }).addTo(map);
+                        
+                        currentMarker.bindPopup(`
+                            <div style="text-align: center;">
+                                <strong>📍 ${resource.titulo || resource.nombre}</strong><br>
+                                <small>${resource.ubicacion}</small>
+                            </div>
+                        `).openPopup();
+                    }, 500);
+                }
+                
+            } catch (error) {
+                console.error('Error al cargar datos del recurso:', error);
+                alert('Error al cargar los datos del recurso: ' + error.message);
             }
         }
-    });
-}
+
+        // NUEVA FUNCIÓN: Establecer valor de campo
+        function setFieldValue(fieldId, value) {
+            const element = document.getElementById(fieldId);
+            if (element && value) {
+                element.value = value;
+            }
+        }
+
+
+        // Función para mostrar imagen en modal
+        function showImageModal(imageSrc, title) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            `;
+            
+            modal.innerHTML = `
+                <div style="max-width: 90%; max-height: 90%; text-align: center;">
+                    <div style="color: white; margin-bottom: 20px; font-size: 18px; font-weight: 600;">
+                        ${escapeHtml(title)}
+                    </div>
+                    <img src="${imageSrc}" style="max-width: 100%; max-height: 80vh; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+                    <div style="margin-top: 20px;">
+                        <button onclick="this.closest('.image-modal').remove()" style="background: #e53e3e; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer;">
+                            ✕ Cerrar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            modal.className = 'image-modal';
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.remove();
+                }
+            });
+            
+            document.body.appendChild(modal);
+        }
+
+        // Función para remover imagen existente (marcar para eliminación)
+        function removeExistingImage(field) {
+            if (confirm('¿Estás seguro de que quieres eliminar esta imagen?')) {
+                const input = document.getElementById(field);
+                const container = input.closest('.image-upload') || input.parentElement;
+                
+                // Remover preview e indicador
+                const preview = container.querySelector('.image-preview');
+                const indicator = container.querySelector('.existing-image-indicator');
+                if (preview) preview.remove();
+                if (indicator) indicator.remove();
+                
+                // Agregar campo oculto para indicar eliminación
+                const deleteInput = document.createElement('input');
+                deleteInput.type = 'hidden';
+                deleteInput.name = `delete_${field}`;
+                deleteInput.value = '1';
+                container.appendChild(deleteInput);
+                
+                // Mostrar mensaje de confirmación
+                const confirmDiv = document.createElement('div');
+                confirmDiv.style.cssText = `
+                    background: #fef5e7;
+                    color: #d69e2e;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    margin-top: 8px;
+                    border: 1px solid #fbd38d;
+                `;
+                confirmDiv.textContent = '⚠️ Esta imagen será eliminada al guardar';
+                container.appendChild(confirmDiv);
+            }
+        }
+
+            // Función mejorada para manejar la vista previa de imágenes existentes
+            function loadImagePreviews(imageFields, resource) {
+                imageFields.forEach(field => {
+                    if (resource[field]) {
+                        const input = document.getElementById(field);
+                        if (input) {
+                            const container = input.closest('.image-upload') || input.parentElement;
+                            
+                            // Remover vista previa anterior
+                            const existingPreview = container.querySelector('.image-preview');
+                            const existingIndicator = container.querySelector('.existing-image-indicator');
+                            if (existingPreview) existingPreview.remove();
+                            if (existingIndicator) existingIndicator.remove();
+                            
+                            // Crear vista previa de imagen existente
+                            const preview = document.createElement('img');
+                            preview.src = resource[field];
+                            preview.className = 'image-preview existing';
+                            preview.style.cssText = `
+                                max-width: 100%;
+                                max-height: 150px;
+                                border-radius: 8px;
+                                margin-top: 10px;
+                                object-fit: cover;
+                                border: 2px solid #10b981;
+                                cursor: pointer;
+                            `;
+                            
+                            // Agregar funcionalidad para ver imagen en grande
+                            preview.addEventListener('click', function() {
+                                showImageModal(resource[field], resource.titulo || resource.nombre || 'Imagen');
+                            });
+                            
+                            // Agregar indicador de imagen existente
+                            const indicator = document.createElement('div');
+                            indicator.className = 'existing-image-indicator';
+                            indicator.style.cssText = `
+                                background: #10b981;
+                                color: white;
+                                padding: 4px 8px;
+                                border-radius: 4px;
+                                font-size: 10px;
+                                margin-top: 5px;
+                                text-align: center;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 4px;
+                            `;
+                            indicator.innerHTML = '✅ Imagen actual <span style="cursor: pointer;" onclick="removeExistingImage(\'' + field + '\')">🗑️</span>';
+                            
+                            container.appendChild(preview);
+                            container.appendChild(indicator);
+                        }
+                    }
+                });
+            }
 
         // Submit del formulario
         document.getElementById('resourceForm').addEventListener('submit', function(e) {

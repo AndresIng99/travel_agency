@@ -1,4 +1,8 @@
 <?php
+// =====================================
+// ARCHIVO: config/database.php - CORREGIDO PARA EVITAR MEZCLA DE PARÁMETROS
+// =====================================
+
 class Database {
     private static $instance = null;
     private $pdo;
@@ -52,9 +56,16 @@ class Database {
     }
 
     public function query($sql, $params = []) {
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
-        return $stmt;
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt;
+        } catch (PDOException $e) {
+            error_log("Database query error: " . $e->getMessage());
+            error_log("SQL: " . $sql);
+            error_log("Params: " . print_r($params, true));
+            throw $e;
+        }
     }
 
     public function fetchAll($sql, $params = []) {
@@ -66,22 +77,114 @@ class Database {
     }
 
     public function insert($table, $data) {
-        $keys = implode(',', array_keys($data));
-        $placeholders = ':' . implode(', :', array_keys($data));
+        if (empty($data)) {
+            throw new Exception("No data provided for insert");
+        }
         
-        $sql = "INSERT INTO {$table} ({$keys}) VALUES ({$placeholders})";
-        $this->query($sql, $data);
+        $keys = array_keys($data);
+        $values = array_values($data);
         
-        return $this->pdo->lastInsertId();
+        $placeholders = str_repeat('?,', count($keys) - 1) . '?';
+        $keysStr = '`' . implode('`, `', $keys) . '`';
+        
+        $sql = "INSERT INTO `{$table}` ({$keysStr}) VALUES ({$placeholders})";
+        
+        try {
+            error_log("INSERT SQL: " . $sql);
+            error_log("INSERT Values: " . print_r($values, true));
+            
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($values);
+            
+            return $this->pdo->lastInsertId();
+        } catch (PDOException $e) {
+            error_log("Insert error: " . $e->getMessage());
+            error_log("SQL: " . $sql);
+            error_log("Data: " . print_r($data, true));
+            throw $e;
+        }
     }
 
-    public function update($table, $data, $condition, $params = []) {
-        $setClause = implode(', ', array_map(fn($key) => "{$key} = :{$key}", array_keys($data)));
+    public function update($table, $data, $condition, $conditionParams = []) {
+        if (empty($data)) {
+            throw new Exception("No data provided for update");
+        }
         
-        $sql = "UPDATE {$table} SET {$setClause} WHERE {$condition}";
-        $allParams = array_merge($data, $params);
+        // Construir SET clause con placeholders posicionales
+        $setParts = [];
+        $values = [];
         
-        return $this->query($sql, $allParams)->rowCount();
+        foreach ($data as $key => $value) {
+            $setParts[] = "`{$key}` = ?";
+            $values[] = $value;
+        }
+        
+        $setClause = implode(', ', $setParts);
+        
+        // Agregar parámetros de condición al final
+        $allParams = array_merge($values, $conditionParams);
+        
+        $sql = "UPDATE `{$table}` SET {$setClause} WHERE {$condition}";
+        
+        try {
+            error_log("UPDATE SQL: " . $sql);
+            error_log("UPDATE Params: " . print_r($allParams, true));
+            
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($allParams);
+            
+            return $stmt->rowCount();
+        } catch (PDOException $e) {
+            error_log("Update error: " . $e->getMessage());
+            error_log("SQL: " . $sql);
+            error_log("Data: " . print_r($data, true));
+            error_log("Condition: " . $condition);
+            error_log("All Params: " . print_r($allParams, true));
+            throw $e;
+        }
+    }
+
+    public function delete($table, $condition, $params = []) {
+        $sql = "DELETE FROM `{$table}` WHERE {$condition}";
+        
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            
+            return $stmt->rowCount();
+        } catch (PDOException $e) {
+            error_log("Delete error: " . $e->getMessage());
+            error_log("SQL: " . $sql);
+            error_log("Params: " . print_r($params, true));
+            throw $e;
+        }
+    }
+
+    // Método auxiliar para transacciones
+    public function beginTransaction() {
+        return $this->pdo->beginTransaction();
+    }
+
+    public function commit() {
+        return $this->pdo->commit();
+    }
+
+    public function rollback() {
+        return $this->pdo->rollBack();
+    }
+
+    // Método para ejecutar múltiples queries en transacción
+    public function transaction(callable $callback) {
+        $this->beginTransaction();
+        
+        try {
+            $result = $callback($this);
+            $this->commit();
+            return $result;
+        } catch (Exception $e) {
+            $this->rollback();
+            throw $e;
+        }
     }
 }
 ?>
