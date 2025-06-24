@@ -1,22 +1,46 @@
-<?php $user = App::getUser(); ?>
+<?php 
+// =====================================
+// ARCHIVO: pages/biblioteca.php - Biblioteca con Colores Dinámicos
+// =====================================
+
+App::requireLogin();
+
+// Incluir ConfigManager
+require_once 'config/config_functions.php';
+
+$user = App::getUser(); 
+
+// Obtener configuración de colores según el rol del usuario
+ConfigManager::init();
+$userColors = ConfigManager::getColorsForRole($user['role']);
+$companyName = ConfigManager::getCompanyName();
+$logo = ConfigManager::getLogo();
+$defaultLanguage = ConfigManager::getDefaultLanguage();
+?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?= $defaultLanguage ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biblioteca - <?= APP_NAME ?></title>
+    <title>Biblioteca - <?= htmlspecialchars($companyName) ?></title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary-color: <?= $userColors['primary'] ?>;
+            --secondary-color: <?= $userColors['secondary'] ?>;
+            --primary-gradient: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f5f7fa;
         }
 
-        /* Header */
+        /* Header con colores dinámicos */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             color: white;
             padding: 15px 30px;
             display: flex;
@@ -63,13 +87,14 @@
             margin: 0 auto;
         }
 
-        /* Tabs Navigation */
+        /* Tabs Container */
         .tabs-container {
             background: white;
             border-radius: 15px;
             padding: 25px;
             margin-bottom: 30px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--primary-color);
         }
 
         .tabs-nav {
@@ -80,52 +105,6 @@
             padding-bottom: 15px;
         }
 
-        .location-suggestions {
-            animation: slideDown 0.2s ease-out;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .suggestion-item:last-child {
-            border-bottom: none;
-        }
-
-        .suggestion-item:hover {
-            background-color: #f7fafc !important;
-        }
-
-        /* Mejorar el campo de ubicación */
-        .form-group input[name="ubicacion"] {
-            position: relative;
-        }
-
-        /* Indicador de carga para el campo ubicación */
-        .location-loading {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 16px;
-            height: 16px;
-            border: 2px solid #e2e8f0;
-            border-top: 2px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: translateY(-50%) rotate(0deg); }
-            100% { transform: translateY(-50%) rotate(360deg); }
-        }
         .tab-btn {
             background: none;
             border: none;
@@ -138,7 +117,7 @@
         }
 
         .tab-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             color: white;
         }
 
@@ -167,7 +146,7 @@
 
         .search-input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--primary-color);
         }
 
         .filter-select {
@@ -178,8 +157,13 @@
             cursor: pointer;
         }
 
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
         .add-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             color: white;
             border: none;
             padding: 12px 25px;
@@ -208,17 +192,33 @@
             box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             cursor: pointer;
+            border: 1px solid #e2e8f0;
+        }
+
+        .item-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-gradient);
+        }
+
+        .item-card {
+            position: relative;
         }
 
         .item-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            border-color: var(--primary-color);
         }
 
         .card-image {
             width: 100%;
             height: 200px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -259,7 +259,7 @@
             display: flex;
             align-items: center;
             gap: 5px;
-            color: #667eea;
+            color: var(--primary-color);
             font-size: 13px;
             font-weight: 500;
         }
@@ -283,12 +283,12 @@
         }
 
         .action-btn.edit {
-            color: #667eea;
-            border-color: #667eea;
+            color: var(--primary-color);
+            border-color: var(--primary-color);
         }
 
         .action-btn.edit:hover {
-            background: #667eea;
+            background: var(--primary-color);
             color: white;
         }
 
@@ -337,6 +337,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 25px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 15px;
         }
 
         .modal-title {
@@ -351,6 +353,10 @@
             cursor: pointer;
             color: #718096;
             padding: 5px;
+        }
+
+        .close-btn:hover {
+            color: var(--primary-color);
         }
 
         .form-grid {
@@ -385,7 +391,7 @@
         .form-group select:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--primary-color);
         }
 
         .form-group textarea {
@@ -410,7 +416,7 @@
         }
 
         .image-upload:hover {
-            border-color: #667eea;
+            border-color: var(--primary-color);
         }
 
         .image-upload input {
@@ -448,7 +454,7 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             color: white;
             border: none;
             padding: 12px 25px;
@@ -468,6 +474,69 @@
             font-size: 64px;
             margin-bottom: 20px;
             opacity: 0.5;
+        }
+
+        /* Location suggestions */
+        .location-suggestions {
+            animation: slideDown 0.2s ease-out;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .suggestion-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f1f1;
+            transition: background-color 0.2s ease;
+            font-size: 14px;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover {
+            background-color: #f7fafc !important;
+        }
+
+        /* Loading indicator */
+        .location-loading {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e2e8f0;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
         }
 
         /* Responsive */
@@ -610,6 +679,7 @@
     <script>
         // Configuración global - SIN API KEYS
         const APP_URL = '<?= APP_URL ?>';
+        const DEFAULT_LANGUAGE = '<?= $defaultLanguage ?>';
         
         let currentTab = 'dias';
         let map = null;
@@ -1784,11 +1854,11 @@ function removeSuggestions() {
             renderResources();
         });
 
-        // Google Translate
+        // Google Translate con idioma por defecto del sistema
         function initializeGoogleTranslate() {
             function googleTranslateElementInit() {
                 new google.translate.TranslateElement({
-                    pageLanguage: 'es',
+                    pageLanguage: DEFAULT_LANGUAGE,
                     includedLanguages: 'en,fr,pt,it,de,es',
                     layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
                     autoDisplay: false
@@ -1803,8 +1873,11 @@ function removeSuggestions() {
             }
 
             function loadSavedLanguage() {
-                const saved = sessionStorage.getItem('language') || localStorage.getItem('preferredLanguage');
-                if (saved && saved !== 'es') {
+                const saved = sessionStorage.getItem('language') || 
+                             localStorage.getItem('preferredLanguage') || 
+                             DEFAULT_LANGUAGE;
+                
+                if (saved && saved !== DEFAULT_LANGUAGE) {
                     const select = document.querySelector('.goog-te-combo');
                     if (select) {
                         select.value = saved;

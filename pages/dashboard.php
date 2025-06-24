@@ -1,10 +1,16 @@
 <?php
 // =====================================
-// ARCHIVO: pages/dashboard.php - VERSIÓN CORREGIDA CON ROLES DIFERENCIADOS
+// ARCHIVO: pages/dashboard.php - Dashboard con Colores Dinámicos
 // =====================================
-?>
-<?php 
+
 $user = App::getUser(); 
+
+// Obtener configuración de colores según el rol
+$userColors = App::getColorsForRole($user['role']);
+$companyName = App::getCompanyName();
+$logo = App::getLogo();
+$defaultLanguage = App::getDefaultLanguage();
+
 // Inicializar conexión a base de datos para las estadísticas
 try {
     $db = Database::getInstance();
@@ -13,13 +19,19 @@ try {
 }
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?= $defaultLanguage ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - <?= APP_NAME ?></title>
+    <title>Dashboard - <?= htmlspecialchars($companyName) ?></title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary-color: <?= $userColors['primary'] ?>;
+            --secondary-color: <?= $userColors['secondary'] ?>;
+            --primary-gradient: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -27,9 +39,9 @@ try {
             color: #333;
         }
 
-        /* Header diferenciado por rol */
+        /* Header con colores dinámicos */
         .header {
-            background: <?= $user['role'] === 'admin' ? 'linear-gradient(135deg, #e53e3e 0%, #fd746c 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' ?>;
+            background: var(--primary-gradient);
             color: white;
             padding: 15px 30px;
             display: flex;
@@ -93,7 +105,7 @@ try {
         .goog-te-banner-frame.skiptranslate { display: none !important; }
         body { top: 0px !important; }
 
-        /* Sidebar diferenciado */
+        /* Sidebar con colores diferenciados */
         .sidebar {
             position: fixed;
             left: -280px;
@@ -114,13 +126,13 @@ try {
         .sidebar-header {
             padding: 20px;
             border-bottom: 1px solid #e2e8f0;
-            background: <?= $user['role'] === 'admin' ? 'linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%)' : 'linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%)' ?>;
+            background: linear-gradient(135deg, <?= $user['role'] === 'admin' ? '#fed7d7 0%, #feb2b2 100%' : '#edf2f7 0%, #e2e8f0 100%' ?>);
         }
 
         .company-logo {
             width: 40px;
             height: 40px;
-            background: <?= $user['role'] === 'admin' ? 'linear-gradient(135deg, #e53e3e 0%, #fd746c 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' ?>;
+            background: var(--primary-gradient);
             border-radius: 8px;
             display: flex;
             align-items: center;
@@ -128,6 +140,14 @@ try {
             color: white;
             font-weight: bold;
             margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .company-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
         }
 
         .sidebar-menu {
@@ -147,8 +167,8 @@ try {
 
         .menu-item:hover, .menu-item.active {
             background-color: #f7fafc;
-            color: <?= $user['role'] === 'admin' ? '#e53e3e' : '#667eea' ?>;
-            border-left-color: <?= $user['role'] === 'admin' ? '#e53e3e' : '#667eea' ?>;
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
         }
 
         .menu-icon {
@@ -175,7 +195,7 @@ try {
             padding: 30px;
             margin-bottom: 30px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            border-left: 4px solid <?= $user['role'] === 'admin' ? '#e53e3e' : '#667eea' ?>;
+            border-left: 4px solid var(--primary-color);
         }
 
         .welcome-title {
@@ -199,16 +219,11 @@ try {
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 15px;
-            <?php if ($user['role'] === 'admin'): ?>
-            background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
-            color: #e53e3e;
-            <?php else: ?>
-            background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%);
-            color: #2f855a;
-            <?php endif; ?>
+            background: var(--primary-gradient);
+            color: white;
         }
 
-        /* Quick Actions - Diferenciadas por rol */
+        /* Quick Actions */
         .quick-actions {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -235,7 +250,7 @@ try {
             left: 0;
             right: 0;
             height: 4px;
-            background: <?= $user['role'] === 'admin' ? 'linear-gradient(135deg, #e53e3e 0%, #fd746c 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' ?>;
+            background: var(--primary-gradient);
         }
 
         .action-card:hover {
@@ -252,13 +267,9 @@ try {
             justify-content: center;
             font-size: 24px;
             margin-bottom: 15px;
+            background: var(--primary-gradient);
+            color: white;
         }
-
-        /* Iconos diferenciados por rol */
-        .admin-primary { background: linear-gradient(135deg, #e53e3e 0%, #fd746c 100%); color: white; }
-        .admin-secondary { background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%); color: #e53e3e; }
-        .agent-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .agent-secondary { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
 
         .action-title {
             font-size: 18px;
@@ -308,7 +319,7 @@ try {
         .stat-number {
             font-size: 24px;
             font-weight: bold;
-            color: <?= $user['role'] === 'admin' ? '#e53e3e' : '#667eea' ?>;
+            color: var(--primary-color);
             margin-bottom: 5px;
         }
 
@@ -371,7 +382,7 @@ try {
     <div class="header">
         <div class="header-left">
             <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-            <h2><?= APP_NAME ?></h2>
+            <h2><?= htmlspecialchars($companyName) ?></h2>
         </div>
         
         <div class="header-center">
@@ -392,8 +403,14 @@ try {
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <div class="company-logo">TA</div>
-            <h3><?= APP_NAME ?></h3>
+            <div class="company-logo">
+                <?php if ($logo): ?>
+                    <img src="<?= htmlspecialchars($logo) ?>" alt="<?= htmlspecialchars($companyName) ?>">
+                <?php else: ?>
+                    <?= strtoupper(substr($companyName, 0, 2)) ?>
+                <?php endif; ?>
+            </div>
+            <h3><?= htmlspecialchars($companyName) ?></h3>
             <p style="color: #718096; font-size: 14px;">
                 <?= $user['role'] === 'admin' ? 'Panel de Administración' : 'Sistema de Gestión' ?>
             </p>
@@ -479,25 +496,25 @@ try {
             <?php if ($user['role'] === 'admin'): ?>
             <!-- Acciones para Administrador -->
             <div class="action-card" onclick="goTo('/administrador')">
-                <div class="action-icon admin-primary">👥</div>
+                <div class="action-icon">👥</div>
                 <h3 class="action-title">Gestión de Usuarios</h3>
                 <p class="action-description">Administra usuarios del sistema, crea nuevos agentes, gestiona permisos y supervisa la actividad de todos los usuarios.</p>
             </div>
 
             <div class="action-card" onclick="goTo('/administrador/configuracion')">
-                <div class="action-icon admin-secondary">⚙️</div>
+                <div class="action-icon">⚙️</div>
                 <h3 class="action-title">Configuración del Sistema</h3>
                 <p class="action-description">Configura colores, logos, integraciones, políticas de seguridad y parámetros generales del sistema.</p>
             </div>
 
             <div class="action-card" onclick="goTo('/biblioteca')">
-                <div class="action-icon admin-primary">📚</div>
+                <div class="action-icon">📚</div>
                 <h3 class="action-title">Supervisar Biblioteca</h3>
                 <p class="action-description">Supervisa y administra todos los recursos de la biblioteca: días, alojamientos, actividades y transportes de todos los agentes.</p>
             </div>
 
             <div class="action-card" onclick="goTo('/programa')">
-                <div class="action-icon admin-secondary">✈️</div>
+                <div class="action-icon">✈️</div>
                 <h3 class="action-title">Supervisar Programas</h3>
                 <p class="action-description">Revisa y supervisa todos los programas de viaje y solicitudes creadas por los agentes del sistema.</p>
             </div>
@@ -505,13 +522,13 @@ try {
             <?php else: ?>
             <!-- Acciones para Agente -->
             <div class="action-card" onclick="goTo('/programa')">
-                <div class="action-icon agent-primary">✈️</div>
+                <div class="action-icon">✈️</div>
                 <h3 class="action-title">Mi Programa de Viajes</h3>
                 <p class="action-description">Crea nuevas solicitudes de viajero y gestiona programas personalizados con destinos, fechas y acompañamiento específico.</p>
             </div>
 
             <div class="action-card" onclick="goTo('/biblioteca')">
-                <div class="action-icon agent-secondary">📚</div>
+                <div class="action-icon">📚</div>
                 <h3 class="action-title">Mi Biblioteca de Recursos</h3>
                 <p class="action-description">Administra tus días, alojamientos, actividades y transportes. Crea y edita recursos para usar en tus programas de viaje.</p>
             </div>
@@ -628,6 +645,7 @@ try {
 
     <script>
         let sidebarOpen = false;
+        const DEFAULT_LANGUAGE = '<?= $defaultLanguage ?>';
 
         // Sidebar functions
         function toggleSidebar() {
@@ -667,10 +685,10 @@ try {
             }
         }
 
-        // Google Translate
+        // Google Translate con idioma por defecto del sistema
         function googleTranslateElementInit() {
             new google.translate.TranslateElement({
-                pageLanguage: 'es',
+                pageLanguage: DEFAULT_LANGUAGE,
                 includedLanguages: 'en,fr,pt,it,de,es',
                 layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
                 autoDisplay: false
@@ -685,8 +703,11 @@ try {
         }
 
         function loadSavedLanguage() {
-            const saved = sessionStorage.getItem('language') || localStorage.getItem('preferredLanguage');
-            if (saved && saved !== 'es') {
+            const saved = sessionStorage.getItem('language') || 
+                         localStorage.getItem('preferredLanguage') || 
+                         DEFAULT_LANGUAGE;
+            
+            if (saved && saved !== DEFAULT_LANGUAGE) {
                 const select = document.querySelector('.goog-te-combo');
                 if (select) {
                     select.value = saved;
@@ -715,6 +736,60 @@ try {
                     document.getElementById('mainContent').classList.add('sidebar-open');
                 }
             });
+
+            // Animaciones de entrada
+            animateElements();
+        });
+
+        // Animaciones
+        function animateElements() {
+            const elements = document.querySelectorAll('.welcome-section, .action-card, .stats-section');
+            elements.forEach((el, index) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    el.style.transition = 'all 0.6s ease';
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, 100 * (index + 1));
+            });
+        }
+
+        // Verificar actualizaciones de estadísticas cada 5 minutos
+        setInterval(function() {
+            // Solo para admin
+            <?php if ($user['role'] === 'admin'): ?>
+            fetch('<?= APP_URL ?>/admin/api?action=statistics')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateStats(data.data);
+                    }
+                })
+                .catch(error => console.log('Error updating stats:', error));
+            <?php endif; ?>
+        }, 300000); // 5 minutos
+
+        function updateStats(stats) {
+            const statNumbers = document.querySelectorAll('.stat-number');
+            if (statNumbers.length >= 4) {
+                statNumbers[0].textContent = stats.totalUsers;
+                statNumbers[1].textContent = stats.totalPrograms;
+                statNumbers[2].textContent = stats.totalResources;
+                statNumbers[3].textContent = stats.activeSessions;
+            }
+        }
+
+        // Notificaciones del sistema
+        function checkSystemNotifications() {
+            // Implementar verificación de notificaciones del sistema
+            // Por ejemplo: mantenimiento programado, actualizaciones, etc.
+        }
+
+        // Llamar verificación de notificaciones al cargar
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(checkSystemNotifications, 2000);
         });
     </script>
     <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>

@@ -1,29 +1,45 @@
 <?php
 // =====================================
-// ARCHIVO: pages/admin.php - Panel REAL de Administrador
+// ARCHIVO: pages/admin.php - Panel de Usuarios con Colores Dinámicos
 // =====================================
-?>
-<?php 
+
 App::requireRole('admin');
+
+// Incluir ConfigManager
+require_once 'config/config_functions.php';
+
 $user = App::getUser(); 
+
+// Obtener configuración de colores para admin
+ConfigManager::init();
+$adminColors = ConfigManager::getColorsForRole('admin');
+$companyName = ConfigManager::getCompanyName();
+$logo = ConfigManager::getLogo();
+$defaultLanguage = ConfigManager::getDefaultLanguage();
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?= $defaultLanguage ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Admin - <?= APP_NAME ?></title>
+    <title>Gestión de Usuarios - <?= htmlspecialchars($companyName) ?></title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --admin-primary: <?= $adminColors['primary'] ?>;
+            --admin-secondary: <?= $adminColors['secondary'] ?>;
+            --admin-gradient: linear-gradient(135deg, var(--admin-primary) 0%, var(--admin-secondary) 100%);
+        }
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f5f7fa;
         }
 
-        /* Header */
+        /* Header con colores dinámicos */
         .header {
-            background: linear-gradient(135deg, #e53e3e 0%, #fd746c 100%);
+            background: var(--admin-gradient);
             color: white;
             padding: 15px 30px;
             display: flex;
@@ -83,7 +99,7 @@ $user = App::getUser();
             border-radius: 15px;
             padding: 25px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            border-left: 4px solid #e53e3e;
+            border-left: 4px solid var(--admin-primary);
             transition: transform 0.3s ease;
         }
 
@@ -113,7 +129,7 @@ $user = App::getUser();
         .stat-number {
             font-size: 32px;
             font-weight: bold;
-            color: #2d3748;
+            color: var(--admin-primary);
         }
 
         .stat-loading {
@@ -129,6 +145,7 @@ $user = App::getUser();
             padding: 25px;
             margin-bottom: 30px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--admin-primary);
         }
 
         .section-header {
@@ -149,7 +166,7 @@ $user = App::getUser();
         }
 
         .add-btn {
-            background: linear-gradient(135deg, #e53e3e 0%, #fd746c 100%);
+            background: var(--admin-gradient);
             color: white;
             border: none;
             padding: 12px 25px;
@@ -199,7 +216,7 @@ $user = App::getUser();
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #e53e3e 0%, #fd746c 100%);
+            background: var(--admin-gradient);
             color: white;
             display: flex;
             align-items: center;
@@ -233,7 +250,7 @@ $user = App::getUser();
 
         .role-admin {
             background: #fed7d7;
-            color: #e53e3e;
+            color: var(--admin-primary);
         }
 
         .role-agent {
@@ -255,7 +272,7 @@ $user = App::getUser();
 
         .status-inactive {
             background: #fed7d7;
-            color: #e53e3e;
+            color: var(--admin-primary);
         }
 
         .action-buttons {
@@ -284,7 +301,7 @@ $user = App::getUser();
 
         .btn-delete {
             background: #fed7d7;
-            color: #e53e3e;
+            color: var(--admin-primary);
         }
 
         .btn-delete:hover {
@@ -316,7 +333,7 @@ $user = App::getUser();
             width: 40px;
             height: 40px;
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #e53e3e;
+            border-top: 4px solid var(--admin-primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 15px;
@@ -329,7 +346,7 @@ $user = App::getUser();
 
         .error-message {
             background: #fed7d7;
-            color: #e53e3e;
+            color: var(--admin-primary);
             padding: 15px;
             border-radius: 8px;
             margin: 15px 0;
@@ -380,6 +397,8 @@ $user = App::getUser();
             justify-content: space-between;
             align-items: center;
             margin-bottom: 25px;
+            border-bottom: 2px solid var(--admin-primary);
+            padding-bottom: 15px;
         }
 
         .modal-title {
@@ -394,6 +413,10 @@ $user = App::getUser();
             cursor: pointer;
             color: #718096;
             padding: 5px;
+        }
+
+        .close-btn:hover {
+            color: var(--admin-primary);
         }
 
         .form-grid {
@@ -426,7 +449,8 @@ $user = App::getUser();
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #e53e3e;
+            border-color: var(--admin-primary);
+            box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1);
         }
 
         .form-actions {
@@ -446,7 +470,7 @@ $user = App::getUser();
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #e53e3e 0%, #fd746c 100%);
+            background: var(--admin-gradient);
             color: white;
             border: none;
             padding: 12px 25px;
@@ -478,7 +502,28 @@ $user = App::getUser();
         }
 
         .toast.error {
-            background: #e53e3e;
+            background: var(--admin-primary);
+        }
+
+        /* Navigation Link */
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--admin-gradient);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: transform 0.3s ease;
+            margin-left: 15px;
+        }
+
+        .nav-link:hover {
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
         }
 
         /* Responsive */
@@ -520,11 +565,14 @@ $user = App::getUser();
     <div class="header">
         <div class="header-left">
             <a href="<?= APP_URL ?>/dashboard" class="back-btn">← Dashboard</a>
-            <h2>⚙️ Panel de Administrador</h2>
+            <h2>👥 Gestión de Usuarios</h2>
         </div>
         
         <div style="display: flex; align-items: center; gap: 15px;">
             <div id="google_translate_element"></div>
+            <a href="<?= APP_URL ?>/administrador/configuracion" class="nav-link">
+                ⚙️ Configuración
+            </a>
             <span><?= htmlspecialchars($user['name']) ?></span>
         </div>
     </div>
@@ -782,7 +830,7 @@ $user = App::getUser();
             // Solo mostrar botones de estado si no es el admin principal
             if (user.id !== 1) {
                 if (user.active) {
-                    // Usuario activo: mostrar "Desactivar" y "Deshabilitar"
+                    // Usuario activo: mostrar "Desactivar"
                     actionButtons += `
                         <button class="action-btn btn-toggle" onclick="toggleUserStatus(${user.id})" title="Desactivar usuario">
                             ⏸️ Desactivar
@@ -797,7 +845,7 @@ $user = App::getUser();
                     `;
                 }
             } else {
-                // Admin principal: solo botón de desactivar (deshabilitado)
+                // Admin principal: botón deshabilitado
                 actionButtons += `
                     <button class="action-btn btn-toggle" style="opacity: 0.5; cursor: not-allowed;" title="No se puede desactivar el administrador principal">
                         ⏸️ Desactivar
@@ -829,6 +877,9 @@ $user = App::getUser();
             `;
         }
 
+        // Resto de funciones (openUserModal, closeUserModal, etc.) - mantener iguales
+        // ... aquí irían todas las funciones existentes de usuarios ...
+
         // Escape HTML para prevenir XSS
         function escapeHtml(text) {
             const map = {
@@ -839,6 +890,71 @@ $user = App::getUser();
                 "'": '&#039;'
             };
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // Mostrar notificaciones toast
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 4000);
+        }
+
+        // Google Translate con idioma por defecto del sistema
+        function initializeGoogleTranslate() {
+            function googleTranslateElementInit() {
+                new google.translate.TranslateElement({
+                    pageLanguage: '<?= $defaultLanguage ?>',
+                    includedLanguages: 'en,fr,pt,it,de,es',
+                    layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                    autoDisplay: false
+                }, 'google_translate_element');
+
+                setTimeout(loadSavedLanguage, 1000);
+            }
+
+            function saveLanguage(lang) {
+                sessionStorage.setItem('language', lang);
+                localStorage.setItem('preferredLanguage', lang);
+            }
+
+            function loadSavedLanguage() {
+                const saved = sessionStorage.getItem('language') || 
+                             localStorage.getItem('preferredLanguage') || 
+                             '<?= $defaultLanguage ?>';
+                
+                if (saved && saved !== '<?= $defaultLanguage ?>') {
+                    const select = document.querySelector('.goog-te-combo');
+                    if (select) {
+                        select.value = saved;
+                        select.dispatchEvent(new Event('change'));
+                    }
+                }
+            }
+
+            if (!window.googleTranslateElementInit) {
+                window.googleTranslateElementInit = googleTranslateElementInit;
+                const script = document.createElement('script');
+                script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+                document.head.appendChild(script);
+            }
+
+            setTimeout(function() {
+                const select = document.querySelector('.goog-te-combo');
+                if (select) {
+                    select.addEventListener('change', function() {
+                        if (this.value) saveLanguage(this.value);
+                    });
+                }
+            }, 2000);
         }
 
         // Funciones del modal de usuario
@@ -871,16 +987,26 @@ $user = App::getUser();
         }
 
         function loadUserData(id) {
-            const user = users.find(u => u.id === id);
+            const user = users.find(u => u.id == id);
             if (user) {
+                console.log('Cargando usuario:', user);
+                
                 document.getElementById('userId').value = user.id;
-                document.getElementById('username').value = user.username;
-                document.getElementById('email').value = user.email;
-                document.getElementById('full_name').value = user.full_name;
-                document.getElementById('role').value = user.role;
+                document.getElementById('username').value = user.username || '';
+                document.getElementById('email').value = user.email || '';
+                document.getElementById('full_name').value = user.full_name || '';
+                document.getElementById('role').value = user.role || '';
                 document.getElementById('active').value = user.active ? '1' : '0';
                 document.getElementById('password').value = '';
+            } else {
+                console.error('Usuario no encontrado:', id);
+                showToast('Usuario no encontrado', 'error');
             }
+        }
+
+        function editUser(id) {
+            console.log('Editando usuario ID:', id, typeof id);
+            openUserModal('edit', id);
         }
 
         // Submit del formulario de usuario
@@ -907,7 +1033,6 @@ $user = App::getUser();
                     formData.append('action', 'create_user');
                 }
 
-                // Debug: mostrar datos que se envían
                 console.log('Enviando datos:', Object.fromEntries(formData.entries()));
 
                 const response = await fetch(`${APP_URL}/admin/api`, {
@@ -935,36 +1060,6 @@ $user = App::getUser();
                 submitBtn.disabled = false;
             }
         });
-
-        // Cargar datos de usuario para editar - CORREGIDO
-        function loadUserData(id) {
-            const user = users.find(u => u.id == id); // Usar == en lugar de ===
-            if (user) {
-                console.log('Cargando usuario:', user); // Debug
-                
-                document.getElementById('userId').value = user.id;
-                document.getElementById('username').value = user.username || '';
-                document.getElementById('email').value = user.email || '';
-                document.getElementById('full_name').value = user.full_name || '';
-                document.getElementById('role').value = user.role || '';
-                document.getElementById('active').value = user.active ? '1' : '0';
-                document.getElementById('password').value = '';
-            } else {
-                console.error('Usuario no encontrado:', id);
-                showToast('Usuario no encontrado', 'error');
-            }
-        }
-
-        // Función editUser mejorada
-        function editUser(id) {
-            console.log('Editando usuario ID:', id, typeof id); // Debug
-            openUserModal('edit', id);
-        }
-
-        // Funciones CRUD de usuarios
-        function editUser(id) {
-            openUserModal('edit', id);
-        }
 
         async function toggleUserStatus(id) {
             const user = users.find(u => u.id === id);
@@ -1035,74 +1130,17 @@ $user = App::getUser();
             }
         }
 
-        // Mostrar notificaciones toast
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            
-            document.body.appendChild(toast);
-            
-            setTimeout(() => toast.classList.add('show'), 100);
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => document.body.removeChild(toast), 300);
-            }, 4000);
-        }
-
-        // Google Translate
-        function initializeGoogleTranslate() {
-            function googleTranslateElementInit() {
-                new google.translate.TranslateElement({
-                    pageLanguage: 'es',
-                    includedLanguages: 'en,fr,pt,it,de,es',
-                    layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-                    autoDisplay: false
-                }, 'google_translate_element');
-
-                setTimeout(loadSavedLanguage, 1000);
-            }
-
-            function saveLanguage(lang) {
-                sessionStorage.setItem('language', lang);
-                localStorage.setItem('preferredLanguage', lang);
-            }
-
-            function loadSavedLanguage() {
-                const saved = sessionStorage.getItem('language') || localStorage.getItem('preferredLanguage');
-                if (saved && saved !== 'es') {
-                    const select = document.querySelector('.goog-te-combo');
-                    if (select) {
-                        select.value = saved;
-                        select.dispatchEvent(new Event('change'));
-                    }
-                }
-            }
-
-            if (!window.googleTranslateElementInit) {
-                window.googleTranslateElementInit = googleTranslateElementInit;
-                const script = document.createElement('script');
-                script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-                document.head.appendChild(script);
-            }
-
-            setTimeout(function() {
-                const select = document.querySelector('.goog-te-combo');
-                if (select) {
-                    select.addEventListener('change', function() {
-                        if (this.value) saveLanguage(this.value);
-                    });
-                }
-            }, 2000);
-        }
-
         // Cerrar modal al hacer clic fuera
         document.getElementById('userModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeUserModal();
             }
         });
+
+        // Actualizar estadísticas cada 5 minutos
+        setInterval(function() {
+            loadStatistics();
+        }, 300000);
     </script>
     <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 </body>
