@@ -1,921 +1,843 @@
 <?php
 // =====================================
-// ARCHIVO: pages/programa.php - Página Mi Programa
+// ARCHIVO: modules/programa/api.php - API COMPLETA DEL PROGRAMA
 // =====================================
-?>
-<?php $user = App::getUser(); ?>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Programa - <?= APP_NAME ?></title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+ob_start();
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
+require_once dirname(__DIR__, 2) . '/config/database.php';
+require_once dirname(__DIR__, 2) . '/config/app.php';
+
+App::init();
+App::requireLogin();
+
+class ProgramaAPI {
+    private $db;
+    
+    public function __construct() {
+        try {
+            $this->db = Database::getInstance();
+        } catch(Exception $e) {
+            $this->sendError('Error de conexión a base de datos: ' . $e->getMessage());
+        }
+    }
+    
+    public function handleRequest() {
+        ob_clean();
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-cache, must-revalidate');
         
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f7fa;
-        }
-
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .back-btn {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background 0.3s ease;
-        }
-
-        .back-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* Google Translate */
-        #google_translate_element {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 5px 10px;
-            border-radius: 20px;
-        }
-
-        .goog-te-banner-frame.skiptranslate { display: none !important; }
-        body { top: 0px !important; }
-
-        /* Main Content */
-        .main-content {
-            padding: 30px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        /* Quick Actions */
-        .quick-actions {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .actions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        .action-card {
-            border: 2px solid #e2e8f0;
-            border-radius: 15px;
-            padding: 25px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .action-card:hover {
-            border-color: #667eea;
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
-        }
-
-        .action-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        .action-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 10px;
-        }
-
-        .action-description {
-            color: #718096;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        /* Solicitudes Grid */
-        .solicitudes-section {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-
-        .section-title {
-            font-size: 24px;
-            color: #2d3748;
-        }
-
-        .add-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: transform 0.3s ease;
-        }
-
-        .add-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .solicitudes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
-        }
-
-        .solicitud-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 15px;
-            overflow: hidden;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .solicitud-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-        }
-
-        .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-        }
-
-        .solicitud-id {
-            font-size: 14px;
-            font-weight: 600;
-            opacity: 0.9;
-            margin-bottom: 5px;
-        }
-
-        .solicitud-destino {
-            font-size: 20px;
-            font-weight: 600;
-        }
-
-        .card-body {
-            padding: 20px;
-        }
-
-        .viajero-info {
-            margin-bottom: 15px;
-        }
-
-        .viajero-nombre {
-            font-size: 16px;
-            font-weight: 600;
-            color: #2d3748;
-        }
-
-        .fecha-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            font-size: 14px;
-            color: #718096;
-        }
-
-        .info-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-bottom: 8px;
-            font-size: 14px;
-            color: #4a5568;
-        }
-
-        .estado-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            text-transform: uppercase;
-        }
-
-        .estado-borrador {
-            background: #fed7d7;
-            color: #e53e3e;
-        }
-
-        .estado-activa {
-            background: #c6f6d5;
-            color: #2f855a;
-        }
-
-        .estado-completada {
-            background: #bee3f8;
-            color: #2b6cb0;
-        }
-
-        .card-actions {
-            padding: 15px 20px;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            gap: 10px;
-        }
-
-        .action-btn {
-            flex: 1;
-            padding: 8px 15px;
-            border: 1px solid #e2e8f0;
-            border-radius: 20px;
-            background: none;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.3s ease;
-        }
-
-        .action-btn.primary {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
-
-        .action-btn.primary:hover {
-            background: #5a67d8;
-        }
-
-        .action-btn.secondary {
-            color: #4a5568;
-        }
-
-        .action-btn.secondary:hover {
-            background: #f7fafc;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1000;
-            overflow-y: auto;
-        }
-
-        .modal.show {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 700px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-
-        .modal-title {
-            font-size: 24px;
-            color: #2d3748;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #718096;
-            padding: 5px;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .form-group label {
-            font-weight: 500;
-            color: #4a5568;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            padding: 12px 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 14px;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 15px;
-            justify-content: flex-end;
-        }
-
-        .btn-secondary {
-            background: #e2e8f0;
-            color: #4a5568;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #718096;
-        }
-
-        .empty-state-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .main-content {
-                padding: 20px;
-            }
-
-            .actions-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .solicitudes-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .modal-content {
-                margin: 10px;
-                padding: 20px;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-<body>
-    <!-- Header -->
-    <div class="header">
-        <div class="header-left">
-            <a href="<?= APP_URL ?>/dashboard" class="back-btn">← Volver</a>
-            <h2>✈️ Mi Programa</h2>
-        </div>
+        $action = $_POST['action'] ?? $_GET['action'] ?? '';
         
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div id="google_translate_element"></div>
-            <span><?= htmlspecialchars($user['name']) ?></span>
-        </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="main-content">
-        <!-- Quick Actions -->
-        <div class="quick-actions">
-            <h2 style="margin-bottom: 20px; color: #2d3748;">Acciones Rápidas</h2>
-            <div class="actions-grid">
-                <div class="action-card" onclick="openModal('create')">
-                    <div class="action-icon">➕</div>
-                    <div class="action-title">Nueva Solicitud</div>
-                    <div class="action-description">Crear una nueva solicitud de viajero con destino, fechas y preferencias personalizadas</div>
-                </div>
-                
-                <div class="action-card" onclick="showPersonalizacion()">
-                    <div class="action-icon">🎨</div>
-                    <div class="action-title">Personalizar Programa</div>
-                    <div class="action-description">Configura títulos, idiomas, fotos de portada y opciones avanzadas de tus programas</div>
-                </div>
-                
-                <div class="action-card" onclick="showBiblioteca()">
-                    <div class="action-icon">📚</div>
-                    <div class="action-title">Gestionar Biblioteca</div>
-                    <div class="action-description">Administra días, alojamientos, actividades y transportes para usar en tus programas</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Solicitudes -->
-        <div class="solicitudes-section">
-            <div class="section-header">
-                <h2 class="section-title">Mis Solicitudes de Viajero</h2>
-                <button class="add-btn" onclick="openModal('create')">➕ Nueva Solicitud</button>
-            </div>
-
-            <div class="solicitudes-grid" id="solicitudesGrid">
-                <!-- Las solicitudes se cargan dinámicamente aquí -->
-            </div>
-
-            <!-- Empty State -->
-            <div class="empty-state" id="emptyState" style="display: none;">
-                <div class="empty-state-icon">✈️</div>
-                <h3>No tienes solicitudes aún</h3>
-                <p>Comienza creando tu primera solicitud de viajero</p>
-                <button class="add-btn" onclick="openModal('create')" style="margin-top: 20px;">➕ Crear Primera Solicitud</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para Crear/Editar Solicitud -->
-    <div class="modal" id="solicitudModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" id="modalTitle">Nueva Solicitud de Viajero</h2>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
-
-            <form id="solicitudForm">
-                <input type="hidden" id="solicitudId">
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="nombre_viajero">Nombre del Viajero</label>
-                        <input type="text" id="nombre_viajero" name="nombre_viajero" required placeholder="Nombre completo">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="apellido_viajero">Apellido del Viajero</label>
-                        <input type="text" id="apellido_viajero" name="apellido_viajero" required placeholder="Apellidos">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="destino">Destino</label>
-                        <input type="text" id="destino" name="destino" required placeholder="Ciudad, País">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="numero_viajeros">Número de Viajeros</label>
-                        <select id="numero_viajeros" name="numero_viajeros" required>
-                            <option value="">Seleccionar</option>
-                            <option value="1">1 persona</option>
-                            <option value="2">2 personas</option>
-                            <option value="3">3 personas</option>
-                            <option value="4">4 personas</option>
-                            <option value="5">5 personas</option>
-                            <option value="6">6+ personas</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="fecha_llegada">Fecha de Llegada</label>
-                        <input type="date" id="fecha_llegada" name="fecha_llegada" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="fecha_salida">Fecha de Salida</label>
-                        <input type="date" id="fecha_salida" name="fecha_salida" required>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="acompanamiento">Tipo de Acompañamiento Solicitado</label>
-                    <textarea id="acompanamiento" name="acompanamiento" rows="3" placeholder="Describe el tipo de acompañamiento necesario..."></textarea>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
-                    <button type="submit" class="btn-primary">Guardar Solicitud</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <script>
-        const APP_URL = '<?= APP_URL ?>';
-        let solicitudes = [];
-
-        // Inicialización
-        document.addEventListener('DOMContentLoaded', function() {
-            loadSolicitudes();
-            initializeGoogleTranslate();
-            setupFormValidation();
-        });
-
-        // Cargar solicitudes
-        async function loadSolicitudes() {
-            try {
-                // Datos de ejemplo hasta que tengamos la API real
-                const sampleData = [
-                    {
-                        id: 1,
-                        id_solicitud: 'SOL2025001',
-                        nombre_viajero: 'María',
-                        apellido_viajero: 'García',
-                        destino: 'París, Francia',
-                        fecha_llegada: '2025-07-15',
-                        fecha_salida: '2025-07-22',
-                        numero_viajeros: 2,
-                        acompanamiento: 'Pareja romántica',
-                        estado: 'activa',
-                        created_at: '2025-01-10'
-                    },
-                    {
-                        id: 2,
-                        id_solicitud: 'SOL2025002',
-                        nombre_viajero: 'Carlos',
-                        apellido_viajero: 'Rodríguez',
-                        destino: 'Roma, Italia',
-                        fecha_llegada: '2025-08-10',
-                        fecha_salida: '2025-08-17',
-                        numero_viajeros: 4,
-                        acompanamiento: 'Familia con niños',
-                        estado: 'borrador',
-                        created_at: '2025-01-12'
-                    }
-                ];
-
-                solicitudes = sampleData;
-                renderSolicitudes();
-            } catch (error) {
-                console.error('Error al cargar solicitudes:', error);
-                showEmptyState();
-            }
-        }
-
-        // Renderizar solicitudes
-        function renderSolicitudes() {
-            const grid = document.getElementById('solicitudesGrid');
-            const emptyState = document.getElementById('emptyState');
-
-            if (solicitudes.length === 0) {
-                showEmptyState();
-                return;
-            }
-
-            grid.style.display = 'grid';
-            emptyState.style.display = 'none';
-
-            grid.innerHTML = solicitudes.map(solicitud => createSolicitudCard(solicitud)).join('');
-        }
-
-        // Crear card de solicitud
-        function createSolicitudCard(solicitud) {
-            const fechaLlegada = new Date(solicitud.fecha_llegada).toLocaleDateString();
-            const fechaSalida = new Date(solicitud.fecha_salida).toLocaleDateString();
-            const duracion = calcularDuracion(solicitud.fecha_llegada, solicitud.fecha_salida);
-
-            const estadoClasses = {
-                'borrador': 'estado-borrador',
-                'activa': 'estado-activa',
-                'completada': 'estado-completada',
-                'cancelada': 'estado-cancelada'
-            };
-
-            const estadoTextos = {
-                'borrador': 'Borrador',
-                'activa': 'Activa',
-                'completada': 'Completada',
-                'cancelada': 'Cancelada'
-            };
-
-            return `
-                <div class="solicitud-card" onclick="viewSolicitud(${solicitud.id})">
-                    <div class="card-header">
-                        <div class="solicitud-id">${solicitud.id_solicitud}</div>
-                        <div class="solicitud-destino">${solicitud.destino}</div>
-                    </div>
-                    <div class="card-body">
-                        <div class="viajero-info">
-                            <div class="viajero-nombre">${solicitud.nombre_viajero} ${solicitud.apellido_viajero}</div>
-                        </div>
-                        
-                        <div class="fecha-info">
-                            <span>📅 ${fechaLlegada}</span>
-                            <span>📅 ${fechaSalida}</span>
-                        </div>
-                        
-                        <div class="info-item">
-                            <span>👥</span>
-                            <span>${solicitud.numero_viajeros} viajero${solicitud.numero_viajeros > 1 ? 's' : ''}</span>
-                        </div>
-                        
-                        <div class="info-item">
-                            <span>⏱️</span>
-                            <span>${duracion} días</span>
-                        </div>
-                        
-                        ${solicitud.acompanamiento ? `
-                        <div class="info-item">
-                            <span>🤝</span>
-                            <span>${solicitud.acompanamiento}</span>
-                        </div>
-                        ` : ''}
-                        
-                        <div style="margin-top: 15px;">
-                            <span class="estado-badge ${estadoClasses[solicitud.estado]}">
-                                ${estadoTextos[solicitud.estado]}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="card-actions">
-                        <button class="action-btn primary" onclick="event.stopPropagation(); editSolicitud(${solicitud.id})">
-                            ✏️ Editar
-                        </button>
-                        <button class="action-btn secondary" onclick="event.stopPropagation(); duplicateSolicitud(${solicitud.id})">
-                            📋 Duplicar
-                        </button>
-                        <button class="action-btn secondary" onclick="event.stopPropagation(); deleteSolicitud(${solicitud.id})">
-                            🗑️ Eliminar
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Calcular duración del viaje
-        function calcularDuracion(fechaLlegada, fechaSalida) {
-            const llegada = new Date(fechaLlegada);
-            const salida = new Date(fechaSalida);
-            const diffTime = Math.abs(salida - llegada);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            return diffDays;
-        }
-
-        // Mostrar estado vacío
-        function showEmptyState() {
-            document.getElementById('solicitudesGrid').style.display = 'none';
-            document.getElementById('emptyState').style.display = 'block';
-        }
-
-        // Funciones del modal
-        function openModal(mode, id = null) {
-            const modal = document.getElementById('solicitudModal');
-            const title = document.getElementById('modalTitle');
-
-            if (mode === 'create') {
-                title.textContent = 'Nueva Solicitud de Viajero';
-                document.getElementById('solicitudForm').reset();
-                document.getElementById('solicitudId').value = '';
-            } else if (mode === 'edit' && id) {
-                title.textContent = 'Editar Solicitud de Viajero';
-                loadSolicitudData(id);
-            }
-
-            modal.classList.add('show');
+        try {
+            error_log("=== PROGRAMA API ===");
+            error_log("Action: " . $action);
+            error_log("POST: " . print_r($_POST, true));
             
-            // Configurar fecha mínima
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('fecha_llegada').min = today;
-            document.getElementById('fecha_salida').min = today;
-        }
-
-        function closeModal() {
-            document.getElementById('solicitudModal').classList.remove('show');
-        }
-
-        // Cargar datos de solicitud para editar
-        function loadSolicitudData(id) {
-            const solicitud = solicitudes.find(s => s.id === id);
-            if (solicitud) {
-                document.getElementById('solicitudId').value = solicitud.id;
-                document.getElementById('nombre_viajero').value = solicitud.nombre_viajero;
-                document.getElementById('apellido_viajero').value = solicitud.apellido_viajero;
-                document.getElementById('destino').value = solicitud.destino;
-                document.getElementById('fecha_llegada').value = solicitud.fecha_llegada;
-                document.getElementById('fecha_salida').value = solicitud.fecha_salida;
-                document.getElementById('numero_viajeros').value = solicitud.numero_viajeros;
-                document.getElementById('acompanamiento').value = solicitud.acompanamiento || '';
+            switch($action) {
+                case 'list':
+                    $result = $this->listSolicitudes();
+                    break;
+                case 'create':
+                    $result = $this->createSolicitud();
+                    break;
+                case 'update':
+                    $result = $this->updateSolicitud();
+                    break;
+                case 'delete':
+                    $result = $this->deleteSolicitud();
+                    break;
+                case 'get':
+                    $result = $this->getSolicitud($_GET['id']);
+                    break;
+                case 'duplicate':
+                    $result = $this->duplicateSolicitud($_POST['id']);
+                    break;
+                    
+                // === ACCIONES ESPECÍFICAS DE PROGRAMA ===
+                case 'get_programa_completo':
+                    $result = $this->getProgramaCompleto($_GET['id']);
+                    break;
+                case 'save_personalizacion':
+                    $result = $this->savePersonalizacion();
+                    break;
+                case 'get_biblioteca_items':
+                    $result = $this->getBibliotecaItems($_GET['type']);
+                    break;
+                case 'save_dia':
+                    $result = $this->saveDia();
+                    break;
+                case 'delete_dia':
+                    $result = $this->deleteDia($_POST['id']);
+                    break;
+                case 'save_precios':
+                    $result = $this->savePrecios();
+                    break;
+                case 'get_currencies':
+                    $result = $this->getCurrencies();
+                    break;
+                    
+                default:
+                    throw new Exception('Acción no válida: ' . $action);
             }
+            
+            echo json_encode($result, JSON_UNESCAPED_UNICODE);
+            
+        } catch(Exception $e) {
+            error_log("ProgramaAPI Error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            $this->sendError($e->getMessage());
         }
-
-        // Configurar validación del formulario
-        function setupFormValidation() {
-            const fechaLlegada = document.getElementById('fecha_llegada');
-            const fechaSalida = document.getElementById('fecha_salida');
-
-            fechaLlegada.addEventListener('change', function() {
-                fechaSalida.min = this.value;
-                if (fechaSalida.value && fechaSalida.value < this.value) {
-                    fechaSalida.value = this.value;
-                }
-            });
-
-            fechaSalida.addEventListener('change', function() {
-                if (this.value < fechaLlegada.value) {
-                    alert('La fecha de salida no puede ser anterior a la fecha de llegada');
-                    this.value = fechaLlegada.value;
-                }
-            });
+        
+        exit;
+    }
+    
+    private function sendError($message) {
+        ob_clean();
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // === GESTIÓN DE SOLICITUDES ===
+    
+    private function listSolicitudes() {
+        try {
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            // Si es admin, puede ver todas las solicitudes, si no, solo las suyas
+            if ($user['role'] === 'admin') {
+                $sql = "SELECT s.*, u.full_name as agent_name,
+                        p.titulo_programa, p.idioma_presupuesto
+                        FROM programa_solicitudes s 
+                        LEFT JOIN users u ON s.user_id = u.id
+                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
+                        ORDER BY s.created_at DESC";
+                $solicitudes = $this->db->fetchAll($sql);
+            } else {
+                $sql = "SELECT s.*, p.titulo_programa, p.idioma_presupuesto
+                        FROM programa_solicitudes s 
+                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
+                        WHERE s.user_id = ? 
+                        ORDER BY s.created_at DESC";
+                $solicitudes = $this->db->fetchAll($sql, [$user_id]);
+            }
+            
+            // Formatear fechas
+            foreach($solicitudes as &$solicitud) {
+                $solicitud['fecha_llegada_formatted'] = date('d/m/Y', strtotime($solicitud['fecha_llegada']));
+                $solicitud['fecha_salida_formatted'] = date('d/m/Y', strtotime($solicitud['fecha_salida']));
+                $solicitud['created_at_formatted'] = date('d/m/Y H:i', strtotime($solicitud['created_at']));
+                
+                // Calcular días del viaje
+                $fecha_llegada = new DateTime($solicitud['fecha_llegada']);
+                $fecha_salida = new DateTime($solicitud['fecha_salida']);
+                $solicitud['dias_viaje'] = $fecha_llegada->diff($fecha_salida)->days;
+            }
+            
+            return ['success' => true, 'data' => $solicitudes];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error listando solicitudes: ' . $e->getMessage());
         }
-
-        // Submit del formulario
-        document.getElementById('solicitudForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const formData = new FormData(this);
-            const data = Object.fromEntries(formData.entries());
-            const id = document.getElementById('solicitudId').value;
-
-            try {
-                if (id) {
-                    // Actualizar solicitud existente
-                    const index = solicitudes.findIndex(s => s.id == id);
-                    if (index !== -1) {
-                        solicitudes[index] = { ...solicitudes[index], ...data };
+    }
+    
+    private function createSolicitud() {
+        try {
+            $user_id = $_SESSION['user_id'];
+            
+            // Generar ID único de solicitud
+            $year = date('Y');
+            $lastId = $this->db->fetch("SELECT id_solicitud FROM programa_solicitudes WHERE id_solicitud LIKE 'SOL{$year}%' ORDER BY id DESC LIMIT 1");
+            
+            if ($lastId) {
+                $number = intval(substr($lastId['id_solicitud'], -3)) + 1;
+            } else {
+                $number = 1;
+            }
+            
+            $id_solicitud = 'SOL' . $year . str_pad($number, 3, '0', STR_PAD_LEFT);
+            
+            $data = [
+                'id_solicitud' => $id_solicitud,
+                'nombre_viajero' => trim($_POST['nombre_viajero']),
+                'apellido_viajero' => trim($_POST['apellido_viajero']),
+                'destino' => trim($_POST['destino']),
+                'fecha_llegada' => $_POST['fecha_llegada'],
+                'fecha_salida' => $_POST['fecha_salida'],
+                'numero_viajeros' => intval($_POST['numero_viajeros']),
+                'acompanamiento' => trim($_POST['acompanamiento'] ?? ''),
+                'user_id' => $user_id
+            ];
+            
+            // Validar datos
+            $this->validateSolicitudData($data);
+            
+            $solicitud_id = $this->db->insert('programa_solicitudes', $data);
+            
+            if (!$solicitud_id) {
+                throw new Exception('Error al crear solicitud');
+            }
+            
+            // Crear personalizacción por defecto
+            $personalizacion_data = [
+                'solicitud_id' => $solicitud_id,
+                'titulo_programa' => 'Viaje a ' . $data['destino'],
+                'idioma_presupuesto' => 'es'
+            ];
+            
+            $this->db->insert('programa_personalizacion', $personalizacion_data);
+            
+            // Crear precios por defecto
+            $precios_data = [
+                'solicitud_id' => $solicitud_id,
+                'moneda' => 'EUR',
+                'condiciones_generales' => 'Condiciones generales estándar del viaje. Cancelación gratuita hasta 48 horas antes del viaje. No reembolsable después de la fecha límite.',
+                'info_pasaportes_visados' => 'Se requiere pasaporte vigente con al menos 6 meses de validez. Verifique si necesita visa según su nacionalidad.',
+                'info_seguros_viaje' => 'Se recomienda contratar seguro de viaje que cubra gastos médicos y cancelación. Consulte las opciones disponibles.'
+            ];
+            
+            $this->db->insert('programa_precios', $precios_data);
+            
+            return ['success' => true, 'id' => $solicitud_id, 'id_solicitud' => $id_solicitud, 'message' => 'Solicitud creada correctamente'];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error creando solicitud: ' . $e->getMessage());
+        }
+    }
+    
+    private function updateSolicitud() {
+        try {
+            $id = intval($_POST['id']);
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            // Verificar permisos
+            if ($user['role'] !== 'admin') {
+                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$id]);
+                if (!$existing || $existing['user_id'] != $user_id) {
+                    throw new Exception('No tienes permisos para editar esta solicitud');
+                }
+            }
+            
+            $data = [
+                'nombre_viajero' => trim($_POST['nombre_viajero']),
+                'apellido_viajero' => trim($_POST['apellido_viajero']),
+                'destino' => trim($_POST['destino']),
+                'fecha_llegada' => $_POST['fecha_llegada'],
+                'fecha_salida' => $_POST['fecha_salida'],
+                'numero_viajeros' => intval($_POST['numero_viajeros']),
+                'acompanamiento' => trim($_POST['acompanamiento'] ?? '')
+            ];
+            
+            $this->validateSolicitudData($data);
+            
+            $result = $this->db->update('programa_solicitudes', $data, 'id = ?', [$id]);
+            
+            if (!$result) {
+                throw new Exception('Error al actualizar solicitud');
+            }
+            
+            return ['success' => true, 'message' => 'Solicitud actualizada correctamente'];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error actualizando solicitud: ' . $e->getMessage());
+        }
+    }
+    
+    private function deleteSolicitud() {
+        try {
+            $id = intval($_POST['id']);
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            // Verificar permisos
+            if ($user['role'] !== 'admin') {
+                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$id]);
+                if (!$existing || $existing['user_id'] != $user_id) {
+                    throw new Exception('No tienes permisos para eliminar esta solicitud');
+                }
+            }
+            
+            $result = $this->db->delete('programa_solicitudes', 'id = ?', [$id]);
+            
+            if (!$result) {
+                throw new Exception('Error al eliminar solicitud');
+            }
+            
+            return ['success' => true, 'message' => 'Solicitud eliminada correctamente'];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error eliminando solicitud: ' . $e->getMessage());
+        }
+    }
+    
+    private function getSolicitud($id) {
+        try {
+            $id = intval($id);
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            if ($user['role'] === 'admin') {
+                $sql = "SELECT s.*, p.titulo_programa, p.idioma_presupuesto, p.foto_portada
+                        FROM programa_solicitudes s 
+                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
+                        WHERE s.id = ?";
+                $solicitud = $this->db->fetch($sql, [$id]);
+            } else {
+                $sql = "SELECT s.*, p.titulo_programa, p.idioma_presupuesto, p.foto_portada
+                        FROM programa_solicitudes s 
+                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
+                        WHERE s.id = ? AND s.user_id = ?";
+                $solicitud = $this->db->fetch($sql, [$id, $user_id]);
+            }
+            
+            if (!$solicitud) {
+                throw new Exception('Solicitud no encontrada');
+            }
+            
+            return ['success' => true, 'data' => $solicitud];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error obteniendo solicitud: ' . $e->getMessage());
+        }
+    }
+    
+    // === FUNCIONES ESPECÍFICAS DE PROGRAMA ===
+    
+    private function getProgramaCompleto($id) {
+        try {
+            $id = intval($id);
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            // Obtener solicitud principal
+            if ($user['role'] === 'admin') {
+                $sql = "SELECT * FROM programa_solicitudes WHERE id = ?";
+                $solicitud = $this->db->fetch($sql, [$id]);
+            } else {
+                $sql = "SELECT * FROM programa_solicitudes WHERE id = ? AND user_id = ?";
+                $solicitud = $this->db->fetch($sql, [$id, $user_id]);
+            }
+            
+            if (!$solicitud) {
+                throw new Exception('Programa no encontrado');
+            }
+            
+            // Obtener personalización
+            $personalizacion = $this->db->fetch("SELECT * FROM programa_personalizacion WHERE solicitud_id = ?", [$id]);
+            
+            // Obtener días del itinerario
+            $dias = $this->db->fetchAll("
+                SELECT pd.*, bd.titulo as biblioteca_titulo, bd.imagen1 as biblioteca_imagen
+                FROM programa_dias pd
+                LEFT JOIN biblioteca_dias bd ON pd.biblioteca_dia_id = bd.id
+                WHERE pd.solicitud_id = ?
+                ORDER BY pd.dia_numero", [$id]);
+            
+            // Para cada día, obtener sus servicios
+            foreach($dias as &$dia) {
+                $servicios = $this->db->fetchAll("
+                    SELECT pds.*, pds.tipo_servicio,
+                           CASE 
+                               WHEN pds.tipo_servicio = 'actividad' THEN ba.nombre
+                               WHEN pds.tipo_servicio = 'transporte' THEN bt.titulo  
+                               WHEN pds.tipo_servicio = 'alojamiento' THEN bal.nombre
+                           END as nombre,
+                           CASE 
+                               WHEN pds.tipo_servicio = 'actividad' THEN ba.ubicacion
+                               WHEN pds.tipo_servicio = 'transporte' THEN CONCAT(bt.lugar_salida, ' - ', bt.lugar_llegada)
+                               WHEN pds.tipo_servicio = 'alojamiento' THEN bal.ubicacion
+                           END as ubicacion,
+                           CASE 
+                               WHEN pds.tipo_servicio = 'actividad' THEN ba.imagen1
+                               WHEN pds.tipo_servicio = 'transporte' THEN NULL
+                               WHEN pds.tipo_servicio = 'alojamiento' THEN bal.imagen
+                           END as imagen
+                    FROM programa_dias_servicios pds
+                    LEFT JOIN biblioteca_actividades ba ON pds.tipo_servicio = 'actividad' AND pds.biblioteca_item_id = ba.id
+                    LEFT JOIN biblioteca_transportes bt ON pds.tipo_servicio = 'transporte' AND pds.biblioteca_item_id = bt.id
+                    LEFT JOIN biblioteca_alojamientos bal ON pds.tipo_servicio = 'alojamiento' AND pds.biblioteca_item_id = bal.id
+                    WHERE pds.programa_dia_id = ?
+                    ORDER BY pds.tipo_servicio, pds.orden", [$dia['id']]);
+                
+                $dia['servicios'] = [
+                    'actividades' => array_filter($servicios, fn($s) => $s['tipo_servicio'] === 'actividad'),
+                    'transportes' => array_filter($servicios, fn($s) => $s['tipo_servicio'] === 'transporte'),
+                    'alojamientos' => array_filter($servicios, fn($s) => $s['tipo_servicio'] === 'alojamiento')
+                ];
+            }
+            
+            // Obtener precios
+            $precios = $this->db->fetch("SELECT * FROM programa_precios WHERE solicitud_id = ?", [$id]);
+            
+            $resultado = [
+                'solicitud' => $solicitud,
+                'personalizacion' => $personalizacion,
+                'dias' => $dias,
+                'precios' => $precios
+            ];
+            
+            return ['success' => true, 'data' => $resultado];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error obteniendo programa completo: ' . $e->getMessage());
+        }
+    }
+    
+    private function savePersonalizacion() {
+        try {
+            $solicitud_id = intval($_POST['solicitud_id']);
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            // Verificar permisos
+            if ($user['role'] !== 'admin') {
+                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$solicitud_id]);
+                if (!$existing || $existing['user_id'] != $user_id) {
+                    throw new Exception('No tienes permisos para editar este programa');
+                }
+            }
+            
+            $data = [
+                'titulo_programa' => trim($_POST['titulo_programa']),
+                'idioma_presupuesto' => trim($_POST['idioma_presupuesto'])
+            ];
+            
+            // Procesar imagen de portada si se subió
+            if (isset($_FILES['foto_portada']) && $_FILES['foto_portada']['error'] === UPLOAD_ERR_OK) {
+                $url = $this->uploadImage($_FILES['foto_portada'], $solicitud_id, 'portada');
+                $data['foto_portada'] = $url;
+            }
+            
+            // Verificar si ya existe personalización
+            $existing = $this->db->fetch("SELECT id FROM programa_personalizacion WHERE solicitud_id = ?", [$solicitud_id]);
+            
+            if ($existing) {
+                $result = $this->db->update('programa_personalizacion', $data, 'solicitud_id = ?', [$solicitud_id]);
+            } else {
+                $data['solicitud_id'] = $solicitud_id;
+                $result = $this->db->insert('programa_personalizacion', $data);
+            }
+            
+            if (!$result) {
+                throw new Exception('Error al guardar personalización');
+            }
+            
+            return ['success' => true, 'message' => 'Personalización guardada correctamente'];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error guardando personalización: ' . $e->getMessage());
+        }
+    }
+    
+    private function getBibliotecaItems($type) {
+        try {
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            $allowedTypes = ['dias', 'actividades', 'transportes', 'alojamientos'];
+            if (!in_array($type, $allowedTypes)) {
+                throw new Exception('Tipo de item no válido');
+            }
+            
+            $table = "biblioteca_" . $type;
+            
+            // Si es admin, puede ver todos los items, si no, solo los suyos
+            if ($user['role'] === 'admin') {
+                $sql = "SELECT *, CONCAT(u.full_name, ' (', u.username, ')') as created_by 
+                        FROM `{$table}` b
+                        LEFT JOIN users u ON b.user_id = u.id
+                        WHERE activo = 1 
+                        ORDER BY created_at DESC";
+                $items = $this->db->fetchAll($sql);
+            } else {
+                $sql = "SELECT * FROM `{$table}` WHERE activo = 1 AND user_id = ? ORDER BY created_at DESC";
+                $items = $this->db->fetchAll($sql, [$user_id]);
+            }
+            
+            // Procesar URLs de imágenes
+            foreach($items as &$item) {
+                $imageFields = $this->getImageFields($type);
+                foreach($imageFields as $field) {
+                    if (!empty($item[$field])) {
+                        if (strpos($item[$field], 'http') !== 0) {
+                            $item[$field] = APP_URL . $item[$field];
+                        }
                     }
-                    alert('Solicitud actualizada correctamente');
-                } else {
-                    // Crear nueva solicitud
-                    const newSolicitud = {
-                        id: Date.now(),
-                        id_solicitud: generateSolicitudId(),
-                        ...data,
-                        estado: 'borrador',
-                        created_at: new Date().toISOString().split('T')[0]
-                    };
-                    solicitudes.unshift(newSolicitud);
-                    alert('Solicitud creada correctamente');
                 }
-
-                closeModal();
-                renderSolicitudes();
-
-                // TODO: Enviar a API real
-            } catch (error) {
-                alert('Error al guardar la solicitud: ' + error.message);
             }
-        });
-
-        // Generar ID de solicitud único
-        function generateSolicitudId() {
-            const year = new Date().getFullYear();
-            const count = solicitudes.length + 1;
-            return `SOL${year}${count.toString().padStart(3, '0')}`;
+            
+            return ['success' => true, 'data' => $items];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error obteniendo items de biblioteca: ' . $e->getMessage());
         }
-
-        // Funciones CRUD
-        function viewSolicitud(id) {
-            // Redirigir a vista detallada (implementar después)
-            alert(`Ver detalles de la solicitud ${id}`);
-        }
-
-        function editSolicitud(id) {
-            openModal('edit', id);
-        }
-
-        function duplicateSolicitud(id) {
-            const solicitud = solicitudes.find(s => s.id === id);
-            if (solicitud) {
-                const duplicated = {
-                    ...solicitud,
-                    id: Date.now(),
-                    id_solicitud: generateSolicitudId(),
-                    estado: 'borrador',
-                    created_at: new Date().toISOString().split('T')[0]
-                };
-                solicitudes.unshift(duplicated);
-                renderSolicitudes();
-                alert('Solicitud duplicada correctamente');
+    }
+    
+    private function saveDia() {
+        try {
+            $solicitud_id = intval($_POST['solicitud_id']);
+            $dia_id = intval($_POST['dia_id'] ?? 0);
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            // Verificar permisos
+            if ($user['role'] !== 'admin') {
+                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$solicitud_id]);
+                if (!$existing || $existing['user_id'] != $user_id) {
+                    throw new Exception('No tienes permisos para editar este programa');
+                }
             }
-        }
-
-        function deleteSolicitud(id) {
-            if (confirm('¿Estás seguro de que quieres eliminar esta solicitud?')) {
-                solicitudes = solicitudes.filter(s => s.id !== id);
-                renderSolicitudes();
-                alert('Solicitud eliminada correctamente');
+            
+            $data = [
+                'solicitud_id' => $solicitud_id,
+                'dia_numero' => intval($_POST['dia_numero']),
+                'fecha' => $_POST['fecha'],
+                'biblioteca_dia_id' => intval($_POST['biblioteca_dia_id']) ?: null,
+                'titulo_jornada' => trim($_POST['titulo_jornada']),
+                'descripcion' => trim($_POST['descripcion'] ?? ''),
+                'ubicacion' => trim($_POST['ubicacion'] ?? ''),
+                'desayuno_incluido' => isset($_POST['desayuno_incluido']) ? 1 : 0,
+                'almuerzo_incluido' => isset($_POST['almuerzo_incluido']) ? 1 : 0,
+                'cena_incluida' => isset($_POST['cena_incluida']) ? 1 : 0,
+                'comidas_no_incluidas' => isset($_POST['comidas_no_incluidas']) ? 1 : 0
+            ];
+            
+            if ($dia_id > 0) {
+                // Actualizar día existente
+                $result = $this->db->update('programa_dias', $data, 'id = ?', [$dia_id]);
+                $programa_dia_id = $dia_id;
+            } else {
+                // Crear nuevo día
+                $programa_dia_id = $this->db->insert('programa_dias', $data);
             }
-        }
-
-        // Funciones de navegación
-        function showPersonalizacion() {
-            alert('Módulo de personalización en desarrollo');
-        }
-
-        function showBiblioteca() {
-            window.location.href = APP_URL + '/biblioteca';
-        }
-
-        // Google Translate
-        function initializeGoogleTranslate() {
-            function googleTranslateElementInit() {
-                new google.translate.TranslateElement({
-                    pageLanguage: 'es',
-                    includedLanguages: 'en,fr,pt,it,de,es',
-                    layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-                    autoDisplay: false
-                }, 'google_translate_element');
-
-                setTimeout(loadSavedLanguage, 1000);
+            
+            if (!$programa_dia_id) {
+                throw new Exception('Error al guardar día');
             }
-
-            function saveLanguage(lang) {
-                sessionStorage.setItem('language', lang);
-                localStorage.setItem('preferredLanguage', lang);
-            }
-
-            function loadSavedLanguage() {
-                const saved = sessionStorage.getItem('language') || localStorage.getItem('preferredLanguage');
-                if (saved && saved !== 'es') {
-                    const select = document.querySelector('.goog-te-combo');
-                    if (select) {
-                        select.value = saved;
-                        select.dispatchEvent(new Event('change'));
+            
+            // Procesar servicios (actividades, transportes, alojamientos)
+            $this->procesarServicios($programa_dia_id, $_POST);
+            
+            return ['success' => true, 'message' => 'Día guardado correctamente', 'dia_id' => $programa_dia_id];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error guardando día: ' . $e->getMessage());
+        }
+    }
+    
+    private function procesarServicios($programa_dia_id, $postData) {
+        try {
+            // Eliminar servicios existentes
+            $this->db->delete('programa_dias_servicios', 'programa_dia_id = ?', [$programa_dia_id]);
+            
+            $servicios_tipos = ['actividades', 'transportes', 'alojamientos'];
+            
+            foreach($servicios_tipos as $tipo) {
+                $tipo_singular = rtrim($tipo, 's');
+                if ($tipo_singular === 'actividade') $tipo_singular = 'actividad';
+                if ($tipo_singular === 'transporte') $tipo_singular = 'transporte';
+                if ($tipo_singular === 'alojamiento') $tipo_singular = 'alojamiento';
+                
+                if (isset($postData[$tipo]) && is_array($postData[$tipo])) {
+                    $orden = 1;
+                    foreach($postData[$tipo] as $item_id) {
+                        if ($item_id > 0) {
+                            $servicio_data = [
+                                'programa_dia_id' => $programa_dia_id,
+                                'tipo_servicio' => $tipo_singular,
+                                'biblioteca_item_id' => intval($item_id),
+                                'orden' => $orden++
+                            ];
+                            
+                            $this->db->insert('programa_dias_servicios', $servicio_data);
+                        }
                     }
                 }
             }
-
-            // Cargar script
-            if (!window.googleTranslateElementInit) {
-                window.googleTranslateElementInit = googleTranslateElementInit;
-                const script = document.createElement('script');
-                script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-                document.head.appendChild(script);
-            }
-
-            // Detectar cambios
-            setTimeout(function() {
-                const select = document.querySelector('.goog-te-combo');
-                if (select) {
-                    select.addEventListener('change', function() {
-                        if (this.value) saveLanguage(this.value);
-                    });
-                }
-            }, 2000);
+            
+        } catch(Exception $e) {
+            throw new Exception('Error procesando servicios: ' . $e->getMessage());
         }
-
-        // Cerrar modal al hacer clic fuera
-        document.getElementById('solicitudModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
+    }
+    
+    private function deleteDia($dia_id) {
+        try {
+            $dia_id = intval($dia_id);
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            // Verificar permisos
+            if ($user['role'] !== 'admin') {
+                $existing = $this->db->fetch("
+                    SELECT ps.user_id 
+                    FROM programa_dias pd 
+                    JOIN programa_solicitudes ps ON pd.solicitud_id = ps.id 
+                    WHERE pd.id = ?", [$dia_id]);
+                    
+                if (!$existing || $existing['user_id'] != $user_id) {
+                    throw new Exception('No tienes permisos para eliminar este día');
+                }
             }
-        });
-    </script>
-    <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-</body>
-</html>
+            
+            $result = $this->db->delete('programa_dias', 'id = ?', [$dia_id]);
+            
+            if (!$result) {
+                throw new Exception('Error al eliminar día');
+            }
+            
+            return ['success' => true, 'message' => 'Día eliminado correctamente'];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error eliminando día: ' . $e->getMessage());
+        }
+    }
+    
+    private function savePrecios() {
+        try {
+            $solicitud_id = intval($_POST['solicitud_id']);
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            // Verificar permisos
+            if ($user['role'] !== 'admin') {
+                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$solicitud_id]);
+                if (!$existing || $existing['user_id'] != $user_id) {
+                    throw new Exception('No tienes permisos para editar este programa');
+                }
+            }
+            
+            $data = [
+                'moneda' => trim($_POST['moneda']),
+                'precio_adulto' => floatval($_POST['precio_adulto'] ?? 0),
+                'precio_adolescente' => floatval($_POST['precio_adolescente'] ?? 0),
+                'precio_nino' => floatval($_POST['precio_nino'] ?? 0),
+                'precio_bebe' => floatval($_POST['precio_bebe'] ?? 0),
+                'noches_incluidas' => intval($_POST['noches_incluidas'] ?? 0),
+                'precio_incluye' => trim($_POST['precio_incluye'] ?? ''),
+                'precio_no_incluye' => trim($_POST['precio_no_incluye'] ?? ''),
+                'condiciones_generales' => trim($_POST['condiciones_generales'] ?? ''),
+                'apto_movilidad_reducida' => isset($_POST['apto_movilidad_reducida']) ? 1 : 0,
+                'info_pasaportes_visados' => trim($_POST['info_pasaportes_visados'] ?? ''),
+                'info_seguros_viaje' => trim($_POST['info_seguros_viaje'] ?? '')
+            ];
+            
+            // Verificar si ya existen precios
+            $existing = $this->db->fetch("SELECT id FROM programa_precios WHERE solicitud_id = ?", [$solicitud_id]);
+            
+            if ($existing) {
+                $result = $this->db->update('programa_precios', $data, 'solicitud_id = ?', [$solicitud_id]);
+            } else {
+                $data['solicitud_id'] = $solicitud_id;
+                $result = $this->db->insert('programa_precios', $data);
+            }
+            
+            if (!$result) {
+                throw new Exception('Error al guardar precios');
+            }
+            
+            return ['success' => true, 'message' => 'Precios guardados correctamente'];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error guardando precios: ' . $e->getMessage());
+        }
+    }
+    
+    private function getCurrencies() {
+    try {
+        $currencies = [
+            'EUR' => ['name' => 'Euro', 'symbol' => '€'],
+            'USD' => ['name' => 'Dólar Estadounidense', 'symbol' => '$'],
+            'GBP' => ['name' => 'Libra Esterlina', 'symbol' => '£'],
+            'COP' => ['name' => 'Peso Colombiano', 'symbol' => 'COP $'],
+            'MXN' => ['name' => 'Peso Mexicano', 'symbol' => 'MX $'],
+            'ARS' => ['name' => 'Peso Argentino', 'symbol' => 'AR $'],
+            'BRL' => ['name' => 'Real Brasileño', 'symbol' => 'R$'],
+            'CHF' => ['name' => 'Franco Suizo', 'symbol' => 'CHF'],
+            'CAD' => ['name' => 'Dólar Canadiense', 'symbol' => 'CA $'],
+            'JPY' => ['name' => 'Yen Japonés', 'symbol' => '¥'],
+            'CNY' => ['name' => 'Yuan Chino', 'symbol' => '¥'],
+            'AUD' => ['name' => 'Dólar Australiano', 'symbol' => 'AU $'],
+            'PEN' => ['name' => 'Sol Peruano', 'symbol' => 'S/'],
+            'CLP' => ['name' => 'Peso Chileno', 'symbol' => 'CL $'],
+            'UYU' => ['name' => 'Peso Uruguayo', 'symbol' => 'UY $'],
+            'BOB' => ['name' => 'Boliviano', 'symbol' => 'Bs'],
+            'GTQ' => ['name' => 'Quetzal Guatemalteco', 'symbol' => 'Q'],
+            'CRC' => ['name' => 'Colón Costarricense', 'symbol' => '₡'],
+            'HNL' => ['name' => 'Lempira Hondureña', 'symbol' => 'L'],
+            'NIO' => ['name' => 'Córdoba Nicaragüense', 'symbol' => 'C$'],
+            'PAB' => ['name' => 'Balboa Panameño', 'symbol' => 'B/.'],
+            'DOP' => ['name' => 'Peso Dominicano', 'symbol' => 'RD$'],
+            'CUP' => ['name' => 'Peso Cubano', 'symbol' => '$'],
+            'JMD' => ['name' => 'Dólar Jamaiquino', 'symbol' => 'J$'],
+            'TTD' => ['name' => 'Dólar de Trinidad y Tobago', 'symbol' => 'TT$']
+        ];
+        
+        return ['success' => true, 'data' => $currencies];
+        
+    } catch(Exception $e) {
+        error_log("Error en getCurrencies: " . $e->getMessage());
+        return ['success' => false, 'error' => 'Error al obtener monedas: ' . $e->getMessage()];
+    }
+}
+    
+    // === FUNCIONES AUXILIARES ===
+    
+    private function validateSolicitudData($data) {
+        if (empty($data['nombre_viajero'])) {
+            throw new Exception('El nombre del viajero es obligatorio');
+        }
+        
+        if (empty($data['apellido_viajero'])) {
+            throw new Exception('El apellido del viajero es obligatorio');
+        }
+        
+        if (empty($data['destino'])) {
+            throw new Exception('El destino es obligatorio');
+        }
+        
+        if (empty($data['fecha_llegada']) || empty($data['fecha_salida'])) {
+            throw new Exception('Las fechas de llegada y salida son obligatorias');
+        }
+        
+        // Validar que la fecha de salida sea posterior a la de llegada
+        if (strtotime($data['fecha_salida']) <= strtotime($data['fecha_llegada'])) {
+            throw new Exception('La fecha de salida debe ser posterior a la fecha de llegada');
+        }
+        
+        if ($data['numero_viajeros'] < 1) {
+            throw new Exception('Debe haber al menos 1 viajero');
+        }
+    }
+    
+    private function duplicateSolicitud($id) {
+        try {
+            $id = intval($id);
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            // Verificar permisos
+            if ($user['role'] !== 'admin') {
+                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$id]);
+                if (!$existing || $existing['user_id'] != $user_id) {
+                    throw new Exception('No tienes permisos para duplicar esta solicitud');
+                }
+            }
+            
+            // Obtener solicitud original
+            $solicitud = $this->db->fetch("SELECT * FROM programa_solicitudes WHERE id = ?", [$id]);
+            if (!$solicitud) {
+                throw new Exception('Solicitud no encontrada');
+            }
+            
+            // Generar nuevo ID de solicitud
+            $year = date('Y');
+            $lastId = $this->db->fetch("SELECT id_solicitud FROM programa_solicitudes WHERE id_solicitud LIKE 'SOL{$year}%' ORDER BY id DESC LIMIT 1");
+            
+            if ($lastId) {
+                $number = intval(substr($lastId['id_solicitud'], -3)) + 1;
+            } else {
+                $number = 1;
+            }
+            
+            $new_id_solicitud = 'SOL' . $year . str_pad($number, 3, '0', STR_PAD_LEFT);
+            
+            // Crear nueva solicitud
+            unset($solicitud['id']);
+            $solicitud['id_solicitud'] = $new_id_solicitud;
+            $solicitud['nombre_viajero'] = 'Copia de ' . $solicitud['nombre_viajero'];
+            $solicitud['estado'] = 'borrador';
+            $solicitud['user_id'] = $user_id;
+            
+            $new_solicitud_id = $this->db->insert('programa_solicitudes', $solicitud);
+            
+            if (!$new_solicitud_id) {
+                throw new Exception('Error al duplicar solicitud');
+            }
+            
+            // Duplicar personalización si existe
+            $personalizacion = $this->db->fetch("SELECT * FROM programa_personalizacion WHERE solicitud_id = ?", [$id]);
+            if ($personalizacion) {
+                unset($personalizacion['id']);
+                $personalizacion['solicitud_id'] = $new_solicitud_id;
+                $personalizacion['titulo_programa'] = 'Copia de ' . $personalizacion['titulo_programa'];
+                $this->db->insert('programa_personalizacion', $personalizacion);
+            }
+            
+            // Duplicar precios si existen
+            $precios = $this->db->fetch("SELECT * FROM programa_precios WHERE solicitud_id = ?", [$id]);
+            if ($precios) {
+                unset($precios['id']);
+                $precios['solicitud_id'] = $new_solicitud_id;
+                $this->db->insert('programa_precios', $precios);
+            }
+            
+            return ['success' => true, 'id' => $new_solicitud_id, 'message' => 'Solicitud duplicada correctamente'];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error duplicando solicitud: ' . $e->getMessage());
+        }
+    }
+    
+    private function uploadImage($file, $solicitud_id, $type) {
+        // Validar archivo
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!in_array($file['type'], $allowedTypes)) {
+            throw new Exception('Tipo de archivo no permitido');
+        }
+        
+        if ($file['size'] > 5 * 1024 * 1024) {
+            throw new Exception('Archivo demasiado grande (máx 5MB)');
+        }
+        
+        // Crear directorio
+        $baseDir = dirname(__DIR__, 2) . '/assets/uploads/programa/';
+        $yearMonth = date('Y/m');
+        $uploadDir = $baseDir . $yearMonth . '/';
+        
+        if (!is_dir($uploadDir)) {
+            if (!mkdir($uploadDir, 0755, true)) {
+                throw new Exception('No se pudo crear directorio');
+            }
+        }
+        
+        // Generar nombre
+        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $fileName = 'programa_' . $solicitud_id . '_' . $type . '_' . time() . '.' . $extension;
+        $filePath = $uploadDir . $fileName;
+        
+        // Mover archivo
+        if (move_uploaded_file($file['tmp_name'], $filePath)) {
+            return APP_URL . '/assets/uploads/programa/' . $yearMonth . '/' . $fileName;
+        } else {
+            throw new Exception('Error moviendo archivo');
+        }
+    }
+    
+    private function getImageFields($type) {
+        switch($type) {
+            case 'dias':
+            case 'actividades':
+                return ['imagen1', 'imagen2', 'imagen3'];
+            case 'alojamientos':
+                return ['imagen'];
+            default:
+                return [];
+        }
+    }
+}
+
+// Ejecutar API
+try {
+    $api = new ProgramaAPI();
+    $api->handleRequest();
+} catch(Exception $e) {
+    ob_clean();
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+}
+?>
