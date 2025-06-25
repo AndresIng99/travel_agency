@@ -2108,8 +2108,8 @@ function removeSuggestions() {
         }
 
         // Funciones CRUD
-        function viewResource(id) {
-            alert(`Ver detalles del recurso ${id}`);
+       function viewResource(id) {
+            viewResourceDetails(id, currentTab);
         }
 
         function editResource(id) {
@@ -2696,6 +2696,725 @@ document.addEventListener('DOMContentLoaded', function() {
     document.head.appendChild(style);
 });
 </script>
+<script>
 
+// Función mejorada para actualizar mapa cuando se selecciona ubicación
+function updateMapWithSelectedLocation(location, coordinates) {
+    console.log('📍 Actualizando mapa con ubicación seleccionada:', location);
+    
+    if (!map) {
+        console.warn('⚠️ Mapa no disponible');
+        return;
+    }
+    
+    try {
+        const lat = coordinates.lat || coordinates.latitude || coordinates[0];
+        const lng = coordinates.lng || coordinates.longitude || coordinates[1];
+        
+        if (!lat || !lng) {
+            console.warn('⚠️ Coordenadas no válidas:', coordinates);
+            return;
+        }
+        
+        // Animar hacia la nueva ubicación
+        map.flyTo([lat, lng], 16, {
+            animate: true,
+            duration: 1.5
+        });
+        
+        // Remover marcador anterior
+        if (window.currentMarker) {
+            map.removeLayer(window.currentMarker);
+        }
+        
+        // Crear nuevo marcador
+        window.currentMarker = L.marker([lat, lng], {
+            draggable: true
+        }).addTo(map);
+        
+        // Popup informativo
+        window.currentMarker.bindPopup(`
+            <div style="text-align: center;">
+                <strong>📍 ${location}</strong><br>
+                <small>Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}</small>
+            </div>
+        `).openPopup();
+        
+        // Actualizar campos ocultos de coordenadas
+        updateCoordinateFields(lat, lng);
+        
+        // Event listener para arrastrar
+        window.currentMarker.on('dragend', function(e) {
+            const newCoords = e.target.getLatLng();
+            updateCoordinateFields(newCoords.lat, newCoords.lng);
+            reverseGeocodeOSM(newCoords.lat, newCoords.lng);
+        });
+        
+        console.log('✅ Mapa actualizado correctamente');
+        
+    } catch (error) {
+        console.error('❌ Error actualizando mapa:', error);
+    }
+}
+
+// Función para actualizar campos de coordenadas
+function updateCoordinateFields(lat, lng) {
+    const latField = document.getElementById('latitud');
+    const lngField = document.getElementById('longitud');
+    
+    if (latField) latField.value = lat;
+    if (lngField) lngField.value = lng;
+    
+    console.log('📍 Coordenadas actualizadas:', { lat, lng });
+}
+
+// Mejorar el autocompletado de ubicaciones para días, alojamientos y actividades
+function setupAdvancedLocationAutocomplete() {
+    const locationFields = ['ubicacion', 'lugar_salida', 'lugar_llegada'];
+    
+    locationFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        
+        let searchTimeout;
+        let suggestionsList;
+        
+        field.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            
+            // Limpiar timeout anterior
+            clearTimeout(searchTimeout);
+            
+            // Remover sugerencias anteriores
+            if (suggestionsList) {
+                suggestionsList.remove();
+                suggestionsList = null;
+            }
+            
+            if (query.length < 3) return;
+            
+            // Buscar después de 300ms
+            searchTimeout = setTimeout(() => {
+                searchLocationWithCoordinates(query, field, fieldId);
+            }, 300);
+        });
+        
+        // Limpiar sugerencias al salir del campo
+        field.addEventListener('blur', function() {
+            setTimeout(() => {
+                if (suggestionsList) {
+                    suggestionsList.remove();
+                    suggestionsList = null;
+                }
+            }, 200);
+        });
+    });
+}
+
+// Función mejorada para buscar ubicaciones con coordenadas
+async function searchLocationWithCoordinates(query, field, fieldType) {
+    try {
+        console.log('🔍 Buscando ubicación:', query);
+        
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?` +
+            `q=${encodeURIComponent(query)}&` +
+            `format=json&` +
+            `limit=5&` +
+            `addressdetails=1&` +
+            `extratags=1&` +
+            `namedetails=1`
+        );
+        
+        if (!response.ok) throw new Error('Error en la búsqueda');
+        
+        const results = await response.json();
+        
+        if (results.length > 0) {
+            showLocationSuggestions(results, field, fieldType);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error buscando ubicación:', error);
+    }
+}
+
+// Mostrar sugerencias de ubicación mejoradas
+function showLocationSuggestions(results, field, fieldType) {
+    // Remover lista anterior
+    const existingList = document.querySelector('.location-suggestions');
+    if (existingList) existingList.remove();
+    
+    const suggestionsList = document.createElement('div');
+    suggestionsList.className = 'location-suggestions';
+    suggestionsList.style.cssText = `
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        z-index: 1000;
+        max-height: 300px;
+        overflow-y: auto;
+    `;
+    
+    results.forEach((result, index) => {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        item.style.cssText = `
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f7fafc;
+            transition: all 0.2s ease;
+        `;
+        
+        const icon = getLocationIcon(result);
+        
+        item.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 18px;">${icon}</span>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #2d3748;">${result.display_name.split(',')[0]}</div>
+                    <div style="font-size: 12px; color: #718096;">${result.display_name}</div>
+                </div>
+            </div>
+        `;
+        
+        item.addEventListener('mouseenter', () => {
+            item.style.backgroundColor = '#f8fafc';
+        });
+        
+        item.addEventListener('mouseleave', () => {
+            item.style.backgroundColor = '';
+        });
+        
+        item.addEventListener('click', () => {
+            selectLocationWithMap(result, field, fieldType);
+            suggestionsList.remove();
+        });
+        
+        suggestionsList.appendChild(item);
+    });
+    
+    // Posicionar la lista
+    field.parentElement.style.position = 'relative';
+    field.parentElement.appendChild(suggestionsList);
+}
+
+// Función para seleccionar ubicación y actualizar mapa automáticamente
+function selectLocationWithMap(location, field, fieldType) {
+    console.log('✅ Ubicación seleccionada:', location.display_name);
+    
+    // Actualizar campo de texto
+    field.value = location.display_name;
+    
+    // Coordenadas
+    const lat = parseFloat(location.lat);
+    const lng = parseFloat(location.lon);
+    
+    // AUTOMÁTICAMENTE actualizar el mapa con la nueva ubicación
+    updateMapWithSelectedLocation(location.display_name, { lat, lng });
+    
+    // Disparar evento personalizado
+    field.dispatchEvent(new CustomEvent('locationSelected', {
+        detail: {
+            location: location,
+            coordinates: { lat, lng },
+            fieldType: fieldType
+        }
+    }));
+}
+
+// Función para obtener icono según tipo de ubicación
+function getLocationIcon(location) {
+    const type = location.type || '';
+    const category = location.category || '';
+    
+    const icons = {
+        city: '🏙️',
+        town: '🏘️',
+        village: '🏡',
+        country: '🌍',
+        hotel: '🏨',
+        restaurant: '🍽️',
+        airport: '✈️',
+        station: '🚂',
+        museum: '🏛️',
+        park: '🌳',
+        beach: '🏖️',
+        mountain: '⛰️'
+    };
+    
+    return icons[type] || icons[category] || '📍';
+}
+
+// ===== CORRECCIÓN 2: IMAGEN CORRECTA PARA TRANSPORTES =====
+
+// Función para obtener icono correcto del medio de transporte
+function getTransportIcon(medio) {
+    const transportIcons = {
+        'bus': '🚌',
+        'avion': '✈️',
+        'coche': '🚗',
+        'barco': '🚢',
+        'tren': '🚂',
+        'metro': '🚇',
+        'taxi': '🚕',
+        'bicicleta': '🚲',
+        'moto': '🏍️',
+        'walking': '🚶'
+    };
+    
+    return transportIcons[medio] || '🚗';
+}
+
+// Función mejorada para crear card de transporte
+function createTransportCard(item) {
+    const transportIcon = getTransportIcon(item.medio);
+    const title = item.titulo || 'Transporte';
+    const route = `${item.lugar_salida || 'Origen'} → ${item.lugar_llegada || 'Destino'}`;
+    
+    return `
+        <div class="item-card transport-card" onclick="viewResourceDetails(${item.id}, 'transportes')">
+            <div class="card-image transport-image">
+                <div class="transport-icon">${transportIcon}</div>
+                <div class="transport-type">${item.medio || 'Transporte'}</div>
+            </div>
+            <div class="card-content">
+                <h3 class="card-title">${escapeHtml(title)}</h3>
+                <p class="card-description">${escapeHtml(item.descripcion || 'Sin descripción')}</p>
+                <div class="card-route">🛣️ ${escapeHtml(route)}</div>
+                ${item.duracion ? `<div class="card-duration">⏱️ ${escapeHtml(item.duracion)}</div>` : ''}
+                ${item.precio ? `<div class="card-price">💰 ${escapeHtml(item.precio)}</div>` : ''}
+            </div>
+            <div class="card-actions">
+                <button class="action-btn edit" onclick="event.stopPropagation(); editResource(${item.id})">
+                    ✏️ Editar
+                </button>
+                <button class="action-btn delete" onclick="event.stopPropagation(); deleteResource(${item.id})">
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+    `;
+}
+// CSS específico para cards de transporte
+const transportCardCSS = `
+<style>
+.transport-card .card-image {
+    background: linear-gradient(135deg, var(--primary-color, #667eea) 0%, var(--secondary-color, #764ba2) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-align: center;
+    padding: 20px;
+}
+
+.transport-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+    animation: bounce 2s infinite;
+}
+
+.transport-type {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: capitalize;
+    opacity: 0.9;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-5px);
+    }
+    60% {
+        transform: translateY(-3px);
+    }
+}
+
+.card-route {
+    font-size: 13px;
+    color: #666;
+    margin-top: 5px;
+    font-weight: 500;
+}
+
+.card-duration,
+.card-price {
+    font-size: 12px;
+    color: #888;
+    margin-top: 3px;
+}
+</style>
+`;
+
+// ===== CORRECCIÓN 3: CLICK DIRECTO PARA ABRIR DETALLES =====
+
+// Función para ver detalles del recurso (reemplaza el alert)
+function viewResourceDetails(id, type) {
+    console.log(`📋 Abriendo detalles del ${type} con ID: ${id}`);
+    
+    try {
+        // Buscar el recurso en los datos
+        const resource = resources[type]?.find(item => item.id === id);
+        
+        if (!resource) {
+            showErrorMessage(`No se encontró el recurso con ID: ${id}`);
+            return;
+        }
+        
+        // Crear modal de detalles
+        showResourceDetailsModal(resource, type);
+        
+    } catch (error) {
+        console.error('❌ Error abriendo detalles:', error);
+        showErrorMessage('Error al cargar los detalles del recurso');
+    }
+}
+
+// Función para mostrar modal de detalles del recurso
+function showResourceDetailsModal(resource, type) {
+    // Crear overlay del modal
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'resource-details-modal-overlay';
+    modalOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+    `;
+    
+    // Crear contenido del modal
+    const modalContent = document.createElement('div');
+    modalContent.className = 'resource-details-modal';
+    modalContent.style.cssText = `
+        background: white;
+        border-radius: 16px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        animation: slideIn 0.3s ease;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    `;
+    
+    // Generar contenido según el tipo
+    modalContent.innerHTML = generateResourceDetailsContent(resource, type);
+    
+    modalOverlay.appendChild(modalContent);
+    
+    // Cerrar modal al hacer click en el overlay
+    modalOverlay.addEventListener('click', function(e) {
+        if (e.target === modalOverlay) {
+            closeResourceDetailsModal(modalOverlay);
+        }
+    });
+    
+    // Cerrar con ESC
+    document.addEventListener('keydown', function escapeHandler(e) {
+        if (e.key === 'Escape') {
+            closeResourceDetailsModal(modalOverlay);
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    });
+    
+    document.body.appendChild(modalOverlay);
+}
+
+// Función para generar contenido del modal de detalles
+function generateResourceDetailsContent(resource, type) {
+    const typeConfig = {
+        'dias': {
+            icon: '📅',
+            title: 'Detalles del Día',
+            fields: [
+                { key: 'titulo', label: 'Título', icon: '📝' },
+                { key: 'ubicacion', label: 'Ubicación', icon: '📍' },
+                { key: 'descripcion', label: 'Descripción', icon: '📄' },
+                { key: 'idioma', label: 'Idioma', icon: '🌐' }
+            ]
+        },
+        'alojamientos': {
+            icon: '🏨',
+            title: 'Detalles del Alojamiento',
+            fields: [
+                { key: 'nombre', label: 'Nombre', icon: '🏨' },
+                { key: 'tipo', label: 'Tipo', icon: '🏷️' },
+                { key: 'categoria', label: 'Categoría', icon: '⭐' },
+                { key: 'ubicacion', label: 'Ubicación', icon: '📍' },
+                { key: 'descripcion', label: 'Descripción', icon: '📄' },
+                { key: 'sitio_web', label: 'Sitio Web', icon: '🌐' }
+            ]
+        },
+        'actividades': {
+            icon: '🎯',
+            title: 'Detalles de la Actividad',
+            fields: [
+                { key: 'titulo', label: 'Título', icon: '🎯' },
+                { key: 'ubicacion', label: 'Ubicación', icon: '📍' },
+                { key: 'descripcion', label: 'Descripción', icon: '📄' },
+                { key: 'duracion', label: 'Duración', icon: '⏱️' },
+                { key: 'precio', label: 'Precio', icon: '💰' }
+            ]
+        },
+        'transportes': {
+            icon: '🚗',
+            title: 'Detalles del Transporte',
+            fields: [
+                { key: 'titulo', label: 'Título', icon: '📝' },
+                { key: 'medio', label: 'Medio de Transporte', icon: '🚗' },
+                { key: 'lugar_salida', label: 'Lugar de Salida', icon: '🛫' },
+                { key: 'lugar_llegada', label: 'Lugar de Llegada', icon: '🛬' },
+                { key: 'duracion', label: 'Duración', icon: '⏱️' },
+                { key: 'precio', label: 'Precio', icon: '💰' },
+                { key: 'descripcion', label: 'Descripción', icon: '📄' }
+            ]
+        }
+    };
+    
+    const config = typeConfig[type];
+    if (!config) return '<p>Tipo de recurso no reconocido</p>';
+    
+    // Header del modal
+    let html = `
+        <div style="padding: 24px; border-bottom: 1px solid #e2e8f0;">
+            <div style="display: flex; justify-content: between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 24px;">${config.icon}</span>
+                    <h2 style="margin: 0; color: #1a202c;">${config.title}</h2>
+                </div>
+                <button onclick="closeResourceDetailsModal(this.closest('.resource-details-modal-overlay'))" 
+                        style="background: none; border: none; font-size: 24px; cursor: pointer; color: #718096;">
+                    ×
+                </button>
+            </div>
+        </div>
+        
+        <div style="padding: 24px;">
+    `;
+    
+    // Imágenes
+    const images = getResourceImages(resource, type);
+    if (images.length > 0) {
+        html += `
+            <div style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 12px; color: #2d3748;">📷 Imágenes</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+                    ${images.map(img => `
+                        <img src="${img}" alt="Imagen" 
+                             style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; cursor: pointer;"
+                             onclick="showImageModal('${img}', '${escapeHtml(resource.titulo || resource.nombre || 'Imagen')}')">
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Campos de información
+    html += '<div style="display: grid; gap: 16px;">';
+    
+    config.fields.forEach(field => {
+        const value = resource[field.key];
+        if (value) {
+            let displayValue = value;
+            
+            // Formateo especial para ciertos campos
+            if (field.key === 'categoria') {
+                displayValue = `${'⭐'.repeat(parseInt(value))} (${value} estrellas)`;
+            } else if (field.key === 'sitio_web') {
+                displayValue = `<a href="${value}" target="_blank" style="color: var(--primary-color, #667eea); text-decoration: none;">${value}</a>`;
+            } else if (field.key === 'medio') {
+                displayValue = `${getTransportIcon(value)} ${value}`;
+            }
+            
+            html += `
+                <div style="display: flex; align-items: start; gap: 12px; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                    <span style="font-size: 18px; margin-top: 2px;">${field.icon}</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #2d3748; margin-bottom: 4px;">${field.label}</div>
+                        <div style="color: #4a5568;">${displayValue}</div>
+                    </div>
+                </div>
+            `;
+        }
+    });
+    
+    html += '</div>';
+    
+    // Coordenadas si existen
+    if (resource.latitud && resource.longitud) {
+        html += `
+            <div style="margin-top: 24px; padding: 16px; background: #edf2f7; border-radius: 8px;">
+                <h4 style="margin: 0 0 8px 0; color: #2d3748;">📍 Coordenadas</h4>
+                <div style="font-family: monospace; color: #4a5568;">
+                    Latitud: ${resource.latitud}<br>
+                    Longitud: ${resource.longitud}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Botones de acción
+    html += `
+        </div>
+        <div style="padding: 24px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; justify-content: flex-end;">
+            <button onclick="editResource(${resource.id}); closeResourceDetailsModal(this.closest('.resource-details-modal-overlay'));"
+                    style="background: var(--primary-color, #667eea); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                ✏️ Editar
+            </button>
+            <button onclick="closeResourceDetailsModal(this.closest('.resource-details-modal-overlay'))"
+                    style="background: #e2e8f0; color: #4a5568; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                Cerrar
+            </button>
+        </div>
+    `;
+    
+    return html;
+}
+
+// Función para obtener imágenes del recurso
+function getResourceImages(resource, type) {
+    const images = [];
+    
+    switch(type) {
+        case 'dias':
+        case 'actividades':
+            if (resource.imagen1) images.push(resource.imagen1);
+            if (resource.imagen2) images.push(resource.imagen2);
+            if (resource.imagen3) images.push(resource.imagen3);
+            break;
+        case 'alojamientos':
+            if (resource.imagen) images.push(resource.imagen);
+            break;
+    }
+    
+    return images;
+}
+
+// Función para cerrar modal de detalles
+function closeResourceDetailsModal(modalOverlay) {
+    modalOverlay.style.animation = 'fadeOut 0.3s ease';
+    setTimeout(() => {
+        if (modalOverlay.parentElement) {
+            modalOverlay.remove();
+        }
+    }, 300);
+}
+
+// Función para mostrar mensajes de error
+function showErrorMessage(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #fed7d7;
+        color: #e53e3e;
+        padding: 16px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+        z-index: 10001;
+        animation: slideInRight 0.3s ease;
+    `;
+    toast.textContent = `❌ ${message}`;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+
+// ===== INICIALIZACIÓN =====
+
+// Función para inicializar todas las correcciones
+function initializeBibliotecaFixes() {
+    console.log('🔧 Inicializando correcciones de Biblioteca...');
+    
+    // Agregar CSS para transportes
+    document.head.insertAdjacentHTML('beforeend', transportCardCSS);
+    
+    // Configurar autocompletado avanzado
+    setupAdvancedLocationAutocomplete();
+    
+    // Agregar estilos para animaciones
+    const animationCSS = `
+        <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: scale(0.9) translateY(20px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        </style>
+    `;
+    
+    document.head.insertAdjacentHTML('beforeend', animationCSS);
+    
+    console.log('✅ Correcciones de Biblioteca inicializadas');
+}
+
+// Sobrescribir la función createResourceCard para usar las nuevas funciones
+const originalCreateResourceCard = window.createResourceCard;
+window.createResourceCard = function(item) {
+    if (currentTab === 'transportes') {
+        return createTransportCard(item);
+    }
+    
+    // Para otros tipos, usar la función original pero con click mejorado
+    const card = originalCreateResourceCard ? originalCreateResourceCard(item) : '';
+    return card.replace(
+        'onclick="viewResource(',
+        'onclick="viewResourceDetails('
+    ).replace(
+        '"viewResource(',
+        '"viewResourceDetails('
+    );
+};
+
+// Sobrescribir viewResource para usar la nueva función
+window.viewResource = function(id) {
+    viewResourceDetails(id, currentTab);
+};
+
+// Inicializar al cargar el DOM
+document.addEventListener('DOMContentLoaded', initializeBibliotecaFixes);
+
+// También inicializar si ya está cargado
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeBibliotecaFixes);
+} else {
+    initializeBibliotecaFixes();
+}
+
+</script>
 </body>
 </html>
