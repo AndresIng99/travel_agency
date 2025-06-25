@@ -417,58 +417,66 @@ try {
         </div>
 
         <nav class="sidebar-menu">
-            <a href="<?= APP_URL ?>/dashboard" class="menu-item active">
-                <div class="menu-icon">🏠</div>
-                Dashboard
-            </a>
-            
-            <?php if ($user['role'] === 'admin'): ?>
-            <!-- Menú del Administrador -->
-            <a href="<?= APP_URL ?>/administrador" class="menu-item">
-                <div class="menu-icon">👥</div>
-                Gestión de Usuarios
-            </a>
-            <a href="<?= APP_URL ?>/administrador/configuracion" class="menu-item">
-                <div class="menu-icon">⚙️</div>
-                Configuración Sistema
-            </a>
-            <a href="<?= APP_URL ?>/biblioteca" class="menu-item">
-                <div class="menu-icon">📚</div>
-                Supervisar Biblioteca
-            </a>
-            <a href="<?= APP_URL ?>/programa" class="menu-item">
-                <div class="menu-icon">✈️</div>
-                Supervisar Programas
-            </a>
-            <a href="<?= APP_URL ?>/reportes" class="menu-item">
-                <div class="menu-icon">📊</div>
-                Reportes del Sistema
-            </a>
-            <?php else: ?>
-            <!-- Menú del Agente -->
-            <a href="<?= APP_URL ?>/programa" class="menu-item">
-                <div class="menu-icon">✈️</div>
-                Mi Programa
-            </a>
-            <a href="<?= APP_URL ?>/biblioteca" class="menu-item">
-                <div class="menu-icon">📚</div>
-                Biblioteca
-            </a>
-            <a href="<?= APP_URL ?>/reportes" class="menu-item">
-                <div class="menu-icon">📊</div>
-                Mis Reportes
-            </a>
-            <a href="<?= APP_URL ?>/perfil" class="menu-item">
-                <div class="menu-icon">👤</div>
-                Mi Perfil
-            </a>
-            <?php endif; ?>
-            
-            <a href="<?= APP_URL ?>/auth/logout" class="menu-item">
-                <div class="menu-icon">🚪</div>
-                Cerrar Sesión
-            </a>
-        </nav>
+    <a href="<?= APP_URL ?>/dashboard" class="menu-item active">
+        <div class="menu-icon">🏠</div>
+        Dashboard
+    </a>
+    
+    <?php if ($user['role'] === 'admin'): ?>
+    <!-- Menú del Administrador -->
+    <a href="<?= APP_URL ?>/administrador" class="menu-item">
+        <div class="menu-icon">👥</div>
+        Gestión de Usuarios
+    </a>
+    <a href="<?= APP_URL ?>/administrador/configuracion" class="menu-item">
+        <div class="menu-icon">⚙️</div>
+        Configuración Sistema
+    </a>
+    <a href="<?= APP_URL ?>/biblioteca" class="menu-item">
+        <div class="menu-icon">📚</div>
+        Supervisar Biblioteca
+    </a>
+    <a href="<?= APP_URL ?>/programa" class="menu-item">
+        <div class="menu-icon">✈️</div>
+        Supervisar Programas
+    </a>
+    <a href="<?= APP_URL ?>/itinerarios" class="menu-item">
+        <div class="menu-icon">🗺️</div>
+        Gestión de Itinerarios
+    </a>
+    <a href="<?= APP_URL ?>/reportes" class="menu-item">
+        <div class="menu-icon">📊</div>
+        Reportes del Sistema
+    </a>
+    <?php else: ?>
+    <!-- Menú del Agente -->
+    <a href="<?= APP_URL ?>/programa" class="menu-item">
+        <div class="menu-icon">✈️</div>
+        Mi Programa
+    </a>
+    <a href="<?= APP_URL ?>/itinerarios" class="menu-item">
+        <div class="menu-icon">🗺️</div>
+        Mis Itinerarios
+    </a>
+    <a href="<?= APP_URL ?>/biblioteca" class="menu-item">
+        <div class="menu-icon">📚</div>
+        Biblioteca
+    </a>
+    <a href="<?= APP_URL ?>/reportes" class="menu-item">
+        <div class="menu-icon">📊</div>
+        Mis Reportes
+    </a>
+    <a href="<?= APP_URL ?>/perfil" class="menu-item">
+        <div class="menu-icon">👤</div>
+        Mi Perfil
+    </a>
+    <?php endif; ?>
+    
+    <a href="<?= APP_URL ?>/auth/logout" class="menu-item">
+        <div class="menu-icon">🚪</div>
+        Cerrar Sesión
+    </a>
+</nav>
     </div>
 
     <!-- Overlay -->
@@ -513,7 +521,7 @@ try {
                 <p class="action-description">Supervisa y administra todos los recursos de la biblioteca: días, alojamientos, actividades y transportes de todos los agentes.</p>
             </div>
 
-            <div class="action-card" onclick="goTo('/programa')">
+            <div class="action-card" onclick="goTo('/itinerarios')">
                 <div class="action-icon">✈️</div>
                 <h3 class="action-title">Supervisar Programas</h3>
                 <p class="action-description">Revisa y supervisa todos los programas de viaje y solicitudes creadas por los agentes del sistema.</p>
