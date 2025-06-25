@@ -1,6 +1,6 @@
 <?php
 // =====================================
-// ARCHIVO: pages/programa.php - SOLO SECCIÓN "MI PROGRAMA"
+// ARCHIVO: pages/programa.php - VERSIÓN COMPLETA CORREGIDA
 // =====================================
 
 require_once 'config/app.php';
@@ -94,16 +94,11 @@ $programa_id = $_GET['id'] ?? null;
             padding: 20px 24px;
             background: #fafafa;
             cursor: pointer;
-            border-bottom: 1px solid var(--border-color);
-            transition: all 0.3s ease;
+            transition: background-color 0.3s;
         }
         
         .section-header:hover {
             background: #f0f0f0;
-        }
-        
-        .section-header.collapsed {
-            border-bottom: none;
         }
         
         .section-title {
@@ -112,7 +107,6 @@ $programa_id = $_GET['id'] ?? null;
             gap: 12px;
             font-weight: 600;
             font-size: 1.1rem;
-            color: var(--text-color);
         }
         
         .section-dots {
@@ -121,26 +115,29 @@ $programa_id = $_GET['id'] ?? null;
         }
         
         .dot {
-            width: 6px;
-            height: 6px;
-            background: #999;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
+            background: var(--primary-color);
         }
         
         .section-content {
             padding: 24px;
-            display: block;
+            transition: all 0.3s ease;
         }
         
         .section-content.collapsed {
-            display: none;
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
         }
         
-        /* Formularios */
+        /* Formulario */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
+            margin-bottom: 20px;
         }
         
         .form-group {
@@ -148,109 +145,109 @@ $programa_id = $_GET['id'] ?? null;
             flex-direction: column;
         }
         
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        
         .form-label {
             font-weight: 600;
             margin-bottom: 8px;
-            color: #333;
-            font-size: 0.95rem;
+            color: var(--text-color);
         }
         
-        .form-input, .form-select, .form-textarea {
+        .form-input, .form-select {
             padding: 12px 16px;
             border: 2px solid var(--border-color);
             border-radius: 8px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            font-family: inherit;
+            font-size: 1rem;
+            transition: border-color 0.3s;
         }
         
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
+        .form-input:focus, .form-select:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.1);
-        }
-        
-        .form-textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-        
-        .full-width {
-            grid-column: 1 / -1;
         }
         
         .readonly-field {
             background: #f8f9fa;
-            color: #666;
-            font-weight: 500;
-            border: 2px solid #e9ecef;
+            cursor: not-allowed;
         }
         
-        /* Subida de imágenes */
+        /* Upload de imagen CORREGIDO */
         .image-upload {
             border: 2px dashed var(--border-color);
             border-radius: 12px;
             padding: 40px 20px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
             background: #fafafa;
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            position: relative;
         }
         
         .image-upload:hover {
             border-color: var(--primary-color);
-            background: #f0f9ff;
+            background: #f0f8ff;
         }
         
         .image-upload.has-image {
-            border-color: var(--primary-color);
-            background: #f0f9ff;
-            padding: 20px;
+            border-color: var(--success-color);
+            background: #f0f8f0;
+        }
+        
+        .upload-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .upload-icon {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+        }
+        
+        .upload-text {
+            font-weight: 600;
+            color: var(--text-color);
+            margin: 0;
+        }
+        
+        .upload-hint {
+            color: #666;
+            font-size: 0.9rem;
         }
         
         .image-preview {
             max-width: 100%;
             max-height: 200px;
             border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             margin-bottom: 12px;
         }
         
-        .upload-icon {
-            font-size: 3rem;
-            color: #ccc;
-            margin-bottom: 16px;
-        }
-        
-        .upload-text {
-            font-size: 1.1rem;
-            color: #666;
-            margin-bottom: 8px;
-        }
-        
-        .upload-hint {
-            font-size: 0.9rem;
-            color: #999;
-        }
-        
         /* Botones */
+        .form-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
         .btn {
             padding: 12px 24px;
             border: none;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
-            display: inline-flex;
+            transition: all 0.3s;
+            display: flex;
             align-items: center;
             gap: 8px;
-            justify-content: center;
-            text-decoration: none;
         }
         
         .btn-primary {
@@ -258,34 +255,20 @@ $programa_id = $_GET['id'] ?? null;
             color: white;
         }
         
-        .btn-primary:hover:not(:disabled) {
-            background: var(--secondary-color);
+        .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
         
         .btn-secondary {
-            background: #6b7280;
+            background: #6c757d;
             color: white;
-        }
-        
-        .btn-secondary:hover:not(:disabled) {
-            background: #4b5563;
         }
         
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
-            transform: none !important;
-        }
-        
-        .form-actions {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 32px;
-            padding-top: 24px;
-            border-top: 2px solid #f0f0f0;
+            transform: none;
         }
         
         /* Notificaciones */
@@ -295,12 +278,11 @@ $programa_id = $_GET['id'] ?? null;
             right: 20px;
             padding: 16px 20px;
             border-radius: 8px;
+            color: white;
             font-weight: 600;
             z-index: 1000;
-            max-width: 400px;
             transform: translateX(400px);
-            transition: transform 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: transform 0.3s;
         }
         
         .notification.show {
@@ -308,42 +290,32 @@ $programa_id = $_GET['id'] ?? null;
         }
         
         .notification.success {
-            background: #d1fae5;
-            color: #065f46;
-            border-left: 4px solid #10b981;
+            background: var(--success-color);
         }
         
         .notification.error {
-            background: #fee2e2;
-            color: #991b1b;
-            border-left: 4px solid #ef4444;
+            background: var(--error-color);
         }
         
+        /* Loading state */
         .loading {
-            opacity: 0.6;
+            opacity: 0.7;
             pointer-events: none;
         }
         
-        .loading::after {
-            content: '';
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid transparent;
-            border-top: 2px solid currentColor;
-            border-radius: 50%;
+        .spinner {
             animation: spin 1s linear infinite;
-            margin-left: 8px;
         }
         
         @keyframes spin {
+            from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
         
         /* Responsive */
         @media (max-width: 768px) {
             .container {
-                padding: 10px;
+                padding: 16px;
             }
             
             .form-grid {
@@ -352,10 +324,6 @@ $programa_id = $_GET['id'] ?? null;
             
             .form-actions {
                 flex-direction: column;
-            }
-            
-            .section-header {
-                padding: 16px 20px;
             }
             
             .section-content {
@@ -375,10 +343,11 @@ $programa_id = $_GET['id'] ?? null;
             <p class="page-subtitle">Configuración básica del programa de viaje</p>
         </div>
 
-        <form id="programa-form" enctype="multipart/form-data">
+        <!-- ✅ FORM CORREGIDO CON ENCTYPE -->
+        <form id="programa-form" enctype="multipart/form-data" method="POST">
             <!-- Campo oculto para ID si estamos editando -->
             <?php if ($programa_id): ?>
-                <input type="hidden" id="programa-id" value="<?= htmlspecialchars($programa_id) ?>">
+                <input type="hidden" name="programa_id" id="programa-id-hidden" value="<?= htmlspecialchars($programa_id) ?>">
             <?php endif; ?>
 
             <!-- Sección: Solicitud del viajero -->
@@ -403,41 +372,43 @@ $programa_id = $_GET['id'] ?? null;
                         
                         <div class="form-group">
                             <label class="form-label">Nombre del viajero</label>
-                            <input type="text" class="form-input" id="traveler-name" placeholder="Nombre" required>
+                            <input type="text" class="form-input" id="traveler-name" name="traveler_name" placeholder="Nombre" required>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Apellido del viajero</label>
-                            <input type="text" class="form-input" id="traveler-lastname" placeholder="Apellido" required>
+                            <input type="text" class="form-input" id="traveler-lastname" name="traveler_lastname" placeholder="Apellido" required>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Destino</label>
-                            <input type="text" class="form-input" id="destination" placeholder="Ej: París, Francia" required>
+                            <input type="text" class="form-input" id="destination" name="destination" placeholder="Ej: París, Francia" required>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Fecha de llegada</label>
-                            <input type="date" class="form-input" id="arrival-date" required>
+                            <input type="date" class="form-input" id="arrival-date" name="arrival_date" required onchange="updateDepartureMinDate()">
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Fecha de salida</label>
-                            <input type="date" class="form-input" id="departure-date" required>
+                            <input type="date" class="form-input" id="departure-date" name="departure_date" required>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Número de pasajeros</label>
-                            <input type="number" class="form-input" id="passengers" min="1" max="50" value="1" required>
+                            <input type="number" class="form-input" id="passengers" name="passengers" min="1" max="20" value="1" required>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Acompañamiento</label>
-                            <select class="form-select" id="accompaniment">
+                            <select class="form-select" id="accompaniment" name="accompaniment">
                                 <option value="sin-acompanamiento">Sin acompañamiento</option>
-                                <option value="guia-local">Guía local</option>
-                                <option value="guia-especializado">Guía especializado</option>
-                                <option value="acompanamiento-completo">Acompañamiento completo</option>
+                                <option value="pareja">En pareja</option>
+                                <option value="familia">En familia</option>
+                                <option value="amigos">Con amigos</option>
+                                <option value="grupo">En grupo</option>
+                                <option value="corporativo">Viaje corporativo</option>
                             </select>
                         </div>
                     </div>
@@ -461,12 +432,12 @@ $programa_id = $_GET['id'] ?? null;
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label">Título del programa</label>
-                            <input type="text" class="form-input" id="program-title" placeholder="Ej: Escapada Romántica a París">
+                            <input type="text" class="form-input" id="program-title" name="program_title" placeholder="Ej: Escapada Romántica a París">
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Idioma del presupuesto</label>
-                            <select class="form-select" id="budget-language">
+                            <select class="form-select" id="budget-language" name="budget_language">
                                 <option value="es">🇪🇸 Español</option>
                                 <option value="en">🇺🇸 English</option>
                                 <option value="fr">🇫🇷 Français</option>
@@ -479,7 +450,8 @@ $programa_id = $_GET['id'] ?? null;
                         <div class="form-group full-width">
                             <label class="form-label">Foto de portada</label>
                             <div class="image-upload" id="cover-upload" onclick="document.getElementById('cover-input').click()">
-                                <input type="file" id="cover-input" accept="image/*" style="display: none;">
+                                <!-- ✅ INPUT CORREGIDO CON NAME -->
+                                <input type="file" id="cover-input" name="cover_image" accept="image/*" style="display: none;">
                                 <div class="upload-placeholder">
                                     <i class="fas fa-cloud-upload-alt upload-icon"></i>
                                     <p class="upload-text">Haga clic para subir una imagen de portada</p>
@@ -491,13 +463,13 @@ $programa_id = $_GET['id'] ?? null;
                 </div>
             </div>
 
-            <!-- Acciones del formulario -->
+            <!-- Botones de acción -->
             <div class="form-actions">
-                <a href="<?= APP_URL ?>/programas" class="btn btn-secondary">
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='<?= APP_URL ?>/itinerarios'">
                     <i class="fas fa-arrow-left"></i>
-                    Volver
-                </a>
-                <button type="button" class="btn btn-primary" id="save-btn" onclick="savePrograma()">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary" id="save-btn">
                     <i class="fas fa-save"></i>
                     Guardar Programa
                 </button>
@@ -505,71 +477,318 @@ $programa_id = $_GET['id'] ?? null;
         </form>
     </div>
 
-    <!-- Container de notificaciones -->
-    <div id="notification-container"></div>
-
+    <!-- ✅ JAVASCRIPT COMPLETAMENTE CORREGIDO -->
     <script>
         // Variables globales
-        let currentCoverImage = null;
         let isEditing = false;
+        let currentCoverImage = null;
 
-        // Inicialización
+        // Configurar fecha mínima
         document.addEventListener('DOMContentLoaded', function() {
-            initializeForm();
-            setupEventListeners();
-        });
-
-        function initializeForm() {
-            // Verificar si estamos editando
-            const programaId = document.getElementById('programa-id');
-            if (programaId && programaId.value) {
-                isEditing = true;
-                loadProgramaData(programaId.value);
-            }
+            console.log('🚀 Inicializando programa.php');
             
-            // Establecer fecha mínima como hoy
+            // Configurar fecha mínima como hoy
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('arrival-date').min = today;
             document.getElementById('departure-date').min = today;
+            
+            // Configurar upload de imagen
+            setupImageUpload();
+            
+            // Configurar formulario
+            setupForm();
+            
+            // Verificar si hay ID en la URL para cargar datos
+            const urlParams = new URLSearchParams(window.location.search);
+            const programaId = urlParams.get('id') || urlParams.get('continuar');
+            
+            if (programaId) {
+                isEditing = true;
+                cargarDatosPrograma(programaId);
+            }
+            
+            console.log('✅ Inicialización completada');
+        });
+
+        // ✅ CONFIGURAR UPLOAD DE IMAGEN CORREGIDO CON VERIFICACIONES
+        function setupImageUpload() {
+            console.log('📷 Configurando upload de imagen...');
+            
+            const coverInput = document.getElementById('cover-input');
+            if (!coverInput) {
+                console.error('❌ Error: Elemento cover-input no encontrado durante setup');
+                return;
+            }
+            
+            console.log('✅ Elemento cover-input encontrado:', coverInput);
+            
+            coverInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    console.log('📷 Archivo seleccionado:', file.name, 'Tamaño:', file.size);
+                    
+                    // Validar tipo de archivo
+                    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                    if (!allowedTypes.includes(file.type)) {
+                        showNotification('❌ Tipo de archivo no permitido. Solo se permiten: JPG, PNG, GIF, WebP', 'error');
+                        e.target.value = '';
+                        return;
+                    }
+                    
+                    // Validar tamaño (5MB max)
+                    if (file.size > 5 * 1024 * 1024) {
+                        showNotification('❌ El archivo es demasiado grande. Máximo 5MB permitido.', 'error');
+                        e.target.value = '';
+                        return;
+                    }
+                    
+                    // Mostrar preview
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const uploadArea = document.getElementById('cover-upload');
+                        if (uploadArea) {
+                            uploadArea.innerHTML = `
+                                <img src="${e.target.result}" class="image-preview" alt="Preview">
+                                <p style="margin-top: 12px; font-weight: 600; color: var(--primary-color);">📷 ${file.name}</p>
+                                <small style="color: #666;">Se subirá al guardar el programa</small>
+                            `;
+                            uploadArea.classList.add('has-image');
+                            console.log('✅ Preview de imagen mostrado');
+                        } else {
+                            console.error('❌ Área de upload no encontrada para mostrar preview');
+                        }
+                    };
+                    
+                    reader.onerror = function(e) {
+                        console.error('❌ Error leyendo archivo:', e);
+                        showNotification('Error al cargar la imagen', 'error');
+                    };
+                    
+                    reader.readAsDataURL(file);
+                } else {
+                    console.log('⚠️ No se seleccionó archivo');
+                }
+            });
+            
+            console.log('✅ Event listener configurado para upload de imagen');
         }
 
-        function setupEventListeners() {
-            // Event listener para imagen de portada
-            const coverInput = document.getElementById('cover-input');
-            if (coverInput) {
-                coverInput.addEventListener('change', function(e) {
-                    handleImageUpload(e.target);
-                });
-                console.log("Event listener para imagen de portada configurado");
-            } else {
-                console.warn("Elemento cover-input no encontrado");
-            }
-
-            // Event listener para fechas
-            const arrivalDateInput = document.getElementById('arrival-date');
-            if (arrivalDateInput) {
-                arrivalDateInput.addEventListener('change', function() {
-                    updateDepartureMinDate();
-                });
-                console.log("Event listener para fecha de llegada configurado");
-            } else {
-                console.warn("Elemento arrival-date no encontrado");
-            }
-
-            // Prevenir envío del formulario con Enter
+        // ✅ CONFIGURAR FORMULARIO CORREGIDO
+        function setupForm() {
             const form = document.getElementById('programa-form');
             if (form) {
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
-                    savePrograma();
+                    console.log('📝 Formulario enviado');
+                    guardarPrograma();
                 });
-                console.log("Event listener para formulario configurado");
-            } else {
-                console.warn("Elemento programa-form no encontrado");
             }
         }
 
-        // Funciones de UI
+        // ✅ FUNCIÓN DE GUARDADO COMPLETAMENTE CORREGIDA
+        async function guardarPrograma() {
+            console.log('=== 🚀 INICIANDO GUARDADO DE PROGRAMA ===');
+            
+            if (!validateForm()) {
+                return;
+            }
+
+            setLoadingState(true);
+
+            try {
+                // ✅ CREAR FORMDATA CORRECTAMENTE
+                const formData = new FormData();
+                formData.append('action', 'save_programa');
+                
+                // Datos principales
+                formData.append('traveler_name', document.getElementById('traveler-name').value.trim());
+                formData.append('traveler_lastname', document.getElementById('traveler-lastname').value.trim());
+                formData.append('destination', document.getElementById('destination').value.trim());
+                formData.append('arrival_date', document.getElementById('arrival-date').value);
+                formData.append('departure_date', document.getElementById('departure-date').value);
+                formData.append('passengers', document.getElementById('passengers').value);
+                formData.append('accompaniment', document.getElementById('accompaniment').value);
+                
+                // Datos de personalización
+                formData.append('program_title', document.getElementById('program-title').value.trim());
+                formData.append('budget_language', document.getElementById('budget-language').value);
+                
+                // ✅ IMAGEN DE PORTADA - CORREGIDO PARA EVITAR ERROR NULL
+                const coverInput = document.getElementById('cover-input');
+                if (coverInput && coverInput.files && coverInput.files.length > 0) {
+                    const coverFile = coverInput.files[0];
+                    console.log('📷 Agregando imagen al FormData:', coverFile.name, 'Tamaño:', coverFile.size);
+                    formData.append('cover_image', coverFile);
+                } else {
+                    console.log('⚠️ No hay imagen seleccionada o elemento no encontrado');
+                    if (!coverInput) {
+                        console.error('❌ Elemento cover-input no encontrado en el DOM');
+                    }
+                }
+                
+                // ID del programa si es edición
+                const programaIdElement = document.getElementById('programa-id-hidden');
+                const programaId = programaIdElement ? programaIdElement.value : null;
+                if (programaId) {
+                    formData.append('programa_id', programaId);
+                    console.log('✏️ Editando programa ID:', programaId);
+                }
+
+                // ✅ DEBUG: Mostrar contenido del FormData
+                console.log('📋 Contenido del FormData:');
+                for (let [key, value] of formData.entries()) {
+                    if (value instanceof File) {
+                        console.log(`  ${key}: [FILE] ${value.name} (${value.size} bytes)`);
+                    } else {
+                        console.log(`  ${key}: ${value}`);
+                    }
+                }
+
+                // ✅ ENVIAR DATOS
+                console.log('🌐 Enviando datos a la API...');
+                const response = await fetch('<?= APP_URL ?>/programa/api', {
+                    method: 'POST',
+                    body: formData // ✅ NO agregar Content-Type header para FormData
+                });
+
+                console.log('📡 Respuesta recibida, status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('📋 Resultado de la API:', result);
+
+                if (result.success) {
+                    showNotification('✅ ' + result.message, 'success');
+                    
+                    // Si es un programa nuevo, configurar para edición
+                    if (result.id && !programaId) {
+                        let hiddenInput = document.getElementById('programa-id-hidden');
+                        if (!hiddenInput) {
+                            hiddenInput = document.createElement('input');
+                            hiddenInput.type = 'hidden';
+                            hiddenInput.name = 'programa_id';
+                            hiddenInput.id = 'programa-id-hidden';
+                            document.getElementById('programa-form').appendChild(hiddenInput);
+                        }
+                        hiddenInput.value = result.id;
+                        
+                        // Actualizar botón y URL
+                        document.getElementById('save-btn').innerHTML = '<i class="fas fa-save"></i> Actualizar Programa';
+                        
+                        if (history.pushState) {
+                            const newUrl = `<?= APP_URL ?>/programa?id=${result.id}`;
+                            window.history.pushState({path: newUrl}, '', newUrl);
+                        }
+                        
+                        // Mostrar ID de solicitud
+                        if (result.request_id) {
+                            document.getElementById('request-id').value = result.request_id;
+                            setTimeout(() => {
+                                showNotification(`📋 ID de solicitud: ${result.request_id}`, 'success');
+                            }, 1500);
+                        }
+                        
+                        isEditing = true;
+                    }
+                } else {
+                    throw new Error(result.error || 'Error desconocido al guardar');
+                }
+
+            } catch (error) {
+                console.error('❌ Error completo:', error);
+                showNotification('❌ Error al guardar: ' + error.message, 'error');
+            } finally {
+                setLoadingState(false);
+                console.log('=== ✅ GUARDADO COMPLETADO ===');
+            }
+        }
+
+        // ✅ FUNCIÓN PARA CARGAR DATOS AL EDITAR
+        async function cargarDatosPrograma(id) {
+            try {
+                console.log('📖 Cargando programa ID:', id);
+                
+                const response = await fetch(`<?= APP_URL ?>/programa/api?action=get&id=${id}`);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const data = result.data;
+                    console.log('📋 Datos cargados:', data);
+                    
+                    // Llenar campos del formulario
+                    document.getElementById('request-id').value = data.id_solicitud || '';
+                    document.getElementById('traveler-name').value = data.nombre_viajero || '';
+                    document.getElementById('traveler-lastname').value = data.apellido_viajero || '';
+                    document.getElementById('destination').value = data.destino || '';
+                    document.getElementById('arrival-date').value = data.fecha_llegada || '';
+                    document.getElementById('departure-date').value = data.fecha_salida || '';
+                    document.getElementById('passengers').value = data.numero_pasajeros || '1';
+                    document.getElementById('accompaniment').value = data.acompanamiento || 'sin-acompanamiento';
+                    document.getElementById('program-title').value = data.titulo_programa || '';
+                    document.getElementById('budget-language').value = data.idioma_predeterminado || 'es';
+                    
+                    // ✅ MOSTRAR IMAGEN EXISTENTE
+                    if (data.foto_portada) {
+                        const uploadArea = document.getElementById('cover-upload');
+                        uploadArea.innerHTML = `
+                            <img src="${data.foto_portada}" class="image-preview" alt="Portada actual">
+                            <p style="margin-top: 12px; font-weight: 600; color: var(--success-color);">✅ Imagen actual</p>
+                            <small style="color: #666;">Clic para cambiar imagen</small>
+                        `;
+                        uploadArea.classList.add('has-image');
+                        console.log('🖼️ Imagen de portada cargada:', data.foto_portada);
+                    }
+
+                    // Actualizar botón
+                    document.getElementById('save-btn').innerHTML = '<i class="fas fa-save"></i> Actualizar Programa';
+                }
+            } catch (error) {
+                console.error('❌ Error cargando datos:', error);
+                showNotification('Error cargando los datos del programa', 'error');
+            }
+        }
+
+        // Funciones auxiliares
+        function updateDepartureMinDate() {
+            const arrivalDate = document.getElementById('arrival-date').value;
+            if (arrivalDate) {
+                document.getElementById('departure-date').min = arrivalDate;
+            }
+        }
+
+        function validateForm() {
+            const requiredFields = [
+                { id: 'traveler-name', label: 'Nombre del viajero' },
+                { id: 'traveler-lastname', label: 'Apellido del viajero' },
+                { id: 'destination', label: 'Destino' },
+                { id: 'arrival-date', label: 'Fecha de llegada' },
+                { id: 'departure-date', label: 'Fecha de salida' }
+            ];
+
+            for (const field of requiredFields) {
+                const element = document.getElementById(field.id);
+                if (!element.value.trim()) {
+                    showNotification(`❌ ${field.label} es requerido`, 'error');
+                    element.focus();
+                    return false;
+                }
+            }
+
+            // Validar fechas
+            const arrival = new Date(document.getElementById('arrival-date').value);
+            const departure = new Date(document.getElementById('departure-date').value);
+
+            if (arrival >= departure) {
+                showNotification('❌ La fecha de salida debe ser posterior a la fecha de llegada', 'error');
+                return false;
+            }
+
+            return true;
+        }
+
         function toggleSection(header) {
             const content = header.nextElementSibling;
             const icon = header.querySelector('i');
@@ -585,361 +804,261 @@ $programa_id = $_GET['id'] ?? null;
             }
         }
 
-        function handleImageUpload(input) {
-            const file = input.files[0];
-            if (!file) return;
-
-            console.log("Procesando imagen:", file.name, "Tamaño:", file.size);
-
-            // Validar tamaño
-            if (file.size > 5 * 1024 * 1024) {
-                showNotification('La imagen es demasiado grande. Máximo 5MB.', 'error');
-                input.value = ''; // Limpiar input
-                return;
-            }
-
-            // Validar tipo
-            if (!file.type.startsWith('image/')) {
-                showNotification('Por favor seleccione una imagen válida.', 'error');
-                input.value = ''; // Limpiar input
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                console.log("Imagen cargada correctamente en FileReader");
-                
-                // Guardar referencia de la imagen
-                currentCoverImage = {
-                    file: file,
-                    dataUrl: e.target.result,
-                    name: file.name
-                };
-                
-                // Mostrar preview
-                const uploadArea = document.getElementById('cover-upload');
-                uploadArea.innerHTML = `
-                    <img src="${e.target.result}" class="image-preview" alt="Preview">
-                    <p style="margin-top: 12px; font-weight: 600;">${file.name}</p>
-                    <small style="color: #666;">Clic para cambiar imagen</small>
-                `;
-                uploadArea.classList.add('has-image');
-                
-                console.log("Preview de imagen mostrado");
-            };
-            
-            reader.onerror = function(e) {
-                console.error("Error leyendo archivo:", e);
-                showNotification('Error al cargar la imagen', 'error');
-            };
-            
-            reader.readAsDataURL(file);
-        }
-
-        function updateDepartureMinDate() {
-            const arrivalDate = document.getElementById('arrival-date').value;
-            if (arrivalDate) {
-                document.getElementById('departure-date').min = arrivalDate;
-            }
-        }
-
-        // Función principal de guardado
-        async function savePrograma() {
-            try {
-                console.log("=== INICIANDO GUARDADO DE PROGRAMA ===");
-                
-                // Validar campos requeridos
-                if (!validateForm()) {
-                    return;
-                }
-
-                // Mostrar loading
-                setLoadingState(true);
-
-                // Preparar datos del formulario
-                const formData = new FormData();
-                formData.append('action', isEditing ? 'update' : 'create');
-                
-                // Si estamos editando, incluir el ID
-                if (isEditing) {
-                    const programaIdField = document.getElementById('programa-id');
-                    if (programaIdField && programaIdField.value) {
-                        formData.append('programa_id', programaIdField.value);
-                        console.log("Modo edición - Programa ID:", programaIdField.value);
-                    }
-                }
-                
-                // Función para obtener valor de elemento de forma segura
-                function getElementValue(id, defaultValue = '') {
-                    const element = document.getElementById(id);
-                    if (!element) {
-                        console.warn(`Elemento con ID '${id}' no encontrado`);
-                        return defaultValue;
-                    }
-                    return element.value || defaultValue;
-                }
-                
-                // Datos de la solicitud del viajero - con verificación segura
-                const travelerName = getElementValue('traveler-name').trim();
-                const travelerLastname = getElementValue('traveler-lastname').trim();
-                const destination = getElementValue('destination').trim();
-                const arrivalDate = getElementValue('arrival-date');
-                const departureDate = getElementValue('departure-date');
-                const passengers = getElementValue('passengers', '1');
-                const accompaniment = getElementValue('accompaniment', 'sin-acompanamiento');
-                
-                formData.append('traveler_name', travelerName);
-                formData.append('traveler_lastname', travelerLastname);
-                formData.append('destination', destination);
-                formData.append('arrival_date', arrivalDate);
-                formData.append('departure_date', departureDate);
-                formData.append('passengers', passengers);
-                formData.append('accompaniment', accompaniment);
-                
-                console.log("Datos solicitud:", {
-                    traveler_name: travelerName,
-                    traveler_lastname: travelerLastname,
-                    destination: destination,
-                    arrival_date: arrivalDate,
-                    departure_date: departureDate,
-                    passengers: passengers,
-                    accompaniment: accompaniment
-                });
-                
-                // Datos de personalización - con verificación segura
-                const programTitle = getElementValue('program-title').trim();
-                const budgetLanguage = getElementValue('budget-language', 'es');
-                
-                formData.append('program_title', programTitle);
-                formData.append('budget_language', budgetLanguage);
-                
-                console.log("Datos personalización:", {
-                    program_title: programTitle,
-                    budget_language: budgetLanguage
-                });
-                
-                // Imagen de portada - verificar que existe el elemento
-                const coverInput = document.getElementById('cover-input');
-                if (coverInput && coverInput.files && coverInput.files.length > 0) {
-                    formData.append('cover_image', coverInput.files[0]);
-                    console.log("Imagen de portada añadida:", coverInput.files[0].name, "Tamaño:", coverInput.files[0].size);
-                } else {
-                    console.log("Sin imagen de portada seleccionada o elemento no encontrado");
-                }
-
-                // Log de todos los datos que se envían
-                console.log("=== DATOS A ENVIAR ===");
-                for (let pair of formData.entries()) {
-                    console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
-                }
-
-                // Enviar al servidor
-                console.log("Enviando al servidor...");
-                const response = await fetch('<?= APP_URL ?>/modules/programa/api.php', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                console.log("Respuesta del servidor recibida");
-                const result = await response.json();
-                console.log("Resultado:", result);
-
-                if (result.success) {
-                    showNotification(
-                        isEditing ? 'Programa actualizado exitosamente' : 'Programa creado exitosamente', 
-                        'success'
-                    );
-                    
-                    // Si era creación nueva, mostrar el ID generado
-                    if (!isEditing && result.request_id) {
-                        // Mostrar el ID generado en el campo inmediatamente
-                        const requestIdField = document.getElementById('request-id');
-                        requestIdField.value = result.request_id;
-                        requestIdField.placeholder = '';
-                        
-                        // Resaltar el campo brevemente
-                        requestIdField.style.background = '#e8f5e8';
-                        requestIdField.style.borderColor = 'var(--primary-color)';
-                        
-                        setTimeout(() => {
-                            requestIdField.style.background = '#f8f9fa';
-                            requestIdField.style.borderColor = '#e9ecef';
-                        }, 2000);
-                        
-                        // Actualizar el estado a edición
-                        isEditing = true;
-                        
-                        // Agregar campo oculto con el ID del programa
-                        if (result.id && !document.getElementById('programa-id')) {
-                            const hiddenInput = document.createElement('input');
-                            hiddenInput.type = 'hidden';
-                            hiddenInput.id = 'programa-id';
-                            hiddenInput.value = result.id;
-                            document.getElementById('programa-form').appendChild(hiddenInput);
-                        }
-                        
-                        // Actualizar botón
-                        document.getElementById('save-btn').innerHTML = '<i class="fas fa-save"></i> Actualizar Programa';
-                        
-                        // Actualizar URL sin recargar la página
-                        if (history.pushState) {
-                            const newUrl = `<?= APP_URL ?>/programa?id=${result.id}`;
-                            window.history.pushState({path: newUrl}, '', newUrl);
-                        }
-                        
-                        // Mostrar notificación adicional con el ID
-                        setTimeout(() => {
-                            showNotification(`ID de solicitud generado: ${result.request_id}`, 'success');
-                        }, 1000);
-                    }
-                } else {
-                    throw new Error(result.error || 'Error al guardar el programa');
-                }
-
-            } catch (error) {
-                console.error('Error completo:', error);
-                showNotification('Error al guardar: ' + error.message, 'error');
-            } finally {
-                setLoadingState(false);
-            }
-        }
-
-        function validateForm() {
-            const requiredFields = [
-                { id: 'traveler-name', label: 'Nombre del viajero' },
-                { id: 'traveler-lastname', label: 'Apellido del viajero' },
-                { id: 'destination', label: 'Destino' },
-                { id: 'arrival-date', label: 'Fecha de llegada' },
-                { id: 'departure-date', label: 'Fecha de salida' }
-            ];
-
-            for (const field of requiredFields) {
-                const element = document.getElementById(field.id);
-                if (!element) {
-                    console.error(`Campo requerido no encontrado: ${field.id}`);
-                    showNotification(`Error en formulario: Campo ${field.label} no encontrado`, 'error');
-                    return false;
-                }
-                
-                if (!element.value || !element.value.trim()) {
-                    element.focus();
-                    showNotification(`Por favor complete el campo: ${field.label}`, 'error');
-                    return false;
-                }
-            }
-
-            // Validar fechas
-            const arrivalDateElement = document.getElementById('arrival-date');
-            const departureDateElement = document.getElementById('departure-date');
-            
-            if (!arrivalDateElement || !departureDateElement) {
-                showNotification('Error: Campos de fecha no encontrados', 'error');
-                return false;
-            }
-            
-            const arrivalDate = new Date(arrivalDateElement.value);
-            const departureDate = new Date(departureDateElement.value);
-            
-            if (departureDate <= arrivalDate) {
-                departureDateElement.focus();
-                showNotification('La fecha de salida debe ser posterior a la fecha de llegada', 'error');
-                return false;
-            }
-
-            // Validar número de pasajeros
-            const passengersElement = document.getElementById('passengers');
-            if (passengersElement) {
-                const passengers = parseInt(passengersElement.value);
-                if (isNaN(passengers) || passengers < 1 || passengers > 50) {
-                    passengersElement.focus();
-                    showNotification('El número de pasajeros debe estar entre 1 y 50', 'error');
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
         function setLoadingState(loading) {
+            const form = document.getElementById('programa-form');
             const saveBtn = document.getElementById('save-btn');
+            
             if (loading) {
-                saveBtn.disabled = true;
-                saveBtn.classList.add('loading');
-                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+                form.classList.add('loading');
+                saveBtn.innerHTML = '<i class="fas fa-spinner spinner"></i> Guardando...';
             } else {
+                form.classList.remove('loading');
                 saveBtn.disabled = false;
-                saveBtn.classList.remove('loading');
-                saveBtn.innerHTML = '<i class="fas fa-save"></i> Guardar Programa';
+                if (isEditing) {
+                    saveBtn.innerHTML = '<i class="fas fa-save"></i> Actualizar Programa';
+                } else {
+                    saveBtn.innerHTML = '<i class="fas fa-save"></i> Guardar Programa';
+                }
             }
         }
 
         function showNotification(message, type = 'success') {
-            const container = document.getElementById('notification-container');
+            // Remover notificación existente
+            const existing = document.querySelector('.notification');
+            if (existing) {
+                existing.remove();
+            }
             
+            // Crear nueva notificación
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
-            notification.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
-                    <span>${message}</span>
-                </div>
-            `;
+            notification.textContent = message;
             
-            container.appendChild(notification);
+            document.body.appendChild(notification);
             
             // Mostrar notificación
-            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
             
             // Ocultar después de 5 segundos
             setTimeout(() => {
                 notification.classList.remove('show');
                 setTimeout(() => {
                     if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
+                        notification.remove();
                     }
                 }, 300);
             }, 5000);
         }
 
-        async function loadProgramaData(programaId) {
-            try {
-                const response = await fetch(`<?= APP_URL ?>/modules/programa/api.php?action=get&id=${programaId}`);
-                const result = await response.json();
+        // ✅ FUNCIÓN DE DEBUG PARA VERIFICAR ESTADO - MEJORADA
+        function debugFormState() {
+            console.log('=== 🔍 DEBUG DEL FORMULARIO ===');
+            
+            // Verificar formulario
+            const form = document.getElementById('programa-form');
+            console.log('Form element:', form);
+            if (form) {
+                console.log('Form enctype:', form.enctype);
+                console.log('Form method:', form.method);
+            } else {
+                console.error('❌ Formulario no encontrado!');
+            }
+            
+            // Verificar input de imagen
+            const coverInput = document.getElementById('cover-input');
+            console.log('Cover input element:', coverInput);
+            if (coverInput) {
+                console.log('Cover input name:', coverInput.name);
+                console.log('Cover input type:', coverInput.type);
+                console.log('Cover input accept:', coverInput.accept);
+                console.log('Cover input files:', coverInput.files);
+                console.log('Cover input files length:', coverInput.files ? coverInput.files.length : 'N/A');
                 
-                if (result.success) {
-                    const data = result.data;
-                    
-                    // Llenar campos del formulario
-                    document.getElementById('request-id').value = data.id_solicitud || '';
-                    document.getElementById('traveler-name').value = data.nombre_viajero || '';
-                    document.getElementById('traveler-lastname').value = data.apellido_viajero || '';
-                    document.getElementById('destination').value = data.destino || '';
-                    document.getElementById('arrival-date').value = data.fecha_llegada || '';
-                    document.getElementById('departure-date').value = data.fecha_salida || '';
-                    document.getElementById('passengers').value = data.numero_pasajeros || '1';
-                    document.getElementById('accompaniment').value = data.acompanamiento || 'sin-acompanamiento';
-                    document.getElementById('program-title').value = data.titulo_programa || '';
-                    document.getElementById('budget-language').value = data.idioma_presupuesto || 'es';
-                    
-                    // Mostrar imagen de portada si existe
-                    if (data.foto_portada) {
-                        const uploadArea = document.getElementById('cover-upload');
-                        uploadArea.innerHTML = `
-                            <img src="${data.foto_portada}" class="image-preview" alt="Portada">
-                            <p style="margin-top: 12px; font-weight: 600;">Imagen actual</p>
-                            <small style="color: #666;">Clic para cambiar imagen</small>
-                        `;
-                        uploadArea.classList.add('has-image');
+                if (coverInput.files && coverInput.files.length > 0) {
+                    const file = coverInput.files[0];
+                    console.log('Archivo seleccionado:');
+                    console.log('  - Nombre:', file.name);
+                    console.log('  - Tamaño:', file.size);
+                    console.log('  - Tipo:', file.type);
+                    console.log('  - Última modificación:', new Date(file.lastModified));
+                } else {
+                    console.log('⚠️ No hay archivos seleccionados');
+                }
+            } else {
+                console.error('❌ Elemento cover-input no encontrado!');
+            }
+            
+            // Verificar área de upload
+            const uploadArea = document.getElementById('cover-upload');
+            console.log('Upload area element:', uploadArea);
+            if (uploadArea) {
+                console.log('Upload area classes:', uploadArea.className);
+                console.log('Upload area innerHTML length:', uploadArea.innerHTML.length);
+            } else {
+                console.error('❌ Área de upload no encontrada!');
+            }
+            
+            // Verificar todos los elementos del formulario
+            console.log('--- Verificando todos los elementos del formulario ---');
+            const requiredElements = [
+                'traveler-name', 'traveler-lastname', 'destination', 
+                'arrival-date', 'departure-date', 'passengers', 
+                'accompaniment', 'program-title', 'budget-language'
+            ];
+            
+            requiredElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    console.log(`✅ ${id}: ${element.value || 'vacío'}`);
+                } else {
+                    console.error(`❌ ${id}: NO ENCONTRADO`);
+                }
+            });
+            
+            // Verificar FormData de prueba
+            console.log('--- Test de FormData ---');
+            try {
+                const testFormData = new FormData();
+                testFormData.append('test', 'value');
+                
+                if (coverInput && coverInput.files && coverInput.files.length > 0) {
+                    testFormData.append('test_file', coverInput.files[0]);
+                }
+                
+                console.log('FormData entries:');
+                for (let [key, value] of testFormData.entries()) {
+                    if (value instanceof File) {
+                        console.log(`  ${key}: [FILE] ${value.name}`);
+                    } else {
+                        console.log(`  ${key}: ${value}`);
                     }
-
-                    // Actualizar botón
-                    document.getElementById('save-btn').innerHTML = '<i class="fas fa-save"></i> Actualizar Programa';
                 }
             } catch (error) {
-                console.error('Error cargando datos:', error);
-                showNotification('Error cargando los datos del programa', 'error');
+                console.error('Error creando FormData de prueba:', error);
+            }
+            
+            console.log('=== 🔍 FIN DEBUG ===');
+        }
+
+        // ✅ FUNCIÓN PARA PROBAR CONECTIVIDAD CON LA API
+        async function testAPI() {
+            console.log('🧪 Probando conexión con la API...');
+            
+            try {
+                const response = await fetch('<?= APP_URL ?>/programa/api', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'action=test'
+                });
+                
+                console.log('API Response status:', response.status);
+                console.log('API Response headers:', response.headers);
+                
+                const text = await response.text();
+                console.log('API Response body:', text);
+                
+                try {
+                    const json = JSON.parse(text);
+                    console.log('API Response JSON:', json);
+                } catch (e) {
+                    console.log('Response is not valid JSON');
+                }
+                
+            } catch (error) {
+                console.error('Error testing API:', error);
             }
         }
+
+        // ✅ FUNCIÓN PARA VERIFICAR CONFIGURACIÓN DEL SERVIDOR
+        function checkServerConfig() {
+            console.log('🔧 Verificando configuración del navegador...');
+            
+            // Verificar soporte para FormData
+            console.log('FormData support:', typeof FormData !== 'undefined');
+            
+            // Verificar soporte para File API
+            console.log('File API support:', typeof File !== 'undefined');
+            
+            // Verificar soporte para FileReader
+            console.log('FileReader support:', typeof FileReader !== 'undefined');
+            
+            // Verificar fetch
+            console.log('Fetch support:', typeof fetch !== 'undefined');
+            
+            // Información del navegador
+            console.log('User agent:', navigator.userAgent);
+            console.log('Platform:', navigator.platform);
+            
+            // Verificar tamaño máximo teórico de archivo
+            const testInput = document.createElement('input');
+            testInput.type = 'file';
+            console.log('Input file support:', testInput.files !== undefined);
+        }
+
+        // Agregar funciones de debug al window para poder llamarlas desde consola
+        window.debugFormState = debugFormState;
+        window.testAPI = testAPI;
+        window.checkServerConfig = checkServerConfig;
+
+        // ✅ VERIFICACIÓN FINAL DEL DOM
+        function verificarDOMCompleto() {
+            console.log('🔍 Verificando DOM completo...');
+            
+            const elementosRequeridos = [
+                'programa-form',
+                'cover-input', 
+                'cover-upload',
+                'traveler-name',
+                'traveler-lastname', 
+                'destination',
+                'arrival-date',
+                'departure-date',
+                'save-btn'
+            ];
+            
+            let todosEncontrados = true;
+            
+            elementosRequeridos.forEach(id => {
+                const elemento = document.getElementById(id);
+                if (elemento) {
+                    console.log(`✅ ${id}: OK`);
+                } else {
+                    console.error(`❌ ${id}: NO ENCONTRADO`);
+                    todosEncontrados = false;
+                }
+            });
+            
+            if (todosEncontrados) {
+                console.log('✅ Todos los elementos requeridos están presentes');
+            } else {
+                console.error('❌ Faltan elementos en el DOM - el formulario no funcionará correctamente');
+            }
+            
+            // Verificar estructura del formulario
+            const form = document.getElementById('programa-form');
+            if (form) {
+                console.log('📋 Atributos del formulario:');
+                console.log('  - enctype:', form.enctype || 'NO DEFINIDO');
+                console.log('  - method:', form.method || 'NO DEFINIDO');
+                console.log('  - action:', form.action || 'VACÍO (correcto)');
+            }
+            
+            return todosEncontrados;
+        }
+
+        console.log('✅ Script de programa.php cargado completamente');
+        console.log('💡 Funciones de debug disponibles:');
+        console.log('   - debugFormState() - Inspeccionar estado del formulario');
+        console.log('   - testAPI() - Probar conectividad con la API');
+        console.log('   - checkServerConfig() - Verificar configuración del navegador');
+        console.log('   - verificarDOMCompleto() - Verificar que todos los elementos estén presentes');
+        
+        // Ejecutar verificación automática después de un pequeño delay
+        setTimeout(verificarDOMCompleto, 500);
     </script>
 </body>
 </html>
