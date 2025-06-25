@@ -1,6 +1,6 @@
 <?php
 // =====================================
-// ARCHIVO: modules/programa/api.php - API COMPLETA DEL PROGRAMA
+// ARCHIVO: modules/programa/api.php - VERSIÓN OPTIMIZADA Y CORREGIDA
 // =====================================
 
 ob_start();
@@ -37,48 +37,20 @@ class ProgramaAPI {
             error_log("POST: " . print_r($_POST, true));
             
             switch($action) {
-                case 'list':
-                    $result = $this->listSolicitudes();
-                    break;
                 case 'create':
-                    $result = $this->createSolicitud();
-                    break;
                 case 'update':
-                    $result = $this->updateSolicitud();
-                    break;
-                case 'delete':
-                    $result = $this->deleteSolicitud();
+                case 'save_programa':
+                    $result = $this->savePrograma();
                     break;
                 case 'get':
-                    $result = $this->getSolicitud($_GET['id']);
+                    $result = $this->getPrograma($_GET['id']);
                     break;
-                case 'duplicate':
-                    $result = $this->duplicateSolicitud($_POST['id']);
+                case 'list':
+                    $result = $this->listProgramas();
                     break;
-                    
-                // === ACCIONES ESPECÍFICAS DE PROGRAMA ===
-                case 'get_programa_completo':
-                    $result = $this->getProgramaCompleto($_GET['id']);
+                case 'delete':
+                    $result = $this->deletePrograma($_POST['id']);
                     break;
-                case 'save_personalizacion':
-                    $result = $this->savePersonalizacion();
-                    break;
-                case 'get_biblioteca_items':
-                    $result = $this->getBibliotecaItems($_GET['type']);
-                    break;
-                case 'save_dia':
-                    $result = $this->saveDia();
-                    break;
-                case 'delete_dia':
-                    $result = $this->deleteDia($_POST['id']);
-                    break;
-                case 'save_precios':
-                    $result = $this->savePrecios();
-                    break;
-                case 'get_currencies':
-                    $result = $this->getCurrencies();
-                    break;
-                    
                 default:
                     throw new Exception('Acción no válida: ' . $action);
             }
@@ -86,340 +58,194 @@ class ProgramaAPI {
             echo json_encode($result, JSON_UNESCAPED_UNICODE);
             
         } catch(Exception $e) {
-            error_log("ProgramaAPI Error: " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
             $this->sendError($e->getMessage());
         }
-        
-        exit;
     }
     
-    private function sendError($message) {
-        ob_clean();
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['success' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-    
-    // === GESTIÓN DE SOLICITUDES ===
-    
-    private function listSolicitudes() {
+    private function savePrograma() {
         try {
             $user_id = $_SESSION['user_id'];
-            $user = App::getUser();
             
-            // Si es admin, puede ver todas las solicitudes, si no, solo las suyas
-            if ($user['role'] === 'admin') {
-                $sql = "SELECT s.*, u.full_name as agent_name,
-                        p.titulo_programa, p.idioma_presupuesto
-                        FROM programa_solicitudes s 
-                        LEFT JOIN users u ON s.user_id = u.id
-                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
-                        ORDER BY s.created_at DESC";
-                $solicitudes = $this->db->fetchAll($sql);
-            } else {
-                $sql = "SELECT s.*, p.titulo_programa, p.idioma_presupuesto
-                        FROM programa_solicitudes s 
-                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
-                        WHERE s.user_id = ? 
-                        ORDER BY s.created_at DESC";
-                $solicitudes = $this->db->fetchAll($sql, [$user_id]);
-            }
+            // Validar datos requeridos
+            $this->validateProgramaData();
             
-            // Formatear fechas
-            foreach($solicitudes as &$solicitud) {
-                $solicitud['fecha_llegada_formatted'] = date('d/m/Y', strtotime($solicitud['fecha_llegada']));
-                $solicitud['fecha_salida_formatted'] = date('d/m/Y', strtotime($solicitud['fecha_salida']));
-                $solicitud['created_at_formatted'] = date('d/m/Y H:i', strtotime($solicitud['created_at']));
+            // Verificar si es edición o creación nueva
+            $programa_id = $_POST['programa_id'] ?? null;
+            
+            if ($programa_id) {
+                // ACTUALIZAR programa existente
+                $this->verifyPermissions($programa_id, $user_id);
                 
-                // Calcular días del viaje
-                $fecha_llegada = new DateTime($solicitud['fecha_llegada']);
-                $fecha_salida = new DateTime($solicitud['fecha_salida']);
-                $solicitud['dias_viaje'] = $fecha_llegada->diff($fecha_salida)->days;
-            }
-            
-            return ['success' => true, 'data' => $solicitudes];
-            
-        } catch(Exception $e) {
-            throw new Exception('Error listando solicitudes: ' . $e->getMessage());
-        }
-    }
-    
-    private function createSolicitud() {
-        try {
-            $user_id = $_SESSION['user_id'];
-            
-            // Generar ID único de solicitud
-            $year = date('Y');
-            $lastId = $this->db->fetch("SELECT id_solicitud FROM programa_solicitudes WHERE id_solicitud LIKE 'SOL{$year}%' ORDER BY id DESC LIMIT 1");
-            
-            if ($lastId) {
-                $number = intval(substr($lastId['id_solicitud'], -3)) + 1;
-            } else {
-                $number = 1;
-            }
-            
-            $id_solicitud = 'SOL' . $year . str_pad($number, 3, '0', STR_PAD_LEFT);
-            
-            $data = [
-                'id_solicitud' => $id_solicitud,
-                'nombre_viajero' => trim($_POST['nombre_viajero']),
-                'apellido_viajero' => trim($_POST['apellido_viajero']),
-                'destino' => trim($_POST['destino']),
-                'fecha_llegada' => $_POST['fecha_llegada'],
-                'fecha_salida' => $_POST['fecha_salida'],
-                'numero_viajeros' => intval($_POST['numero_viajeros']),
-                'acompanamiento' => trim($_POST['acompanamiento'] ?? ''),
-                'user_id' => $user_id
-            ];
-            
-            // Validar datos
-            $this->validateSolicitudData($data);
-            
-            $solicitud_id = $this->db->insert('programa_solicitudes', $data);
-            
-            if (!$solicitud_id) {
-                throw new Exception('Error al crear solicitud');
-            }
-            
-            // Crear personalizacción por defecto
-            $personalizacion_data = [
-                'solicitud_id' => $solicitud_id,
-                'titulo_programa' => 'Viaje a ' . $data['destino'],
-                'idioma_presupuesto' => 'es'
-            ];
-            
-            $this->db->insert('programa_personalizacion', $personalizacion_data);
-            
-            // Crear precios por defecto
-            $precios_data = [
-                'solicitud_id' => $solicitud_id,
-                'moneda' => 'EUR',
-                'condiciones_generales' => 'Condiciones generales estándar del viaje. Cancelación gratuita hasta 48 horas antes del viaje. No reembolsable después de la fecha límite.',
-                'info_pasaportes_visados' => 'Se requiere pasaporte vigente con al menos 6 meses de validez. Verifique si necesita visa según su nacionalidad.',
-                'info_seguros_viaje' => 'Se recomienda contratar seguro de viaje que cubra gastos médicos y cancelación. Consulte las opciones disponibles.'
-            ];
-            
-            $this->db->insert('programa_precios', $precios_data);
-            
-            return ['success' => true, 'id' => $solicitud_id, 'id_solicitud' => $id_solicitud, 'message' => 'Solicitud creada correctamente'];
-            
-        } catch(Exception $e) {
-            throw new Exception('Error creando solicitud: ' . $e->getMessage());
-        }
-    }
-    
-    private function updateSolicitud() {
-        try {
-            $id = intval($_POST['id']);
-            $user_id = $_SESSION['user_id'];
-            $user = App::getUser();
-            
-            // Verificar permisos
-            if ($user['role'] !== 'admin') {
-                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$id]);
-                if (!$existing || $existing['user_id'] != $user_id) {
-                    throw new Exception('No tienes permisos para editar esta solicitud');
-                }
-            }
-            
-            $data = [
-                'nombre_viajero' => trim($_POST['nombre_viajero']),
-                'apellido_viajero' => trim($_POST['apellido_viajero']),
-                'destino' => trim($_POST['destino']),
-                'fecha_llegada' => $_POST['fecha_llegada'],
-                'fecha_salida' => $_POST['fecha_salida'],
-                'numero_viajeros' => intval($_POST['numero_viajeros']),
-                'acompanamiento' => trim($_POST['acompanamiento'] ?? '')
-            ];
-            
-            $this->validateSolicitudData($data);
-            
-            $result = $this->db->update('programa_solicitudes', $data, 'id = ?', [$id]);
-            
-            if (!$result) {
-                throw new Exception('Error al actualizar solicitud');
-            }
-            
-            return ['success' => true, 'message' => 'Solicitud actualizada correctamente'];
-            
-        } catch(Exception $e) {
-            throw new Exception('Error actualizando solicitud: ' . $e->getMessage());
-        }
-    }
-    
-    private function deleteSolicitud() {
-        try {
-            $id = intval($_POST['id']);
-            $user_id = $_SESSION['user_id'];
-            $user = App::getUser();
-            
-            // Verificar permisos
-            if ($user['role'] !== 'admin') {
-                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$id]);
-                if (!$existing || $existing['user_id'] != $user_id) {
-                    throw new Exception('No tienes permisos para eliminar esta solicitud');
-                }
-            }
-            
-            $result = $this->db->delete('programa_solicitudes', 'id = ?', [$id]);
-            
-            if (!$result) {
-                throw new Exception('Error al eliminar solicitud');
-            }
-            
-            return ['success' => true, 'message' => 'Solicitud eliminada correctamente'];
-            
-        } catch(Exception $e) {
-            throw new Exception('Error eliminando solicitud: ' . $e->getMessage());
-        }
-    }
-    
-    private function getSolicitud($id) {
-        try {
-            $id = intval($id);
-            $user_id = $_SESSION['user_id'];
-            $user = App::getUser();
-            
-            if ($user['role'] === 'admin') {
-                $sql = "SELECT s.*, p.titulo_programa, p.idioma_presupuesto, p.foto_portada
-                        FROM programa_solicitudes s 
-                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
-                        WHERE s.id = ?";
-                $solicitud = $this->db->fetch($sql, [$id]);
-            } else {
-                $sql = "SELECT s.*, p.titulo_programa, p.idioma_presupuesto, p.foto_portada
-                        FROM programa_solicitudes s 
-                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
-                        WHERE s.id = ? AND s.user_id = ?";
-                $solicitud = $this->db->fetch($sql, [$id, $user_id]);
-            }
-            
-            if (!$solicitud) {
-                throw new Exception('Solicitud no encontrada');
-            }
-            
-            return ['success' => true, 'data' => $solicitud];
-            
-        } catch(Exception $e) {
-            throw new Exception('Error obteniendo solicitud: ' . $e->getMessage());
-        }
-    }
-    
-    // === FUNCIONES ESPECÍFICAS DE PROGRAMA ===
-    
-    private function getProgramaCompleto($id) {
-        try {
-            $id = intval($id);
-            $user_id = $_SESSION['user_id'];
-            $user = App::getUser();
-            
-            // Obtener solicitud principal
-            if ($user['role'] === 'admin') {
-                $sql = "SELECT * FROM programa_solicitudes WHERE id = ?";
-                $solicitud = $this->db->fetch($sql, [$id]);
-            } else {
-                $sql = "SELECT * FROM programa_solicitudes WHERE id = ? AND user_id = ?";
-                $solicitud = $this->db->fetch($sql, [$id, $user_id]);
-            }
-            
-            if (!$solicitud) {
-                throw new Exception('Programa no encontrado');
-            }
-            
-            // Obtener personalización
-            $personalizacion = $this->db->fetch("SELECT * FROM programa_personalizacion WHERE solicitud_id = ?", [$id]);
-            
-            // Obtener días del itinerario
-            $dias = $this->db->fetchAll("
-                SELECT pd.*, bd.titulo as biblioteca_titulo, bd.imagen1 as biblioteca_imagen
-                FROM programa_dias pd
-                LEFT JOIN biblioteca_dias bd ON pd.biblioteca_dia_id = bd.id
-                WHERE pd.solicitud_id = ?
-                ORDER BY pd.dia_numero", [$id]);
-            
-            // Para cada día, obtener sus servicios
-            foreach($dias as &$dia) {
-                $servicios = $this->db->fetchAll("
-                    SELECT pds.*, pds.tipo_servicio,
-                           CASE 
-                               WHEN pds.tipo_servicio = 'actividad' THEN ba.nombre
-                               WHEN pds.tipo_servicio = 'transporte' THEN bt.titulo  
-                               WHEN pds.tipo_servicio = 'alojamiento' THEN bal.nombre
-                           END as nombre,
-                           CASE 
-                               WHEN pds.tipo_servicio = 'actividad' THEN ba.ubicacion
-                               WHEN pds.tipo_servicio = 'transporte' THEN CONCAT(bt.lugar_salida, ' - ', bt.lugar_llegada)
-                               WHEN pds.tipo_servicio = 'alojamiento' THEN bal.ubicacion
-                           END as ubicacion,
-                           CASE 
-                               WHEN pds.tipo_servicio = 'actividad' THEN ba.imagen1
-                               WHEN pds.tipo_servicio = 'transporte' THEN NULL
-                               WHEN pds.tipo_servicio = 'alojamiento' THEN bal.imagen
-                           END as imagen
-                    FROM programa_dias_servicios pds
-                    LEFT JOIN biblioteca_actividades ba ON pds.tipo_servicio = 'actividad' AND pds.biblioteca_item_id = ba.id
-                    LEFT JOIN biblioteca_transportes bt ON pds.tipo_servicio = 'transporte' AND pds.biblioteca_item_id = bt.id
-                    LEFT JOIN biblioteca_alojamientos bal ON pds.tipo_servicio = 'alojamiento' AND pds.biblioteca_item_id = bal.id
-                    WHERE pds.programa_dia_id = ?
-                    ORDER BY pds.tipo_servicio, pds.orden", [$dia['id']]);
-                
-                $dia['servicios'] = [
-                    'actividades' => array_filter($servicios, fn($s) => $s['tipo_servicio'] === 'actividad'),
-                    'transportes' => array_filter($servicios, fn($s) => $s['tipo_servicio'] === 'transporte'),
-                    'alojamientos' => array_filter($servicios, fn($s) => $s['tipo_servicio'] === 'alojamiento')
+                $data = [
+                    'nombre_viajero' => trim($_POST['traveler_name']),
+                    'apellido_viajero' => trim($_POST['traveler_lastname']),
+                    'destino' => trim($_POST['destination']),
+                    'fecha_llegada' => $_POST['arrival_date'],
+                    'fecha_salida' => $_POST['departure_date'],
+                    'numero_pasajeros' => intval($_POST['passengers']),
+                    'acompanamiento' => trim($_POST['accompaniment'])
                 ];
-            }
-            
-            // Obtener precios
-            $precios = $this->db->fetch("SELECT * FROM programa_precios WHERE solicitud_id = ?", [$id]);
-            
-            $resultado = [
-                'solicitud' => $solicitud,
-                'personalizacion' => $personalizacion,
-                'dias' => $dias,
-                'precios' => $precios
-            ];
-            
-            return ['success' => true, 'data' => $resultado];
-            
-        } catch(Exception $e) {
-            throw new Exception('Error obteniendo programa completo: ' . $e->getMessage());
-        }
-    }
-    
-    private function savePersonalizacion() {
-        try {
-            $solicitud_id = intval($_POST['solicitud_id']);
-            $user_id = $_SESSION['user_id'];
-            $user = App::getUser();
-            
-            // Verificar permisos
-            if ($user['role'] !== 'admin') {
-                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$solicitud_id]);
-                if (!$existing || $existing['user_id'] != $user_id) {
-                    throw new Exception('No tienes permisos para editar este programa');
+                
+                $result = $this->db->update('programa_solicitudes', $data, 'id = ?', [$programa_id]);
+                if (!$result) {
+                    throw new Exception('Error al actualizar el programa');
+                }
+                $request_id = null; // No cambiar el ID en actualización
+                
+            } else {
+                // CREAR nuevo programa
+                
+                // Primero insertar sin numero_solicitud
+                $data = [
+                    'nombre_viajero' => trim($_POST['traveler_name']),
+                    'apellido_viajero' => trim($_POST['traveler_lastname']),
+                    'destino' => trim($_POST['destination']),
+                    'fecha_llegada' => $_POST['arrival_date'],
+                    'fecha_salida' => $_POST['departure_date'],
+                    'numero_pasajeros' => intval($_POST['passengers']),
+                    'acompanamiento' => trim($_POST['accompaniment']),
+                    'user_id' => $user_id
+                ];
+                
+                // Insertar registro
+                $programa_id = $this->db->insert('programa_solicitudes', $data);
+                if (!$programa_id) {
+                    throw new Exception('Error al crear el programa');
+                }
+                
+                // Generar y actualizar id_solicitud
+                $request_id = $this->generateUniqueRequestId($programa_id);
+                
+                // Actualizar el registro con el id_solicitud
+                $updateResult = $this->db->update(
+                    'programa_solicitudes', 
+                    ['id_solicitud' => $request_id], 
+                    'id = ?', 
+                    [$programa_id]
+                );
+                
+                if (!$updateResult) {
+                    // Si falla la actualización, eliminar el registro creado
+                    $this->db->delete('programa_solicitudes', 'id = ?', [$programa_id]);
+                    throw new Exception('Error al generar número de solicitud');
                 }
             }
             
+            // Guardar personalización
+            $this->savePersonalizacion($programa_id);
+            
+            return [
+                'success' => true, 
+                'id' => $programa_id,
+                'request_id' => $request_id,
+                'message' => 'Programa guardado exitosamente'
+            ];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error guardando programa: ' . $e->getMessage());
+        }
+    }
+    
+    private function generateUniqueRequestId($programa_id = null) {
+        $year = date('Y');
+        $attempts = 0;
+        $maxAttempts = 50;
+        
+        do {
+            // Generar ID con formato: SOL-YYYY-NNNN
+            if ($programa_id) {
+                // Usar el ID del programa como base
+                $requestId = sprintf('SOL-%s-%04d', $year, $programa_id);
+            } else {
+                // Usar contador secuencial
+                $counter = $this->getNextCounter($year);
+                $requestId = sprintf('SOL-%s-%04d', $year, $counter);
+            }
+            
+            // Verificar que no exista (solo si hay registros en la tabla)
+            try {
+                $existing = $this->db->fetch(
+                    "SELECT id FROM programa_solicitudes WHERE id_solicitud = ?", 
+                    [$requestId]
+                );
+                
+                if (!$existing) {
+                    return $requestId;
+                }
+            } catch (Exception $e) {
+                // Si hay error en la consulta (columna no existe), usar formato simple
+                return $requestId;
+            }
+            
+            $attempts++;
+            
+            // Si existe, probar con timestamp
+            $requestId = 'SOL-' . $year . '-' . time() . '-' . $attempts;
+            
+        } while ($attempts < $maxAttempts);
+        
+        // Último recurso: usar timestamp actual
+        return 'SOL-' . $year . '-' . time() . '-' . uniqid();
+    }
+    
+    private function getNextCounter($year) {
+        try {
+            // Obtener el último número usado para este año
+            $lastRecord = $this->db->fetch(
+                "SELECT id_solicitud FROM programa_solicitudes 
+                 WHERE id_solicitud LIKE ? 
+                 ORDER BY id_solicitud DESC 
+                 LIMIT 1", 
+                ['SOL-' . $year . '-%']
+            );
+            
+            if ($lastRecord && isset($lastRecord['id_solicitud'])) {
+                // Extraer el número del formato SOL-YYYY-NNNN
+                $parts = explode('-', $lastRecord['id_solicitud']);
+                if (count($parts) >= 3) {
+                    $lastNumber = intval($parts[2]);
+                    return $lastNumber + 1;
+                }
+            }
+        } catch (Exception $e) {
+            // Si hay error (columna no existe), usar contador desde 1
+            error_log("Error en getNextCounter: " . $e->getMessage());
+        }
+        
+        // Si no hay registros previos o hay error, empezar desde 1
+        return 1;
+    }
+    
+    private function savePersonalizacion($programa_id) {
+        try {
             $data = [
-                'titulo_programa' => trim($_POST['titulo_programa']),
-                'idioma_presupuesto' => trim($_POST['idioma_presupuesto'])
+                'titulo_programa' => trim($_POST['program_title'] ?? ''),
+                'idioma_presupuesto' => trim($_POST['budget_language'] ?? 'es')
             ];
             
             // Procesar imagen de portada si se subió
-            if (isset($_FILES['foto_portada']) && $_FILES['foto_portada']['error'] === UPLOAD_ERR_OK) {
-                $url = $this->uploadImage($_FILES['foto_portada'], $solicitud_id, 'portada');
-                $data['foto_portada'] = $url;
+            if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
+                $imageUrl = $this->uploadImage($_FILES['cover_image'], $programa_id, 'portada');
+                $data['foto_portada'] = $imageUrl;
             }
             
             // Verificar si ya existe personalización
-            $existing = $this->db->fetch("SELECT id FROM programa_personalizacion WHERE solicitud_id = ?", [$solicitud_id]);
+            $existing = $this->db->fetch(
+                "SELECT id FROM programa_personalizacion WHERE solicitud_id = ?", 
+                [$programa_id]
+            );
             
             if ($existing) {
-                $result = $this->db->update('programa_personalizacion', $data, 'solicitud_id = ?', [$solicitud_id]);
+                // Actualizar existente
+                $result = $this->db->update(
+                    'programa_personalizacion', 
+                    $data, 
+                    'solicitud_id = ?', 
+                    [$programa_id]
+                );
             } else {
-                $data['solicitud_id'] = $solicitud_id;
+                // Crear nuevo
+                $data['solicitud_id'] = $programa_id;
                 $result = $this->db->insert('programa_personalizacion', $data);
             }
             
@@ -427,407 +253,193 @@ class ProgramaAPI {
                 throw new Exception('Error al guardar personalización');
             }
             
-            return ['success' => true, 'message' => 'Personalización guardada correctamente'];
-            
         } catch(Exception $e) {
-            throw new Exception('Error guardando personalización: ' . $e->getMessage());
+            throw new Exception('Error en personalización: ' . $e->getMessage());
         }
     }
     
-    private function getBibliotecaItems($type) {
+    private function uploadImage($file, $programa_id, $type) {
         try {
-            $user_id = $_SESSION['user_id'];
-            $user = App::getUser();
-            
-            $allowedTypes = ['dias', 'actividades', 'transportes', 'alojamientos'];
-            if (!in_array($type, $allowedTypes)) {
-                throw new Exception('Tipo de item no válido');
+            // Validar archivo
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!in_array($file['type'], $allowedTypes)) {
+                throw new Exception('Tipo de archivo no permitido. Solo: JPG, PNG, GIF, WebP');
             }
             
-            $table = "biblioteca_" . $type;
-            
-            // Si es admin, puede ver todos los items, si no, solo los suyos
-            if ($user['role'] === 'admin') {
-                $sql = "SELECT *, CONCAT(u.full_name, ' (', u.username, ')') as created_by 
-                        FROM `{$table}` b
-                        LEFT JOIN users u ON b.user_id = u.id
-                        WHERE activo = 1 
-                        ORDER BY created_at DESC";
-                $items = $this->db->fetchAll($sql);
-            } else {
-                $sql = "SELECT * FROM `{$table}` WHERE activo = 1 AND user_id = ? ORDER BY created_at DESC";
-                $items = $this->db->fetchAll($sql, [$user_id]);
+            if ($file['size'] > 5 * 1024 * 1024) {
+                throw new Exception('Archivo demasiado grande (máx 5MB)');
             }
             
-            // Procesar URLs de imágenes
-            foreach($items as &$item) {
-                $imageFields = $this->getImageFields($type);
-                foreach($imageFields as $field) {
-                    if (!empty($item[$field])) {
-                        if (strpos($item[$field], 'http') !== 0) {
-                            $item[$field] = APP_URL . $item[$field];
-                        }
-                    }
+            // Crear directorio
+            $baseDir = dirname(__DIR__, 2) . '/assets/uploads/programa/';
+            $yearMonth = date('Y/m');
+            $uploadDir = $baseDir . $yearMonth . '/';
+            
+            if (!is_dir($uploadDir)) {
+                if (!mkdir($uploadDir, 0755, true)) {
+                    throw new Exception('No se pudo crear directorio de uploads');
                 }
             }
             
-            return ['success' => true, 'data' => $items];
+            // Generar nombre único
+            $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $fileName = 'programa_' . $programa_id . '_' . $type . '_' . time() . '.' . $extension;
+            $filePath = $uploadDir . $fileName;
+            
+            // Mover archivo
+            if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+                throw new Exception('Error moviendo archivo subido');
+            }
+            
+            return APP_URL . '/assets/uploads/programa/' . $yearMonth . '/' . $fileName;
             
         } catch(Exception $e) {
-            throw new Exception('Error obteniendo items de biblioteca: ' . $e->getMessage());
+            throw new Exception('Error subiendo imagen: ' . $e->getMessage());
         }
     }
     
-    private function saveDia() {
-        try {
-            $solicitud_id = intval($_POST['solicitud_id']);
-            $dia_id = intval($_POST['dia_id'] ?? 0);
-            $user_id = $_SESSION['user_id'];
-            $user = App::getUser();
-            
-            // Verificar permisos
-            if ($user['role'] !== 'admin') {
-                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$solicitud_id]);
-                if (!$existing || $existing['user_id'] != $user_id) {
-                    throw new Exception('No tienes permisos para editar este programa');
-                }
-            }
-            
-            $data = [
-                'solicitud_id' => $solicitud_id,
-                'dia_numero' => intval($_POST['dia_numero']),
-                'fecha' => $_POST['fecha'],
-                'biblioteca_dia_id' => intval($_POST['biblioteca_dia_id']) ?: null,
-                'titulo_jornada' => trim($_POST['titulo_jornada']),
-                'descripcion' => trim($_POST['descripcion'] ?? ''),
-                'ubicacion' => trim($_POST['ubicacion'] ?? ''),
-                'desayuno_incluido' => isset($_POST['desayuno_incluido']) ? 1 : 0,
-                'almuerzo_incluido' => isset($_POST['almuerzo_incluido']) ? 1 : 0,
-                'cena_incluida' => isset($_POST['cena_incluida']) ? 1 : 0,
-                'comidas_no_incluidas' => isset($_POST['comidas_no_incluidas']) ? 1 : 0
-            ];
-            
-            if ($dia_id > 0) {
-                // Actualizar día existente
-                $result = $this->db->update('programa_dias', $data, 'id = ?', [$dia_id]);
-                $programa_dia_id = $dia_id;
-            } else {
-                // Crear nuevo día
-                $programa_dia_id = $this->db->insert('programa_dias', $data);
-            }
-            
-            if (!$programa_dia_id) {
-                throw new Exception('Error al guardar día');
-            }
-            
-            // Procesar servicios (actividades, transportes, alojamientos)
-            $this->procesarServicios($programa_dia_id, $_POST);
-            
-            return ['success' => true, 'message' => 'Día guardado correctamente', 'dia_id' => $programa_dia_id];
-            
-        } catch(Exception $e) {
-            throw new Exception('Error guardando día: ' . $e->getMessage());
-        }
-    }
-    
-    private function procesarServicios($programa_dia_id, $postData) {
-        try {
-            // Eliminar servicios existentes
-            $this->db->delete('programa_dias_servicios', 'programa_dia_id = ?', [$programa_dia_id]);
-            
-            $servicios_tipos = ['actividades', 'transportes', 'alojamientos'];
-            
-            foreach($servicios_tipos as $tipo) {
-                $tipo_singular = rtrim($tipo, 's');
-                if ($tipo_singular === 'actividade') $tipo_singular = 'actividad';
-                if ($tipo_singular === 'transporte') $tipo_singular = 'transporte';
-                if ($tipo_singular === 'alojamiento') $tipo_singular = 'alojamiento';
-                
-                if (isset($postData[$tipo]) && is_array($postData[$tipo])) {
-                    $orden = 1;
-                    foreach($postData[$tipo] as $item_id) {
-                        if ($item_id > 0) {
-                            $servicio_data = [
-                                'programa_dia_id' => $programa_dia_id,
-                                'tipo_servicio' => $tipo_singular,
-                                'biblioteca_item_id' => intval($item_id),
-                                'orden' => $orden++
-                            ];
-                            
-                            $this->db->insert('programa_dias_servicios', $servicio_data);
-                        }
-                    }
-                }
-            }
-            
-        } catch(Exception $e) {
-            throw new Exception('Error procesando servicios: ' . $e->getMessage());
-        }
-    }
-    
-    private function deleteDia($dia_id) {
-        try {
-            $dia_id = intval($dia_id);
-            $user_id = $_SESSION['user_id'];
-            $user = App::getUser();
-            
-            // Verificar permisos
-            if ($user['role'] !== 'admin') {
-                $existing = $this->db->fetch("
-                    SELECT ps.user_id 
-                    FROM programa_dias pd 
-                    JOIN programa_solicitudes ps ON pd.solicitud_id = ps.id 
-                    WHERE pd.id = ?", [$dia_id]);
-                    
-                if (!$existing || $existing['user_id'] != $user_id) {
-                    throw new Exception('No tienes permisos para eliminar este día');
-                }
-            }
-            
-            $result = $this->db->delete('programa_dias', 'id = ?', [$dia_id]);
-            
-            if (!$result) {
-                throw new Exception('Error al eliminar día');
-            }
-            
-            return ['success' => true, 'message' => 'Día eliminado correctamente'];
-            
-        } catch(Exception $e) {
-            throw new Exception('Error eliminando día: ' . $e->getMessage());
-        }
-    }
-    
-    private function savePrecios() {
-        try {
-            $solicitud_id = intval($_POST['solicitud_id']);
-            $user_id = $_SESSION['user_id'];
-            $user = App::getUser();
-            
-            // Verificar permisos
-            if ($user['role'] !== 'admin') {
-                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$solicitud_id]);
-                if (!$existing || $existing['user_id'] != $user_id) {
-                    throw new Exception('No tienes permisos para editar este programa');
-                }
-            }
-            
-            $data = [
-                'moneda' => trim($_POST['moneda']),
-                'precio_adulto' => floatval($_POST['precio_adulto'] ?? 0),
-                'precio_adolescente' => floatval($_POST['precio_adolescente'] ?? 0),
-                'precio_nino' => floatval($_POST['precio_nino'] ?? 0),
-                'precio_bebe' => floatval($_POST['precio_bebe'] ?? 0),
-                'noches_incluidas' => intval($_POST['noches_incluidas'] ?? 0),
-                'precio_incluye' => trim($_POST['precio_incluye'] ?? ''),
-                'precio_no_incluye' => trim($_POST['precio_no_incluye'] ?? ''),
-                'condiciones_generales' => trim($_POST['condiciones_generales'] ?? ''),
-                'apto_movilidad_reducida' => isset($_POST['apto_movilidad_reducida']) ? 1 : 0,
-                'info_pasaportes_visados' => trim($_POST['info_pasaportes_visados'] ?? ''),
-                'info_seguros_viaje' => trim($_POST['info_seguros_viaje'] ?? '')
-            ];
-            
-            // Verificar si ya existen precios
-            $existing = $this->db->fetch("SELECT id FROM programa_precios WHERE solicitud_id = ?", [$solicitud_id]);
-            
-            if ($existing) {
-                $result = $this->db->update('programa_precios', $data, 'solicitud_id = ?', [$solicitud_id]);
-            } else {
-                $data['solicitud_id'] = $solicitud_id;
-                $result = $this->db->insert('programa_precios', $data);
-            }
-            
-            if (!$result) {
-                throw new Exception('Error al guardar precios');
-            }
-            
-            return ['success' => true, 'message' => 'Precios guardados correctamente'];
-            
-        } catch(Exception $e) {
-            throw new Exception('Error guardando precios: ' . $e->getMessage());
-        }
-    }
-    
-    private function getCurrencies() {
-    try {
-        $currencies = [
-            'EUR' => ['name' => 'Euro', 'symbol' => '€'],
-            'USD' => ['name' => 'Dólar Estadounidense', 'symbol' => '$'],
-            'GBP' => ['name' => 'Libra Esterlina', 'symbol' => '£'],
-            'COP' => ['name' => 'Peso Colombiano', 'symbol' => 'COP $'],
-            'MXN' => ['name' => 'Peso Mexicano', 'symbol' => 'MX $'],
-            'ARS' => ['name' => 'Peso Argentino', 'symbol' => 'AR $'],
-            'BRL' => ['name' => 'Real Brasileño', 'symbol' => 'R$'],
-            'CHF' => ['name' => 'Franco Suizo', 'symbol' => 'CHF'],
-            'CAD' => ['name' => 'Dólar Canadiense', 'symbol' => 'CA $'],
-            'JPY' => ['name' => 'Yen Japonés', 'symbol' => '¥'],
-            'CNY' => ['name' => 'Yuan Chino', 'symbol' => '¥'],
-            'AUD' => ['name' => 'Dólar Australiano', 'symbol' => 'AU $'],
-            'PEN' => ['name' => 'Sol Peruano', 'symbol' => 'S/'],
-            'CLP' => ['name' => 'Peso Chileno', 'symbol' => 'CL $'],
-            'UYU' => ['name' => 'Peso Uruguayo', 'symbol' => 'UY $'],
-            'BOB' => ['name' => 'Boliviano', 'symbol' => 'Bs'],
-            'GTQ' => ['name' => 'Quetzal Guatemalteco', 'symbol' => 'Q'],
-            'CRC' => ['name' => 'Colón Costarricense', 'symbol' => '₡'],
-            'HNL' => ['name' => 'Lempira Hondureña', 'symbol' => 'L'],
-            'NIO' => ['name' => 'Córdoba Nicaragüense', 'symbol' => 'C$'],
-            'PAB' => ['name' => 'Balboa Panameño', 'symbol' => 'B/.'],
-            'DOP' => ['name' => 'Peso Dominicano', 'symbol' => 'RD$'],
-            'CUP' => ['name' => 'Peso Cubano', 'symbol' => '$'],
-            'JMD' => ['name' => 'Dólar Jamaiquino', 'symbol' => 'J$'],
-            'TTD' => ['name' => 'Dólar de Trinidad y Tobago', 'symbol' => 'TT$']
-        ];
-        
-        return ['success' => true, 'data' => $currencies];
-        
-    } catch(Exception $e) {
-        error_log("Error en getCurrencies: " . $e->getMessage());
-        return ['success' => false, 'error' => 'Error al obtener monedas: ' . $e->getMessage()];
-    }
-}
-    
-    // === FUNCIONES AUXILIARES ===
-    
-    private function validateSolicitudData($data) {
-        if (empty($data['nombre_viajero'])) {
-            throw new Exception('El nombre del viajero es obligatorio');
-        }
-        
-        if (empty($data['apellido_viajero'])) {
-            throw new Exception('El apellido del viajero es obligatorio');
-        }
-        
-        if (empty($data['destino'])) {
-            throw new Exception('El destino es obligatorio');
-        }
-        
-        if (empty($data['fecha_llegada']) || empty($data['fecha_salida'])) {
-            throw new Exception('Las fechas de llegada y salida son obligatorias');
-        }
-        
-        // Validar que la fecha de salida sea posterior a la de llegada
-        if (strtotime($data['fecha_salida']) <= strtotime($data['fecha_llegada'])) {
-            throw new Exception('La fecha de salida debe ser posterior a la fecha de llegada');
-        }
-        
-        if ($data['numero_viajeros'] < 1) {
-            throw new Exception('Debe haber al menos 1 viajero');
-        }
-    }
-    
-    private function duplicateSolicitud($id) {
+    private function getPrograma($id) {
         try {
             $id = intval($id);
             $user_id = $_SESSION['user_id'];
             $user = App::getUser();
             
-            // Verificar permisos
-            if ($user['role'] !== 'admin') {
-                $existing = $this->db->fetch("SELECT user_id FROM programa_solicitudes WHERE id = ?", [$id]);
-                if (!$existing || $existing['user_id'] != $user_id) {
-                    throw new Exception('No tienes permisos para duplicar esta solicitud');
-                }
-            }
-            
-            // Obtener solicitud original
-            $solicitud = $this->db->fetch("SELECT * FROM programa_solicitudes WHERE id = ?", [$id]);
-            if (!$solicitud) {
-                throw new Exception('Solicitud no encontrada');
-            }
-            
-            // Generar nuevo ID de solicitud
-            $year = date('Y');
-            $lastId = $this->db->fetch("SELECT id_solicitud FROM programa_solicitudes WHERE id_solicitud LIKE 'SOL{$year}%' ORDER BY id DESC LIMIT 1");
-            
-            if ($lastId) {
-                $number = intval(substr($lastId['id_solicitud'], -3)) + 1;
+            // Construir consulta según permisos
+            if ($user['role'] === 'admin') {
+                $sql = "SELECT s.*, p.titulo_programa, p.idioma_presupuesto, p.foto_portada
+                        FROM programa_solicitudes s 
+                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
+                        WHERE s.id = ?";
+                $programa = $this->db->fetch($sql, [$id]);
             } else {
-                $number = 1;
+                $sql = "SELECT s.*, p.titulo_programa, p.idioma_presupuesto, p.foto_portada
+                        FROM programa_solicitudes s 
+                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
+                        WHERE s.id = ? AND s.user_id = ?";
+                $programa = $this->db->fetch($sql, [$id, $user_id]);
             }
             
-            $new_id_solicitud = 'SOL' . $year . str_pad($number, 3, '0', STR_PAD_LEFT);
-            
-            // Crear nueva solicitud
-            unset($solicitud['id']);
-            $solicitud['id_solicitud'] = $new_id_solicitud;
-            $solicitud['nombre_viajero'] = 'Copia de ' . $solicitud['nombre_viajero'];
-            $solicitud['estado'] = 'borrador';
-            $solicitud['user_id'] = $user_id;
-            
-            $new_solicitud_id = $this->db->insert('programa_solicitudes', $solicitud);
-            
-            if (!$new_solicitud_id) {
-                throw new Exception('Error al duplicar solicitud');
+            if (!$programa) {
+                throw new Exception('Programa no encontrado');
             }
             
-            // Duplicar personalización si existe
-            $personalizacion = $this->db->fetch("SELECT * FROM programa_personalizacion WHERE solicitud_id = ?", [$id]);
-            if ($personalizacion) {
-                unset($personalizacion['id']);
-                $personalizacion['solicitud_id'] = $new_solicitud_id;
-                $personalizacion['titulo_programa'] = 'Copia de ' . $personalizacion['titulo_programa'];
-                $this->db->insert('programa_personalizacion', $personalizacion);
-            }
-            
-            // Duplicar precios si existen
-            $precios = $this->db->fetch("SELECT * FROM programa_precios WHERE solicitud_id = ?", [$id]);
-            if ($precios) {
-                unset($precios['id']);
-                $precios['solicitud_id'] = $new_solicitud_id;
-                $this->db->insert('programa_precios', $precios);
-            }
-            
-            return ['success' => true, 'id' => $new_solicitud_id, 'message' => 'Solicitud duplicada correctamente'];
+            return ['success' => true, 'data' => $programa];
             
         } catch(Exception $e) {
-            throw new Exception('Error duplicando solicitud: ' . $e->getMessage());
+            throw new Exception('Error obteniendo programa: ' . $e->getMessage());
         }
     }
     
-    private function uploadImage($file, $solicitud_id, $type) {
-        // Validar archivo
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (!in_array($file['type'], $allowedTypes)) {
-            throw new Exception('Tipo de archivo no permitido');
+    private function listProgramas() {
+        try {
+            $user_id = $_SESSION['user_id'];
+            $user = App::getUser();
+            
+            if ($user['role'] === 'admin') {
+                $sql = "SELECT s.*, p.titulo_programa, p.foto_portada, u.full_name as agente_nombre
+                        FROM programa_solicitudes s 
+                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
+                        LEFT JOIN users u ON s.user_id = u.id
+                        ORDER BY s.created_at DESC";
+                $programas = $this->db->fetchAll($sql);
+            } else {
+                $sql = "SELECT s.*, p.titulo_programa, p.foto_portada
+                        FROM programa_solicitudes s 
+                        LEFT JOIN programa_personalizacion p ON s.id = p.solicitud_id
+                        WHERE s.user_id = ?
+                        ORDER BY s.created_at DESC";
+                $programas = $this->db->fetchAll($sql, [$user_id]);
+            }
+            
+            // Formatear fechas para mostrar
+            foreach($programas as &$programa) {
+                $programa['fecha_llegada_formatted'] = date('d/m/Y', strtotime($programa['fecha_llegada']));
+                $programa['fecha_salida_formatted'] = date('d/m/Y', strtotime($programa['fecha_salida']));
+                $programa['created_at_formatted'] = date('d/m/Y H:i', strtotime($programa['created_at']));
+            }
+            
+            return ['success' => true, 'data' => $programas];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error listando programas: ' . $e->getMessage());
         }
-        
-        if ($file['size'] > 5 * 1024 * 1024) {
-            throw new Exception('Archivo demasiado grande (máx 5MB)');
+    }
+    
+    private function deletePrograma($id) {
+        try {
+            $id = intval($id);
+            $user_id = $_SESSION['user_id'];
+            
+            // Verificar permisos
+            $this->verifyPermissions($id, $user_id);
+            
+            // Eliminar programa (las claves foráneas se encargarán del resto)
+            $result = $this->db->delete('programa_solicitudes', 'id = ?', [$id]);
+            
+            if (!$result) {
+                throw new Exception('Error al eliminar programa');
+            }
+            
+            return ['success' => true, 'message' => 'Programa eliminado correctamente'];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error eliminando programa: ' . $e->getMessage());
         }
+    }
+    
+    private function validateProgramaData() {
+        $required = [
+            'traveler_name' => 'Nombre del viajero',
+            'traveler_lastname' => 'Apellido del viajero',
+            'destination' => 'Destino',
+            'arrival_date' => 'Fecha de llegada',
+            'departure_date' => 'Fecha de salida'
+        ];
         
-        // Crear directorio
-        $baseDir = dirname(__DIR__, 2) . '/assets/uploads/programa/';
-        $yearMonth = date('Y/m');
-        $uploadDir = $baseDir . $yearMonth . '/';
-        
-        if (!is_dir($uploadDir)) {
-            if (!mkdir($uploadDir, 0755, true)) {
-                throw new Exception('No se pudo crear directorio');
+        foreach($required as $field => $label) {
+            if (empty($_POST[$field])) {
+                throw new Exception("El campo '{$label}' es obligatorio");
             }
         }
         
-        // Generar nombre
-        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $fileName = 'programa_' . $solicitud_id . '_' . $type . '_' . time() . '.' . $extension;
-        $filePath = $uploadDir . $fileName;
+        // Validar fechas
+        $arrival = new DateTime($_POST['arrival_date']);
+        $departure = new DateTime($_POST['departure_date']);
         
-        // Mover archivo
-        if (move_uploaded_file($file['tmp_name'], $filePath)) {
-            return APP_URL . '/assets/uploads/programa/' . $yearMonth . '/' . $fileName;
-        } else {
-            throw new Exception('Error moviendo archivo');
+        if ($departure <= $arrival) {
+            throw new Exception('La fecha de salida debe ser posterior a la fecha de llegada');
+        }
+        
+        // Validar número de pasajeros
+        $passengers = intval($_POST['passengers']);
+        if ($passengers < 1 || $passengers > 50) {
+            throw new Exception('El número de pasajeros debe estar entre 1 y 50');
         }
     }
     
-    private function getImageFields($type) {
-        switch($type) {
-            case 'dias':
-            case 'actividades':
-                return ['imagen1', 'imagen2', 'imagen3'];
-            case 'alojamientos':
-                return ['imagen'];
-            default:
-                return [];
+    private function verifyPermissions($programa_id, $user_id) {
+        $user = App::getUser();
+        
+        if ($user['role'] !== 'admin') {
+            $existing = $this->db->fetch(
+                "SELECT user_id FROM programa_solicitudes WHERE id = ?", 
+                [$programa_id]
+            );
+            
+            if (!$existing || $existing['user_id'] != $user_id) {
+                throw new Exception('No tienes permisos para realizar esta acción');
+            }
         }
+    }
+    
+    private function sendError($message) {
+        ob_clean();
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'success' => false,
+            'error' => $message
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
     }
 }
 
@@ -838,6 +450,9 @@ try {
 } catch(Exception $e) {
     ob_clean();
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['success' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE);
 }
 ?>
