@@ -1,95 +1,75 @@
 <?php
-// =====================================
-// ARCHIVO: setup_uploads_programa.php
-// Ejecutar UNA VEZ para crear las carpetas necesarias
-// =====================================
+// ====================================================================
+// ARCHIVO: setup_uploads_programa.php - CONFIGURAR CARPETAS DE UPLOADS
+// ====================================================================
+// ⚠️  EJECUTAR SOLO UNA VEZ PARA CONFIGURAR CARPETAS
+// ====================================================================
 
-echo "🚀 Configurando carpetas para uploads de programas...\n\n";
+echo "🚀 Configurando carpetas de uploads para programa...\n\n";
 
-// Definir carpetas necesarias
-$baseDir = __DIR__ . '/assets/uploads/programa/';
+// Obtener año y mes actuales
 $currentYear = date('Y');
 $currentMonth = date('m');
 
+// Crear estructura de carpetas
+$baseDir = 'assets/uploads/programa';
 $directories = [
-    'assets',
-    'assets/uploads',
-    'assets/uploads/programa',
-    "assets/uploads/programa/{$currentYear}",
-    "assets/uploads/programa/{$currentYear}/{$currentMonth}"
+    $baseDir,
+    "$baseDir/$currentYear",
+    "$baseDir/$currentYear/$currentMonth"
 ];
 
-// Crear carpetas
+echo "📁 Creando directorios...\n";
 foreach ($directories as $dir) {
     if (!is_dir($dir)) {
         if (mkdir($dir, 0755, true)) {
-            echo "✅ Carpeta creada: {$dir}\n";
+            echo "✅ Creado: $dir\n";
         } else {
-            echo "❌ Error creando carpeta: {$dir}\n";
+            echo "❌ Error creando: $dir\n";
         }
     } else {
-        echo "✅ Carpeta ya existe: {$dir}\n";
+        echo "✅ Ya existe: $dir\n";
     }
 }
 
-// Crear archivo .htaccess para seguridad
-$htaccessContent = '# Configuración de seguridad para uploads de programa
-Options -Indexes
-DirectoryIndex disabled
+// Crear archivo .htaccess para proteger las carpetas
+$htaccessContent = '# Protección para uploads de programa
+<Files "*.php">
+    Order allow,deny
+    Deny from all
+</Files>
 
-# Permitir solo imágenes
+# Permitir solo archivos de imagen
 <FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
-    Order Allow,Deny
+    Order allow,deny
     Allow from all
 </FilesMatch>
 
-# Denegar archivos ejecutables
-<FilesMatch "\.(php|phtml|php3|php4|php5|pl|py|jsp|asp|sh|cgi|exe)$">
-    Order Allow,Deny
-    Deny from all
-</FilesMatch>
+# Prevenir ejecución de scripts
+Options -ExecCGI
+AddHandler cgi-script .php .pl .py .jsp .asp .sh .cgi
+Options -Indexes
+';
 
-# Denegar archivos de configuración
-<FilesMatch "\.(htaccess|htpasswd|ini|log|sql|conf)$">
-    Order Allow,Deny
-    Deny from all
-</FilesMatch>
-
-# Headers de seguridad
-<IfModule mod_headers.c>
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-Frame-Options "DENY"
-</IfModule>';
-
-$htaccessPath = 'assets/uploads/programa/.htaccess';
+$htaccessPath = "$baseDir/.htaccess";
 if (file_put_contents($htaccessPath, $htaccessContent)) {
-    echo "✅ Archivo .htaccess creado: {$htaccessPath}\n";
+    echo "✅ Archivo de protección creado: $htaccessPath\n";
 } else {
-    echo "❌ Error creando .htaccess: {$htaccessPath}\n";
+    echo "❌ Error creando .htaccess: $htaccessPath\n";
 }
 
-// Crear archivo index.php para evitar listado de directorios
+// Crear archivo index.php para protección adicional
 $indexContent = '<?php
 // Archivo de protección - No eliminar
-header("HTTP/1.1 403 Forbidden");
-header("Content-Type: text/html; charset=UTF-8");
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Acceso Denegado</title>
-</head>
-<body>
-    <h1>403 - Acceso No Autorizado</h1>
-    <p>No tienes permisos para acceder a este directorio.</p>
-</body>
-</html>';
+header("HTTP/1.0 403 Forbidden");
+exit("Acceso denegado");
+?>';
 
-$indexPath = 'assets/uploads/programa/index.php';
+$indexPath = "$baseDir/index.php";
 if (file_put_contents($indexPath, $indexContent)) {
-    echo "✅ Archivo de protección creado: {$indexPath}\n";
+    echo "✅ Archivo de protección creado: $indexPath\n";
 } else {
-    echo "❌ Error creando index.php: {$indexPath}\n";
+    echo "❌ Error creando index.php: $indexPath\n";
 }
 
 // Crear archivo de configuración para uploads
@@ -119,46 +99,46 @@ function validarArchivoPrograma($file) {
 }
 ?>';
 
-$configPath = 'assets/uploads/programa/config.php';
+$configPath = "$baseDir/config.php";
 if (file_put_contents($configPath, $configContent)) {
-    echo "✅ Archivo de configuración creado: {$configPath}\n";
+    echo "✅ Archivo de configuración creado: $configPath\n";
 } else {
-    echo "❌ Error creando config.php: {$configPath}\n";
+    echo "❌ Error creando config.php: $configPath\n";
 }
 
 // Verificar permisos
 echo "\n📋 Verificando permisos...\n";
 
 $testDirs = [
-    'assets/uploads/programa',
-    "assets/uploads/programa/{$currentYear}",
-    "assets/uploads/programa/{$currentYear}/{$currentMonth}"
+    $baseDir,
+    "$baseDir/$currentYear",
+    "$baseDir/$currentYear/$currentMonth"
 ];
 
 foreach ($testDirs as $dir) {
     if (is_writable($dir)) {
-        echo "✅ {$dir} - Escribible\n";
+        echo "✅ $dir - Escribible\n";
     } else {
-        echo "⚠️  {$dir} - No escribible (chmod 755 requerido)\n";
+        echo "⚠️  $dir - No escribible (chmod 755 requerido)\n";
     }
 }
 
 echo "\n🎉 Configuración completada!\n";
-echo "📁 Las imágenes se guardarán en: assets/uploads/programa/YYYY/MM/\n";
+echo "📁 Las imágenes se guardarán en: $baseDir/YYYY/MM/\n";
 echo "🔒 Carpetas protegidas con .htaccess\n";
-echo "📋 Configuración guardada en: assets/uploads/programa/config.php\n\n";
+echo "📋 Configuración guardada en: $baseDir/config.php\n\n";
 
 echo "⚠️  IMPORTANTE:\n";
 echo "1. Ejecuta este script solo UNA VEZ\n";
 echo "2. Verifica que las carpetas tengan permisos 755\n";
 echo "3. Puedes eliminar este archivo después de ejecutarlo\n";
-echo "4. Las URLs de imágenes serán: " . (defined('APP_URL') ? APP_URL : 'TU_DOMINIO') . "/assets/uploads/programa/YYYY/MM/archivo.jpg\n\n";
+echo "4. Las URLs de imágenes serán: TU_DOMINIO/assets/uploads/programa/YYYY/MM/archivo.jpg\n\n";
 
 // Test de creación de archivo
 echo "🧪 Realizando test de escritura...\n";
-$testFile = "assets/uploads/programa/{$currentYear}/{$currentMonth}/test_" . time() . ".txt";
+$testFile = "$baseDir/$currentYear/$currentMonth/test_" . time() . ".txt";
 if (file_put_contents($testFile, "Test de escritura - " . date('Y-m-d H:i:s'))) {
-    echo "✅ Test de escritura exitoso: {$testFile}\n";
+    echo "✅ Test de escritura exitoso: $testFile\n";
     unlink($testFile); // Eliminar archivo de test
     echo "✅ Archivo de test eliminado\n";
 } else {
@@ -166,4 +146,6 @@ if (file_put_contents($testFile, "Test de escritura - " . date('Y-m-d H:i:s'))) 
 }
 
 echo "\n✅ ¡Todo listo para subir imágenes de programas!\n";
+echo "\n📝 SIGUIENTE PASO:\n";
+echo "Ejecuta el archivo programa.php en tu navegador para probar el formulario.\n";
 ?>
