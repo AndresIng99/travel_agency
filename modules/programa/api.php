@@ -130,7 +130,13 @@ class ProgramaAPI {
             }
             
             // Guardar personalización (incluyendo imagen)
-            $this->savePersonalizacion($programa_id);
+            try {
+                $this->savePersonalizacion($programa_id);
+                error_log("✅ Personalización guardada correctamente para programa ID: " . $programa_id);
+            } catch (Exception $e) {
+                error_log("❌ Error guardando personalización: " . $e->getMessage());
+                // No hacer throw aquí para que el programa se guarde aunque falle la imagen
+            }
             
             return [
                 'success' => true, 
@@ -215,25 +221,39 @@ class ProgramaAPI {
             
             error_log("Datos base: " . print_r($data, true));
             
-            // ✅ PROCESAR IMAGEN DE PORTADA
-            if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
-                error_log("✅ Archivo cover_image detectado");
-                error_log("Archivo: " . print_r($_FILES['cover_image'], true));
+            // ✅ PROCESAR IMAGEN DE PORTADA - MEJORADO
+            error_log("=== VERIFICANDO ARCHIVO DE IMAGEN ===");
+            error_log("FILES disponibles: " . print_r($_FILES, true));
+
+            if (isset($_FILES['cover_image'])) {
+                error_log("cover_image encontrado - Error: " . $_FILES['cover_image']['error']);
                 
-                try {
-                    $imageUrl = $this->uploadImage($_FILES['cover_image'], $programa_id);
-                    $data['foto_portada'] = $imageUrl;
-                    error_log("✅ Imagen subida: " . $imageUrl);
-                } catch (Exception $e) {
-                    error_log("❌ Error subiendo imagen: " . $e->getMessage());
-                    // Continuar sin imagen si hay error
+                if ($_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
+                    error_log("✅ Archivo cover_image válido detectado");
+                    
+                    try {
+                        $imageUrl = $this->uploadImage($_FILES['cover_image'], $programa_id);
+                        $data['foto_portada'] = $imageUrl;
+                        error_log("✅ Imagen subida exitosamente: " . $imageUrl);
+                    } catch (Exception $e) {
+                        error_log("❌ Error subiendo imagen: " . $e->getMessage());
+                        // Continuar sin imagen si hay error
+                    }
+                } else {
+                    error_log("⚠️ Error en archivo cover_image: " . $_FILES['cover_image']['error']);
+                    $errors = [
+                        UPLOAD_ERR_INI_SIZE => 'Archivo demasiado grande (ini_size)',
+                        UPLOAD_ERR_FORM_SIZE => 'Archivo demasiado grande (form_size)', 
+                        UPLOAD_ERR_PARTIAL => 'Carga parcial',
+                        UPLOAD_ERR_NO_FILE => 'No se subió archivo',
+                        UPLOAD_ERR_NO_TMP_DIR => 'No hay directorio temporal',
+                        UPLOAD_ERR_CANT_WRITE => 'No se puede escribir',
+                        UPLOAD_ERR_EXTENSION => 'Extensión bloqueada'
+                    ];
+                    error_log("Descripción del error: " . ($errors[$_FILES['cover_image']['error']] ?? 'Error desconocido'));
                 }
             } else {
-                if (isset($_FILES['cover_image'])) {
-                    error_log("⚠️ Error en archivo: " . $_FILES['cover_image']['error']);
-                } else {
-                    error_log("⚠️ No se recibió archivo cover_image");
-                }
+                error_log("⚠️ No se recibió archivo cover_image en $_FILES");
             }
             
             // Verificar si ya existe personalización
@@ -285,7 +305,13 @@ class ProgramaAPI {
             }
             
             // Crear directorio
-            $baseDir = dirname(__DIR__, 2) . '/assets/uploads/programa/';
+           // Verificar directorio base
+            if (!is_dir(dirname(__DIR__, 2) . '/assets/uploads/')) {
+                mkdir(dirname(__DIR__, 2) . '/assets/uploads/', 0755, true);
+            }
+            if (!is_dir($baseDir)) {
+                mkdir($baseDir, 0755, true);
+            }
             $yearMonth = date('Y/m');
             $uploadDir = $baseDir . $yearMonth . '/';
             

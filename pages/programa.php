@@ -616,14 +616,10 @@ $programa_id = $_GET['id'] ?? null;
                 // ✅ IMAGEN DE PORTADA - CORREGIDO PARA EVITAR ERROR NULL
                 const coverInput = document.getElementById('cover-input');
                 if (coverInput && coverInput.files && coverInput.files.length > 0) {
-                    const coverFile = coverInput.files[0];
-                    console.log('📷 Agregando imagen al FormData:', coverFile.name, 'Tamaño:', coverFile.size);
-                    formData.append('cover_image', coverFile);
+                    formData.append('cover_image', coverInput.files[0]);
+                    console.log('📷 Imagen agregada:', coverInput.files[0].name);
                 } else {
-                    console.log('⚠️ No hay imagen seleccionada o elemento no encontrado');
-                    if (!coverInput) {
-                        console.error('❌ Elemento cover-input no encontrado en el DOM');
-                    }
+                    console.log('⚠️ No hay imagen seleccionada');
                 }
                 
                 // ID del programa si es edición
