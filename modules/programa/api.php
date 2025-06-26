@@ -65,12 +65,13 @@ class ProgramaAPI {
     
     private function savePrograma() {
         try {
+            error_log("=== 🚀 INICIANDO GUARDADO DE PROGRAMA ===");
+            
             $user_id = $_SESSION['user_id'];
             
-            // Validar datos requeridos
+            // Validar datos
             $this->validateProgramaData();
             
-            // Verificar si es edición o creación nueva
             $programa_id = $_POST['programa_id'] ?? null;
             
             if ($programa_id) {
@@ -87,10 +88,12 @@ class ProgramaAPI {
                 $created_data = $this->createPrograma($user_id);
                 $programa_id = $created_data['programa_id'];
                 $request_id = $created_data['request_id'];
+                
+                // Para programas nuevos, guardar personalización por separado
+                $this->savePersonalizacion($programa_id);
             }
             
-            // Guardar personalización
-            $this->savePersonalizacion($programa_id);
+            error_log("✅ PROCESO COMPLETADO EXITOSAMENTE");
             
             return [
                 'success' => true,
@@ -102,6 +105,24 @@ class ProgramaAPI {
         } catch(Exception $e) {
             error_log("❌ Error en savePrograma: " . $e->getMessage());
             throw $e;
+        }
+    }
+
+    private function debugReceivedData() {
+        error_log("=== 🔍 DEBUG DATOS RECIBIDOS ===");
+        error_log("POST data: " . print_r($_POST, true));
+        error_log("FILES data: " . print_r($_FILES, true));
+        
+        // Verificar campos específicos
+        $campos_requeridos = [
+            'traveler_name', 'traveler_lastname', 'destination', 
+            'arrival_date', 'departure_date', 'passengers',
+            'program_title', 'budget_language'
+        ];
+        
+        foreach ($campos_requeridos as $campo) {
+            $valor = $_POST[$campo] ?? 'NO_ENVIADO';
+            error_log("Campo {$campo}: '{$valor}'");
         }
     }
     
@@ -117,6 +138,7 @@ class ProgramaAPI {
         
         foreach ($required_fields as $field => $label) {
             if (empty($_POST[$field])) {
+                error_log("❌ Campo faltante: $field");
                 throw new Exception("El campo '$label' es obligatorio");
             }
         }
@@ -138,6 +160,8 @@ class ProgramaAPI {
         if ($passengers < 1 || $passengers > 20) {
             throw new Exception('El número de pasajeros debe estar entre 1 y 20');
         }
+        
+        error_log("✅ Validación de datos completada exitosamente");
     }
     
     private function verifyPermissions($programa_id, $user_id) {
@@ -153,21 +177,20 @@ class ProgramaAPI {
     
     private function createPrograma($user_id) {
         try {
-            // Preparar datos para inserción
+            // Datos para inserción (basado en estructura real)
             $data = [
-                'nombre_viajero' => trim($_POST['traveler_name']),
-                'apellido_viajero' => trim($_POST['traveler_lastname']),
-                'destino' => trim($_POST['destination']),
-                'fecha_llegada' => $_POST['arrival_date'],
-                'fecha_salida' => $_POST['departure_date'],
-                'numero_pasajeros' => intval($_POST['passengers']),
+                'nombre_viajero' => trim($_POST['traveler_name'] ?? ''),
+                'apellido_viajero' => trim($_POST['traveler_lastname'] ?? ''),
+                'destino' => trim($_POST['destination'] ?? ''),
+                'fecha_llegada' => $_POST['arrival_date'] ?? null,
+                'fecha_salida' => $_POST['departure_date'] ?? null,
+                'numero_pasajeros' => intval($_POST['passengers'] ?? 1), // ✅ CORRECTO según tu tabla
                 'acompanamiento' => trim($_POST['accompaniment'] ?? 'sin-acompanamiento'),
                 'user_id' => $user_id
             ];
             
-            error_log("📝 Insertando programa con datos: " . print_r($data, true));
+            error_log("📝 Insertando programa con datos correctos: " . print_r($data, true));
             
-            // Insertar en programa_solicitudes
             $programa_id = $this->db->insert('programa_solicitudes', $data);
             
             if (!$programa_id) {
@@ -188,7 +211,6 @@ class ProgramaAPI {
             );
             
             if (!$updateResult) {
-                // Si falla la actualización, eliminar el registro creado
                 $this->db->delete('programa_solicitudes', 'id = ?', [$programa_id]);
                 throw new Exception('Error al generar ID de solicitud');
             }
@@ -205,68 +227,128 @@ class ProgramaAPI {
             throw new Exception('Error al crear programa: ' . $e->getMessage());
         }
     }
+
     
     private function updatePrograma($programa_id) {
         try {
-            $data = [
-                'nombre_viajero' => trim($_POST['traveler_name']),
-                'apellido_viajero' => trim($_POST['traveler_lastname']),
-                'destino' => trim($_POST['destination']),
-                'fecha_llegada' => $_POST['arrival_date'],
-                'fecha_salida' => $_POST['departure_date'],
-                'numero_pasajeros' => intval($_POST['passengers']),
+            // ACTUALIZAR solicitud del viajero (basado en estructura real)
+            $solicitud_data = [
+                'nombre_viajero' => trim($_POST['traveler_name'] ?? ''),
+                'apellido_viajero' => trim($_POST['traveler_lastname'] ?? ''),
+                'destino' => trim($_POST['destination'] ?? ''),
+                'fecha_llegada' => $_POST['arrival_date'] ?? null,
+                'fecha_salida' => $_POST['departure_date'] ?? null,
+                'numero_pasajeros' => intval($_POST['passengers'] ?? 1), // ✅ CORRECTO según tu tabla
                 'acompanamiento' => trim($_POST['accompaniment'] ?? 'sin-acompanamiento')
             ];
             
-            error_log("📝 Actualizando programa $programa_id con datos: " . print_r($data, true));
+            error_log("📝 Actualizando solicitud para programa $programa_id");
+            error_log("Datos: " . print_r($solicitud_data, true));
             
-            $result = $this->db->update('programa_solicitudes', $data, 'id = ?', [$programa_id]);
+            $result_solicitud = $this->db->update('programa_solicitudes', $solicitud_data, 'id = ?', [$programa_id]);
             
-            if (!$result) {
-                throw new Exception('Error al actualizar el programa');
+            if ($result_solicitud === false) {
+                throw new Exception('Error al actualizar la solicitud del viajero');
             }
             
-            // Obtener el ID de solicitud actual
+            error_log("✅ Solicitud actualizada. Filas afectadas: $result_solicitud");
+            
+            // ACTUALIZAR personalización
+            $personalizacion_data = [
+                'titulo_programa' => trim($_POST['program_title'] ?? ''),
+                'idioma_predeterminado' => trim($_POST['budget_language'] ?? 'es')
+            ];
+            
+            // Procesar imagen si se subió
+            if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
+                error_log("📷 Procesando imagen de portada");
+                try {
+                    $imageUrl = $this->uploadImage($_FILES['cover_image'], $programa_id);
+                    if ($imageUrl) {
+                        $personalizacion_data['foto_portada'] = $imageUrl;
+                        error_log("✅ Imagen procesada: $imageUrl");
+                    }
+                } catch (Exception $e) {
+                    error_log("⚠️ Error procesando imagen: " . $e->getMessage());
+                }
+            }
+            
+            error_log("📝 Datos personalización: " . print_r($personalizacion_data, true));
+            
+            // Verificar si existe personalización
+            $existing = $this->db->fetch(
+                "SELECT id FROM programa_personalizacion WHERE solicitud_id = ?", 
+                [$programa_id]
+            );
+            
+            if ($existing) {
+                error_log("🔄 Actualizando personalización existente ID: " . $existing['id']);
+                $result_personalizacion = $this->db->update(
+                    'programa_personalizacion', 
+                    $personalizacion_data, 
+                    'solicitud_id = ?', 
+                    [$programa_id]
+                );
+            } else {
+                error_log("➕ Creando nueva personalización");
+                $personalizacion_data['solicitud_id'] = $programa_id;
+                $result_personalizacion = $this->db->insert('programa_personalizacion', $personalizacion_data);
+            }
+            
+            if ($result_personalizacion === false) {
+                error_log("⚠️ Error al guardar personalización, pero continuando...");
+            } else {
+                error_log("✅ Personalización guardada. Resultado: $result_personalizacion");
+            }
+            
+            // Obtener ID de solicitud
             $programa = $this->db->fetch(
                 "SELECT id_solicitud FROM programa_solicitudes WHERE id = ?", 
                 [$programa_id]
             );
             
-            error_log("✅ Programa actualizado exitosamente");
+            if (!$programa) {
+                throw new Exception('No se pudo recuperar el programa después de la actualización');
+            }
+            
+            error_log("✅ ACTUALIZACIÓN COMPLETA EXITOSA");
             
             return [
                 'id_solicitud' => $programa['id_solicitud']
             ];
             
         } catch(Exception $e) {
-            error_log("❌ Error en updatePrograma: " . $e->getMessage());
+            error_log("❌ Error detallado en updatePrograma: " . $e->getMessage());
+            error_log("❌ Stack trace: " . $e->getTraceAsString());
             throw new Exception('Error al actualizar programa: ' . $e->getMessage());
         }
     }
+
     
     private function savePersonalizacion($programa_id) {
         try {
             error_log("🎨 Guardando personalización para programa $programa_id");
             
-            // Preparar datos de personalización
             $data = [
                 'titulo_programa' => trim($_POST['program_title'] ?? ''),
-                'idioma_predeterminado' => $_POST['budget_language'] ?? 'es'
+                'idioma_predeterminado' => trim($_POST['budget_language'] ?? 'es')
             ];
             
-            // Procesar imagen de portada si se subió
+            // Procesar imagen si se subió
             if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
                 error_log("📷 Procesando imagen de portada");
-                $imageUrl = $this->uploadImage($_FILES['cover_image'], $programa_id);
-                if ($imageUrl) {
-                    $data['foto_portada'] = $imageUrl;
-                    error_log("✅ Imagen guardada: $imageUrl");
+                try {
+                    $imageUrl = $this->uploadImage($_FILES['cover_image'], $programa_id);
+                    if ($imageUrl) {
+                        $data['foto_portada'] = $imageUrl;
+                        error_log("✅ Imagen guardada: $imageUrl");
+                    }
+                } catch (Exception $e) {
+                    error_log("⚠️ Error procesando imagen: " . $e->getMessage());
                 }
-            } else {
-                error_log("⚠️ No se subió imagen o hay error: " . ($_FILES['cover_image']['error'] ?? 'archivo no presente'));
             }
             
-            // Verificar si ya existe personalización
+            // Verificar si existe personalización
             $existing = $this->db->fetch(
                 "SELECT id FROM programa_personalizacion WHERE solicitud_id = ?", 
                 [$programa_id]
@@ -286,16 +368,17 @@ class ProgramaAPI {
                 $result = $this->db->insert('programa_personalizacion', $data);
             }
             
-            if (!$result) {
-                throw new Exception('Error al guardar personalización');
+            if ($result === false) {
+                error_log("⚠️ Error al guardar personalización");
+                return false;
             }
             
             error_log("✅ Personalización guardada exitosamente");
+            return true;
             
         } catch(Exception $e) {
             error_log("❌ Error en savePersonalizacion: " . $e->getMessage());
-            // No lanzar excepción para que no falle todo el guardado
-            error_log("⚠️ Continuando sin personalización");
+            return false;
         }
     }
     
