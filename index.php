@@ -104,6 +104,11 @@ switch($path) {
         App::requireLogin();
         include 'pages/reportes.php';
         break;
+
+    case '/preview':  // ← NUEVA RUTA
+        App::requireLogin();
+        require_once 'pages/preview.php';
+        break;
         
     case '/perfil':
         App::requireLogin();

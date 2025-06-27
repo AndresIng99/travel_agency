@@ -1578,8 +1578,8 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
             <a href="<?= APP_URL ?>/biblioteca" class="tab-item">
                 <i class="fas fa-book"></i> Biblioteca
             </a>
-            <a href="#" class="tab-item" data-tab="vista-previa">
-                <i class="fas fa-eye"></i> Vista previa
+            <a href="#" class="tab-item" onclick="abrirVistaPrevia()">
+                <i class="fas fa-eye"></i> Ver Programa
             </a>
             <a href="#" class="tab-item">
                 <i class="fas fa-share"></i> Compartir
@@ -1710,6 +1710,14 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
                             <i class="fas fa-save"></i>
                             <?= $is_editing ? 'Actualizar programa' : 'Crear programa' ?>
                         </button>
+                        
+                        <?php if ($is_editing): ?>
+                        <button type="button" class="btn btn-secondary" onclick="abrirVistaPrevia()" style="margin-left: 16px;">
+                            <i class="fas fa-eye"></i>
+                            Ver Programa
+                        </button>
+                        <?php endif; ?>
+                        
                         <a href="<?= APP_URL ?>/itinerarios" class="btn btn-outline" style="margin-left: 16px;">
                             <i class="fas fa-arrow-left"></i>
                             Volver a itinerarios
@@ -1849,26 +1857,7 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
                 </div>
             </div>
 
-            <!-- Contenido de la pestaña Vista previa -->
-            <div id="vista-previa" class="tab-content">
-                <div class="section-card">
-                    <div class="section-header">
-                        <div class="section-title">
-                            <i class="fas fa-eye"></i>
-                            Vista previa del programa
-                        </div>
-                    </div>
-                    <div class="section-body">
-                        <div id="preview-content">
-                            <!-- Contenido de vista previa se generará aquí -->
-                            <p style="text-align: center; color: #666; font-style: italic;">
-                                La vista previa se generará cuando el programa esté guardado
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+          
 
         <!-- Preview Panel (Solo visible en Mi programa) -->
         <div class="preview-section" id="preview-panel">
@@ -2022,9 +2011,7 @@ function setupTabNavigation() {
                         cargarPreciosPrograma();
                     }
                     break;
-                case 'vista-previa':
-                    generarVistaPrevia();
-                    break;
+                
             }
         });
     });
@@ -2933,7 +2920,20 @@ function renderizarServiciosDia(diaId, servicios) {
 
     console.log(`✅ Servicios renderizados para día ${diaId}`);
 }
-
+function abrirVistaPrevia() {
+    if (!programaId) {
+        showAlert('Primero debes guardar el programa para ver la vista previa', 'error');
+        return;
+    }
+    
+    // Usar la ruta manejada por index.php
+    const previewUrl = `<?= APP_URL ?>/preview?id=${programaId}`;
+    
+    // Abrir en nueva pestaña
+    window.open(previewUrl, '_blank');
+    
+    console.log('🔗 Abriendo vista previa en nueva pestaña:', previewUrl);
+}
 function getServiceIconByType(tipo) {
     const icons = {
         'actividad': 'hiking',
@@ -3098,51 +3098,7 @@ async function guardarPrecios() {
 // ============================================================
 // FUNCIONES PARA VISTA PREVIA
 // ============================================================
-function generarVistaPrevia() {
-    const previewContent = document.getElementById('preview-content');
-    if (!previewContent) return;
 
-    // Obtener datos del formulario
-    const formData = new FormData(document.getElementById('programa-form'));
-    
-    const preview = `
-        <div class="preview-program">
-            <div class="preview-header">
-                <h2>${formData.get('program_title') || 'Programa sin título'}</h2>
-                <p><strong>Destino:</strong> ${formData.get('destination') || 'No especificado'}</p>
-            </div>
-            
-            <div class="preview-details">
-                <div class="detail-row">
-                    <span><strong>Viajero:</strong> ${formData.get('traveler_name') || ''} ${formData.get('traveler_lastname') || ''}</span>
-                </div>
-                <div class="detail-row">
-                    <span><strong>Fechas:</strong> ${formData.get('arrival_date') || ''} - ${formData.get('departure_date') || ''}</span>
-                </div>
-                <div class="detail-row">
-                    <span><strong>Pasajeros:</strong> ${formData.get('passengers') || 1}</span>
-                </div>
-                <div class="detail-row">
-                    <span><strong>Acompañamiento:</strong> ${formData.get('accompaniment') || 'Sin acompañamiento'}</span>
-                </div>
-            </div>
-            
-            <div class="preview-days">
-                <h4>Días del programa (${diasPrograma.length})</h4>
-                ${diasPrograma.length > 0 ? 
-                    diasPrograma.map((dia, index) => `
-                        <div class="preview-day">
-                            <strong>Día ${index + 1}:</strong> ${dia.titulo}
-                        </div>
-                    `).join('') : 
-                    '<p style="color: #666; font-style: italic;">No hay días agregados</p>'
-                }
-            </div>
-        </div>
-    `;
-
-    previewContent.innerHTML = preview;
-}
 
 function updatePreview() {
     const previewSummary = document.getElementById('preview-summary');
