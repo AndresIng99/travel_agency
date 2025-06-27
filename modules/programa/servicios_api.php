@@ -1,7 +1,8 @@
 <?php
 // ====================================================================
-// ARCHIVO: modules/programa/servicios_api.php - API PARA GESTIÓN DE SERVICIOS
+// ARCHIVO: modules/programa/servicios_api.php - CON ALTERNATIVAS
 // ====================================================================
+// REEMPLAZAR COMPLETAMENTE el archivo existente
 
 ob_start();
 ini_set('display_errors', 0);
@@ -38,15 +39,22 @@ class ProgramaServiciosAPI {
         }
         
         try {
-            error_log("=== PROGRAMA SERVICIOS API ===");
+            error_log("=== PROGRAMA SERVICIOS API (CON ALTERNATIVAS) ===");
             error_log("Action: " . $action);
-            error_log("Data: " . print_r($_POST, true));
+            error_log("GET: " . print_r($_GET, true));
+            error_log("POST: " . print_r($_POST, true));
             
             switch($action) {
                 case 'add_service':
                     $result = $this->addService(
                         $_POST['dia_id'] ?? null,
                         $_POST['tipo_servicio'] ?? null,
+                        $_POST['biblioteca_item_id'] ?? null
+                    );
+                    break;
+                case 'add_alternative':
+                    $result = $this->addAlternative(
+                        $_POST['servicio_principal_id'] ?? null,
                         $_POST['biblioteca_item_id'] ?? null
                     );
                     break;
@@ -83,6 +91,8 @@ class ProgramaServiciosAPI {
         try {
             $user_id = $_SESSION['user_id'];
             
+            error_log("➕ Agregando servicio PRINCIPAL: Día=$diaId, Tipo=$tipoServicio, Item=$bibliotecaItemId");
+            
             // Verificar que el día pertenece a un programa del usuario
             $dia = $this->db->fetch(
                 "SELECT pd.*, ps.user_id 
@@ -96,28 +106,33 @@ class ProgramaServiciosAPI {
                 throw new Exception('Día no encontrado o sin permisos');
             }
             
-            // Verificar que el item de biblioteca existe y es del tipo correcto
+            // Verificar que el item de biblioteca existe
             $bibliotecaItem = $this->getBibliotecaItem($tipoServicio, $bibliotecaItemId);
-            
             if (!$bibliotecaItem) {
                 throw new Exception('Item de biblioteca no encontrado');
             }
             
             // Obtener el siguiente orden para este día
             $lastOrder = $this->db->fetch(
-                "SELECT MAX(orden) as max_orden FROM programa_dias_servicios WHERE programa_dia_id = ?", 
+                "SELECT MAX(orden) as max_orden FROM programa_dias_servicios 
+                 WHERE programa_dia_id = ? AND es_alternativa = 0", 
                 [$diaId]
             );
             
             $nextOrder = ($lastOrder['max_orden'] ?? 0) + 1;
             
-            // Insertar servicio
+            // Insertar servicio PRINCIPAL
             $servicioData = [
                 'programa_dia_id' => $diaId,
                 'tipo_servicio' => $tipoServicio,
                 'biblioteca_item_id' => $bibliotecaItemId,
-                'orden' => $nextOrder
+                'orden' => $nextOrder,
+                'servicio_principal_id' => null, // Es principal
+                'es_alternativa' => 0, // No es alternativa
+                'orden_alternativa' => 0 // Principal siempre 0
             ];
+            
+            error_log("📝 Datos del servicio PRINCIPAL: " . print_r($servicioData, true));
             
             $servicioId = $this->db->insert('programa_dias_servicios', $servicioData);
             
@@ -125,16 +140,92 @@ class ProgramaServiciosAPI {
                 throw new Exception('Error al insertar servicio');
             }
             
-            error_log("✅ Servicio agregado: ID $servicioId, Tipo: $tipoServicio");
+            error_log("✅ Servicio PRINCIPAL agregado: ID $servicioId, Tipo: $tipoServicio");
             
             return [
                 'success' => true,
                 'servicio_id' => $servicioId,
-                'message' => 'Servicio agregado exitosamente'
+                'orden' => $nextOrder,
+                'es_principal' => true,
+                'message' => 'Servicio principal agregado exitosamente'
             ];
             
         } catch(Exception $e) {
             error_log("Error en addService: " . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    private function addAlternative($servicioPrincipalId, $bibliotecaItemId) {
+        if (!$servicioPrincipalId || !$bibliotecaItemId) {
+            throw new Exception('ID de servicio principal e item de biblioteca requeridos');
+        }
+        
+        try {
+            $user_id = $_SESSION['user_id'];
+            
+            error_log("🔄 Agregando ALTERNATIVA: ServicioPrincipal=$servicioPrincipalId, Item=$bibliotecaItemId");
+            
+            // Verificar que el servicio principal existe y pertenece al usuario
+            $servicioPrincipal = $this->db->fetch(
+                "SELECT pds.*, ps.user_id 
+                 FROM programa_dias_servicios pds
+                 JOIN programa_dias pd ON pds.programa_dia_id = pd.id
+                 JOIN programa_solicitudes ps ON pd.solicitud_id = ps.id 
+                 WHERE pds.id = ? AND ps.user_id = ? AND pds.es_alternativa = 0", 
+                [$servicioPrincipalId, $user_id]
+            );
+            
+            if (!$servicioPrincipal) {
+                throw new Exception('Servicio principal no encontrado o sin permisos');
+            }
+            
+            // Verificar que el item de biblioteca existe y es del mismo tipo
+            $bibliotecaItem = $this->getBibliotecaItem($servicioPrincipal['tipo_servicio'], $bibliotecaItemId);
+            if (!$bibliotecaItem) {
+                throw new Exception('Item de biblioteca no encontrado o tipo incompatible');
+            }
+            
+            // Obtener el siguiente orden de alternativa
+            $lastAlternativeOrder = $this->db->fetch(
+                "SELECT MAX(orden_alternativa) as max_orden FROM programa_dias_servicios 
+                 WHERE servicio_principal_id = ?", 
+                [$servicioPrincipalId]
+            );
+            
+            $nextAlternativeOrder = ($lastAlternativeOrder['max_orden'] ?? 0) + 1;
+            
+            // Insertar ALTERNATIVA
+            $alternativaData = [
+                'programa_dia_id' => $servicioPrincipal['programa_dia_id'],
+                'tipo_servicio' => $servicioPrincipal['tipo_servicio'],
+                'biblioteca_item_id' => $bibliotecaItemId,
+                'orden' => $servicioPrincipal['orden'], // Mismo orden que el principal
+                'servicio_principal_id' => $servicioPrincipalId,
+                'es_alternativa' => 1, // Es alternativa
+                'orden_alternativa' => $nextAlternativeOrder
+            ];
+            
+            error_log("📝 Datos de la ALTERNATIVA: " . print_r($alternativaData, true));
+            
+            $alternativaId = $this->db->insert('programa_dias_servicios', $alternativaData);
+            
+            if (!$alternativaId) {
+                throw new Exception('Error al insertar alternativa');
+            }
+            
+            error_log("✅ ALTERNATIVA agregada: ID $alternativaId");
+            
+            return [
+                'success' => true,
+                'alternativa_id' => $alternativaId,
+                'servicio_principal_id' => $servicioPrincipalId,
+                'orden_alternativa' => $nextAlternativeOrder,
+                'message' => 'Alternativa agregada exitosamente'
+            ];
+            
+        } catch(Exception $e) {
+            error_log("Error en addAlternative: " . $e->getMessage());
             throw $e;
         }
     }
@@ -146,6 +237,8 @@ class ProgramaServiciosAPI {
         
         try {
             $user_id = $_SESSION['user_id'];
+            
+            error_log("📋 Listando servicios CON ALTERNATIVAS para día $diaId del usuario $user_id");
             
             // Verificar permisos
             $dia = $this->db->fetch(
@@ -160,15 +253,20 @@ class ProgramaServiciosAPI {
                 throw new Exception('Día no encontrado o sin permisos');
             }
             
-            // Obtener servicios del día con datos de biblioteca
+            // Obtener TODOS los servicios (principales y alternativas) con datos de biblioteca
             $servicios = $this->db->fetchAll(
                 "SELECT 
                     pds.*,
                     CASE 
-                        WHEN pds.tipo_servicio = 'actividad' THEN ba.titulo
+                        WHEN pds.tipo_servicio = 'actividad' THEN ba.nombre
                         WHEN pds.tipo_servicio = 'transporte' THEN bt.titulo
                         WHEN pds.tipo_servicio = 'alojamiento' THEN bal.nombre
                     END as titulo,
+                    CASE 
+                        WHEN pds.tipo_servicio = 'actividad' THEN ba.nombre
+                        WHEN pds.tipo_servicio = 'transporte' THEN bt.titulo
+                        WHEN pds.tipo_servicio = 'alojamiento' THEN bal.nombre
+                    END as nombre,
                     CASE 
                         WHEN pds.tipo_servicio = 'actividad' THEN ba.descripcion
                         WHEN pds.tipo_servicio = 'transporte' THEN bt.descripcion
@@ -176,7 +274,7 @@ class ProgramaServiciosAPI {
                     END as descripcion,
                     CASE 
                         WHEN pds.tipo_servicio = 'actividad' THEN ba.ubicacion
-                        WHEN pds.tipo_servicio = 'transporte' THEN CONCAT(bt.lugar_salida, ' → ', bt.lugar_llegada)
+                        WHEN pds.tipo_servicio = 'transporte' THEN CONCAT(COALESCE(bt.lugar_salida, ''), ' → ', COALESCE(bt.lugar_llegada, ''))
                         WHEN pds.tipo_servicio = 'alojamiento' THEN bal.ubicacion
                     END as ubicacion,
                     CASE 
@@ -192,27 +290,69 @@ class ProgramaServiciosAPI {
                         ELSE NULL
                     END as lugar_llegada,
                     CASE 
-                        WHEN pds.tipo_servicio = 'alojamiento' THEN bal.nombre
+                        WHEN pds.tipo_servicio = 'transporte' THEN bt.duracion
                         ELSE NULL
-                    END as nombre
+                    END as duracion,
+                    CASE 
+                        WHEN pds.tipo_servicio = 'actividad' THEN ba.imagen1
+                        WHEN pds.tipo_servicio = 'alojamiento' THEN bal.imagen
+                        ELSE NULL
+                    END as imagen
                 FROM programa_dias_servicios pds
                 LEFT JOIN biblioteca_actividades ba ON pds.tipo_servicio = 'actividad' AND pds.biblioteca_item_id = ba.id
                 LEFT JOIN biblioteca_transportes bt ON pds.tipo_servicio = 'transporte' AND pds.biblioteca_item_id = bt.id
                 LEFT JOIN biblioteca_alojamientos bal ON pds.tipo_servicio = 'alojamiento' AND pds.biblioteca_item_id = bal.id
                 WHERE pds.programa_dia_id = ?
-                ORDER BY pds.orden ASC", 
+                ORDER BY pds.orden ASC, pds.es_alternativa ASC, pds.orden_alternativa ASC", 
                 [$diaId]
             );
             
+            error_log("📋 Servicios encontrados (con alternativas): " . count($servicios));
+            error_log("📋 Datos detallados: " . print_r($servicios, true));
+            
+            // Organizar servicios en estructura jerárquica
+            $serviciosOrganizados = $this->organizarServiciosConAlternativas($servicios);
+            
             return [
                 'success' => true,
-                'data' => $servicios
+                'data' => $serviciosOrganizados,
+                'count' => count($servicios),
+                'principals_count' => count(array_filter($servicios, fn($s) => $s['es_alternativa'] == 0)),
+                'alternatives_count' => count(array_filter($servicios, fn($s) => $s['es_alternativa'] == 1)),
+                'dia_id' => $diaId
             ];
             
         } catch(Exception $e) {
             error_log("Error en listServices: " . $e->getMessage());
             throw $e;
         }
+    }
+    
+    private function organizarServiciosConAlternativas($servicios) {
+        $organizados = [];
+        $principales = [];
+        $alternativas = [];
+        
+        // Separar principales y alternativas
+        foreach ($servicios as $servicio) {
+            if ($servicio['es_alternativa'] == 0) {
+                $principales[$servicio['id']] = $servicio;
+                $principales[$servicio['id']]['alternativas'] = [];
+            } else {
+                $alternativas[] = $servicio;
+            }
+        }
+        
+        // Asignar alternativas a sus principales
+        foreach ($alternativas as $alternativa) {
+            $principalId = $alternativa['servicio_principal_id'];
+            if (isset($principales[$principalId])) {
+                $principales[$principalId]['alternativas'][] = $alternativa;
+            }
+        }
+        
+        // Convertir a array indexado
+        return array_values($principales);
     }
     
     private function deleteService($servicioId) {
@@ -222,6 +362,8 @@ class ProgramaServiciosAPI {
         
         try {
             $user_id = $_SESSION['user_id'];
+            
+            error_log("🗑️ Eliminando servicio $servicioId");
             
             // Verificar permisos
             $servicio = $this->db->fetch(
@@ -237,19 +379,37 @@ class ProgramaServiciosAPI {
                 throw new Exception('Servicio no encontrado o sin permisos');
             }
             
-            // Eliminar servicio
+            // Si es servicio principal, eliminar también sus alternativas
+            if ($servicio['es_alternativa'] == 0) {
+                error_log("🗑️ Eliminando servicio PRINCIPAL y sus alternativas");
+                
+                // Eliminar alternativas primero
+                $alternativasEliminadas = $this->db->execute(
+                    "DELETE FROM programa_dias_servicios WHERE servicio_principal_id = ?", 
+                    [$servicioId]
+                );
+                error_log("🗑️ Alternativas eliminadas: $alternativasEliminadas");
+            }
+            
+            // Eliminar el servicio
             $deleted = $this->db->delete('programa_dias_servicios', 'id = ?', [$servicioId]);
             
             if (!$deleted) {
                 throw new Exception('Error al eliminar servicio');
             }
             
-            // Reordenar servicios restantes
-            $this->reorderServicesAfterDelete($servicio['programa_dia_id'], $servicio['orden']);
+            error_log("✅ Servicio eliminado");
+            
+            // Reordenar si era principal
+            if ($servicio['es_alternativa'] == 0) {
+                $this->reorderServicesAfterDelete($servicio['programa_dia_id'], $servicio['orden']);
+            }
             
             return [
                 'success' => true,
-                'message' => 'Servicio eliminado exitosamente'
+                'message' => $servicio['es_alternativa'] == 0 ? 
+                    'Servicio principal y sus alternativas eliminados' : 
+                    'Alternativa eliminada exitosamente'
             ];
             
         } catch(Exception $e) {
@@ -257,6 +417,8 @@ class ProgramaServiciosAPI {
             throw $e;
         }
     }
+    
+    // ... (resto de métodos sin cambios: updateService, reorderServices, getBibliotecaItem, etc.)
     
     private function updateService($servicioId, $data) {
         if (!$servicioId) {
@@ -282,7 +444,7 @@ class ProgramaServiciosAPI {
             
             // Preparar datos para actualizar
             $updateData = [];
-            $allowedFields = ['orden'];
+            $allowedFields = ['orden', 'notas_alternativa'];
             
             foreach ($allowedFields as $field) {
                 if (isset($data[$field])) {
@@ -333,12 +495,12 @@ class ProgramaServiciosAPI {
                 throw new Exception('Día no encontrado o sin permisos');
             }
             
-            // Actualizar orden de servicios
+            // Solo reordenar servicios principales
             foreach ($orden as $index => $servicioId) {
                 $this->db->update(
                     'programa_dias_servicios', 
                     ['orden' => $index + 1], 
-                    'id = ? AND programa_dia_id = ?', 
+                    'id = ? AND programa_dia_id = ? AND es_alternativa = 0', 
                     [$servicioId, $diaId]
                 );
             }
@@ -383,11 +545,11 @@ class ProgramaServiciosAPI {
     
     private function reorderServicesAfterDelete($diaId, $deletedOrder) {
         try {
-            // Reordenar servicios posteriores al eliminado
+            // Solo reordenar servicios principales
             $this->db->execute(
                 "UPDATE programa_dias_servicios 
                  SET orden = orden - 1 
-                 WHERE programa_dia_id = ? AND orden > ?", 
+                 WHERE programa_dia_id = ? AND orden > ? AND es_alternativa = 0", 
                 [$diaId, $deletedOrder]
             );
             
