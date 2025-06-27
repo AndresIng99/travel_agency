@@ -148,6 +148,105 @@ class App {
             self::redirect('/dashboard');
         }
     }
-}
 
-   
+    // ===== MÉTODOS FALTANTES PARA CONFIGURACIÓN =====
+    
+    /**
+     * Obtener colores para la pantalla de login
+     */
+    public static function getLoginColors() {
+        try {
+            ConfigManager::init();
+            return ConfigManager::getLoginColors();
+        } catch(Exception $e) {
+            // Valores por defecto si hay error
+            return [
+                'primary' => '#667eea',
+                'secondary' => '#764ba2'
+            ];
+        }
+    }
+
+    /**
+     * Obtener nombre de la empresa
+     */
+    public static function getCompanyName() {
+        try {
+            ConfigManager::init();
+            return ConfigManager::getCompanyName();
+        } catch(Exception $e) {
+            return 'Travel Agency';
+        }
+    }
+
+    /**
+     * Obtener URL del logo
+     */
+    public static function getLogo() {
+        try {
+            ConfigManager::init();
+            return ConfigManager::getLogo();
+        } catch(Exception $e) {
+            return '';
+        }
+    }
+
+    /**
+     * Obtener idioma por defecto
+     */
+    public static function getDefaultLanguage() {
+        try {
+            ConfigManager::init();
+            return ConfigManager::getDefaultLanguage();
+        } catch(Exception $e) {
+            return 'es';
+        }
+    }
+
+    /**
+     * Obtener colores según el rol del usuario
+     */
+    public static function getColorsForRole($role) {
+        try {
+            ConfigManager::init();
+            return ConfigManager::getColorsForRole($role);
+        } catch(Exception $e) {
+            // Valores por defecto según el rol
+            if ($role === 'admin') {
+                return [
+                    'primary' => '#e53e3e',
+                    'secondary' => '#fd746c'
+                ];
+            } else {
+                return [
+                    'primary' => '#667eea',
+                    'secondary' => '#764ba2'
+                ];
+            }
+        }
+    }
+
+    /**
+     * Obtener timeout de sesión
+     */
+    public static function getSessionTimeout() {
+        try {
+            ConfigManager::init();
+            return ConfigManager::getSessionTimeout();
+        } catch(Exception $e) {
+            return 60; // 60 minutos por defecto
+        }
+    }
+
+    /**
+     * Obtener toda la configuración
+     */
+    public static function getConfig($key = null) {
+        try {
+            ConfigManager::init();
+            return ConfigManager::get($key);
+        } catch(Exception $e) {
+            return $key ? null : [];
+        }
+    }
+}
