@@ -109,6 +109,15 @@ switch($path) {
         App::requireLogin();
         require_once 'pages/preview.php';
         break;
+
+    case '/itinerary':
+        // Vista completa del itinerario estético (público/compartible)
+        if (!isset($_GET['id']) || empty($_GET['id'])) {
+            header('Location: ' . APP_URL . '/itinerarios');
+            exit;
+        }
+        require_once __DIR__ . '/pages/itinerary.php';
+        break;
         
     case '/perfil':
         App::requireLogin();

@@ -373,7 +373,7 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         }
         
         /* ========================================
-           BOTÓN PRINCIPAL
+           BOTONES PRINCIPALES
            ======================================== */
         .discover-button {
             background: linear-gradient(135deg, #059669 0%, #10b981 100%);
@@ -430,6 +430,65 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         
         .discover-button i {
             font-size: 20px;
+        }
+        
+        /* Botón para ver itinerario completo */
+        .itinerary-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 18px 35px;
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            margin-top: 15px;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 1.5s forwards;
+        }
+        
+        .itinerary-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent
+            );
+            transition: left 0.5s;
+        }
+        
+        .itinerary-button:hover::before {
+            left: 100%;
+        }
+        
+        .itinerary-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+        }
+        
+        .itinerary-button:active {
+            transform: translateY(-1px);
+        }
+        
+        .itinerary-button i {
+            font-size: 18px;
         }
         
         /* ========================================
@@ -680,6 +739,12 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                 <i class="fas fa-compass"></i>
                 Descubrir mi programa
             </button>
+            
+            <!-- Nuevo botón para ver itinerario completo -->
+            <button class="itinerary-button" onclick="verItinerarioCompleto()">
+                <i class="fas fa-route"></i>
+                Ver itinerario completo
+            </button>
         </div>
         
         <!-- Área principal de contenido -->
@@ -698,7 +763,7 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         // FUNCIONES JAVASCRIPT
         // ========================================
         
-        // Función para abrir el programa completo
+        // Función para abrir el programa en modo edición
         function abrirPrograma() {
             // Agregar efecto de clic
             const button = document.querySelector('.discover-button');
@@ -706,6 +771,18 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             
             setTimeout(() => {
                 window.location.href = '<?= APP_URL ?>/programa?id=<?= $programa_id ?>';
+            }, 150);
+        }
+        
+        // Nueva función para ver el itinerario completo
+        function verItinerarioCompleto() {
+            // Agregar efecto de clic
+            const button = document.querySelector('.itinerary-button');
+            button.style.transform = 'scale(0.95)';
+            
+            setTimeout(() => {
+                // Abrir itinerario completo en nueva pestaña para mejor experiencia
+                window.open('<?= APP_URL ?>/itinerary?id=<?= $programa_id ?>', '_blank');
             }, 150);
         }
         
@@ -778,8 +855,25 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             return window.innerWidth <= 768;
         }
         
-        // Optimizaciones para rendimiento
-        document.addEventListener('DOMContentLoaded', () => {
+        // Efectos hover para el nuevo botón
+        document.addEventListener('DOMContentLoaded', function() {
+            const itineraryBtn = document.querySelector('.itinerary-button');
+            
+            if (itineraryBtn) {
+                // Efecto hover
+                itineraryBtn.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-3px)';
+                    this.style.boxShadow = '0 12px 35px rgba(102, 126, 234, 0.4)';
+                    this.style.background = 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)';
+                });
+                
+                itineraryBtn.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.3)';
+                    this.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                });
+            }
+            
             // Precargar imagen de fondo si no está cargada
             const img = new Image();
             img.src = '<?= addslashes($imagen_portada) ?>';
@@ -788,34 +882,12 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             window.addEventListener('load', () => {
                 document.body.classList.add('loaded');
             });
-            
-            // Efecto de tipeo para el título (opcional)
-            if (!esMobile()) {
-                // Descomenta la siguiente línea si quieres efecto de tipeo
-                // iniciarEfectoTipeo();
-            }
         });
-        
-        // Efecto de tipeo para el título (opcional)
-        function iniciarEfectoTipeo() {
-            const titulo = document.querySelector('.program-title');
-            const textoOriginal = titulo.textContent;
-            titulo.textContent = '';
-            titulo.style.opacity = '1';
-            
-            let i = 0;
-            const intervalo = setInterval(() => {
-                titulo.textContent += textoOriginal[i];
-                i++;
-                if (i >= textoOriginal.length) {
-                    clearInterval(intervalo);
-                }
-            }, 80);
-        }
         
         console.log('🌟 Vista previa del programa cargada exitosamente');
         console.log('📍 Destino: <?= addslashes($destino) ?>');
         console.log('👤 Viajero: <?= addslashes($nombre_viajero) ?>');
+        console.log('🆔 Programa ID: <?= $programa_id ?>');
     </script>
     
     <!-- Estilos CSS para animaciones adicionales -->
@@ -839,6 +911,43 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         body.loaded .info-sidebar {
             opacity: 1;
             transition: opacity 0.5s ease;
+        }
+        
+        /* Efecto shine para el botón de itinerario */
+        .itinerary-button::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+            pointer-events: none;
+        }
+        
+        .itinerary-button:hover::after {
+            left: 100%;
+        }
+        
+        /* Responsive adicional para botones */
+        @media (max-width: 480px) {
+            .discover-button, .itinerary-button {
+                padding: 16px 30px;
+                font-size: 15px;
+            }
+            
+            .program-title {
+                font-size: 2rem;
+            }
+            
+            .detail-value {
+                font-size: 20px;
+            }
+            
+            .summary-item {
+                font-size: 14px;
+            }
         }
     </style>
 </body>
