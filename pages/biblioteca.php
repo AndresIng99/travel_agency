@@ -1250,7 +1250,7 @@ function escapeHtml(text) {
             const primaryImage = getPrimaryImage(item, currentTab);
             
             return `
-                <div class="item-card" onclick="viewResource(${item.id})">
+                <div class="item-card" onclick="editResource(${item.id})">
                     <div class="card-image">
                         ${primaryImage ? 
                             `<img src="${primaryImage}" alt="${title}" style="width: 100%; height: 100%; object-fit: cover;">` : 
@@ -2978,7 +2978,7 @@ function createTransportCard(item) {
     const route = `${item.lugar_salida || 'Origen'} → ${item.lugar_llegada || 'Destino'}`;
     
     return `
-        <div class="item-card transport-card" onclick="viewResourceDetails(${item.id}, 'transportes')">
+        <div class="item-card transport-card" onclick="editResource(${item.id}, 'transportes')">
             <div class="card-image transport-image">
                 <div class="transport-icon">${transportIcon}</div>
                 <div class="transport-type">${item.medio || 'Transporte'}</div>

@@ -1,6 +1,6 @@
 <?php
 // ====================================================================
-// ARCHIVO: modules/programa/api.php - COMPLETAMENTE RESTRUCTURADO
+// ARCHIVO: modules/programa/api.php - VERSIÓN CORREGIDA
 // ====================================================================
 
 ob_start();
@@ -108,24 +108,6 @@ class ProgramaAPI {
         }
     }
 
-    private function debugReceivedData() {
-        error_log("=== 🔍 DEBUG DATOS RECIBIDOS ===");
-        error_log("POST data: " . print_r($_POST, true));
-        error_log("FILES data: " . print_r($_FILES, true));
-        
-        // Verificar campos específicos
-        $campos_requeridos = [
-            'traveler_name', 'traveler_lastname', 'destination', 
-            'arrival_date', 'departure_date', 'passengers',
-            'program_title', 'budget_language'
-        ];
-        
-        foreach ($campos_requeridos as $campo) {
-            $valor = $_POST[$campo] ?? 'NO_ENVIADO';
-            error_log("Campo {$campo}: '{$valor}'");
-        }
-    }
-    
     private function validateProgramaData() {
         $required_fields = [
             'traveler_name' => 'Nombre del viajero',
@@ -177,19 +159,21 @@ class ProgramaAPI {
     
     private function createPrograma($user_id) {
         try {
-            // Datos para inserción (basado en estructura real)
+            error_log("=== 🆕 CREANDO NUEVO PROGRAMA ===");
+            
+            // Datos para inserción (basado en estructura real de la DB)
             $data = [
                 'nombre_viajero' => trim($_POST['traveler_name'] ?? ''),
                 'apellido_viajero' => trim($_POST['traveler_lastname'] ?? ''),
                 'destino' => trim($_POST['destination'] ?? ''),
                 'fecha_llegada' => $_POST['arrival_date'] ?? null,
                 'fecha_salida' => $_POST['departure_date'] ?? null,
-                'numero_pasajeros' => intval($_POST['passengers'] ?? 1), // ✅ CORRECTO según tu tabla
+                'numero_pasajeros' => intval($_POST['passengers'] ?? 1),
                 'acompanamiento' => trim($_POST['accompaniment'] ?? 'sin-acompanamiento'),
                 'user_id' => $user_id
             ];
             
-            error_log("📝 Insertando programa con datos correctos: " . print_r($data, true));
+            error_log("📝 Insertando programa con datos: " . print_r($data, true));
             
             $programa_id = $this->db->insert('programa_solicitudes', $data);
             
@@ -211,6 +195,7 @@ class ProgramaAPI {
             );
             
             if (!$updateResult) {
+                // Si falla la actualización, eliminar el registro y lanzar error
                 $this->db->delete('programa_solicitudes', 'id = ?', [$programa_id]);
                 throw new Exception('Error al generar ID de solicitud');
             }
@@ -227,31 +212,80 @@ class ProgramaAPI {
             throw new Exception('Error al crear programa: ' . $e->getMessage());
         }
     }
-
+    
+    private function generateUniqueRequestId($programa_id) {
+        try {
+            $year = date('Y');
+            $counter = 1;
+            
+            // Buscar el último número de solicitud del año
+            $lastRequest = $this->db->fetch(
+                "SELECT id_solicitud FROM programa_solicitudes 
+                 WHERE id_solicitud LIKE ? 
+                 ORDER BY id_solicitud DESC LIMIT 1",
+                ["SOL{$year}%"]
+            );
+            
+            if ($lastRequest) {
+                // Extraer el número del último ID
+                $lastNumber = intval(substr($lastRequest['id_solicitud'], -3));
+                $counter = $lastNumber + 1;
+            }
+            
+            // Generar nuevo ID con formato SOL2025001, SOL2025002, etc.
+            $request_id = sprintf("SOL%s%03d", $year, $counter);
+            
+            // Verificar que no exista (por seguridad)
+            $exists = $this->db->fetch(
+                "SELECT id FROM programa_solicitudes WHERE id_solicitud = ?",
+                [$request_id]
+            );
+            
+            if ($exists) {
+                // Si existe, intentar con el siguiente número
+                $counter++;
+                $request_id = sprintf("SOL%s%03d", $year, $counter);
+            }
+            
+            return $request_id;
+            
+        } catch(Exception $e) {
+            error_log("Error generando request ID: " . $e->getMessage());
+            // Fallback a un ID simple
+            return "SOL" . date('Y') . str_pad($programa_id, 3, '0', STR_PAD_LEFT);
+        }
+    }
     
     private function updatePrograma($programa_id) {
         try {
-            // ACTUALIZAR solicitud del viajero (basado en estructura real)
+            error_log("=== 🔄 ACTUALIZANDO PROGRAMA ===");
+            
+            // ACTUALIZAR solicitud del viajero
             $solicitud_data = [
                 'nombre_viajero' => trim($_POST['traveler_name'] ?? ''),
                 'apellido_viajero' => trim($_POST['traveler_lastname'] ?? ''),
                 'destino' => trim($_POST['destination'] ?? ''),
                 'fecha_llegada' => $_POST['arrival_date'] ?? null,
                 'fecha_salida' => $_POST['departure_date'] ?? null,
-                'numero_pasajeros' => intval($_POST['passengers'] ?? 1), // ✅ CORRECTO según tu tabla
+                'numero_pasajeros' => intval($_POST['passengers'] ?? 1),
                 'acompanamiento' => trim($_POST['accompaniment'] ?? 'sin-acompanamiento')
             ];
             
             error_log("📝 Actualizando solicitud para programa $programa_id");
             error_log("Datos: " . print_r($solicitud_data, true));
             
-            $result_solicitud = $this->db->update('programa_solicitudes', $solicitud_data, 'id = ?', [$programa_id]);
+            $result_solicitud = $this->db->update(
+                'programa_solicitudes', 
+                $solicitud_data, 
+                'id = ?', 
+                [$programa_id]
+            );
             
             if ($result_solicitud === false) {
-                throw new Exception('Error al actualizar la solicitud del viajero');
+                throw new Exception('Error al actualizar datos del programa');
             }
             
-            error_log("✅ Solicitud actualizada. Filas afectadas: $result_solicitud");
+            error_log("✅ Solicitud actualizada");
             
             // ACTUALIZAR personalización
             $personalizacion_data = [
@@ -261,19 +295,15 @@ class ProgramaAPI {
             
             // Procesar imagen si se subió
             if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
-                error_log("📷 Procesando imagen de portada");
                 try {
                     $imageUrl = $this->uploadImage($_FILES['cover_image'], $programa_id);
                     if ($imageUrl) {
                         $personalizacion_data['foto_portada'] = $imageUrl;
-                        error_log("✅ Imagen procesada: $imageUrl");
                     }
                 } catch (Exception $e) {
                     error_log("⚠️ Error procesando imagen: " . $e->getMessage());
                 }
             }
-            
-            error_log("📝 Datos personalización: " . print_r($personalizacion_data, true));
             
             // Verificar si existe personalización
             $existing = $this->db->fetch(
@@ -324,7 +354,6 @@ class ProgramaAPI {
         }
     }
 
-    
     private function savePersonalizacion($programa_id) {
         try {
             error_log("🎨 Guardando personalización para programa $programa_id");
@@ -416,72 +445,42 @@ class ProgramaAPI {
             $filename = 'programa_' . $programa_id . '_cover_' . time() . '.' . $extension;
             $filePath = $uploadDir . '/' . $filename;
             
-            // Mover archivo
+            // Mover el archivo
             if (!move_uploaded_file($file['tmp_name'], $filePath)) {
-                throw new Exception('Error al guardar el archivo');
+                throw new Exception('No se pudo subir el archivo');
             }
             
-            // Generar URL accesible
-            $imageUrl = APP_URL . "/assets/uploads/programa/$year/$month/$filename";
+            // Generar URL relativa
+            $baseUrl = rtrim($_SERVER['HTTP_HOST'], '/');
+            $scheme = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+            $appPath = dirname(dirname(dirname($_SERVER['SCRIPT_NAME'])));
+            
+            $imageUrl = "$scheme://$baseUrl$appPath/assets/uploads/programa/$year/$month/$filename";
             
             error_log("✅ Imagen subida exitosamente: $imageUrl");
+            
             return $imageUrl;
             
         } catch(Exception $e) {
             error_log("❌ Error subiendo imagen: " . $e->getMessage());
-            return null;
+            throw $e;
         }
-    }
-    
-    private function generateUniqueRequestId($programa_id) {
-        $year = date('Y');
-        $baseId = "SOL{$year}";
-        
-        // Buscar el último ID generado este año
-        $lastRequest = $this->db->fetch(
-            "SELECT id_solicitud FROM programa_solicitudes 
-             WHERE id_solicitud LIKE ? 
-             ORDER BY id_solicitud DESC LIMIT 1", 
-            [$baseId . '%']
-        );
-        
-        if ($lastRequest) {
-            // Extraer el número y incrementar
-            $lastNumber = intval(substr($lastRequest['id_solicitud'], strlen($baseId)));
-            $newNumber = $lastNumber + 1;
-        } else {
-            // Primer ID del año
-            $newNumber = 1;
-        }
-        
-        // Formatear con ceros a la izquierda (3 dígitos)
-        $requestId = $baseId . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
-        
-        // Verificar que no exista (por seguridad)
-        $exists = $this->db->fetch(
-            "SELECT id FROM programa_solicitudes WHERE id_solicitud = ?", 
-            [$requestId]
-        );
-        
-        if ($exists) {
-            // Si existe, intentar con el siguiente número
-            return $this->generateUniqueRequestId($programa_id);
-        }
-        
-        return $requestId;
     }
     
     private function getPrograma($id) {
-        if (!$id) {
-            throw new Exception('ID de programa requerido');
-        }
-        
         try {
+            if (!$id) {
+                throw new Exception('ID de programa requerido');
+            }
+            
             $user_id = $_SESSION['user_id'];
             
             // Obtener datos del programa
             $programa = $this->db->fetch(
-                "SELECT * FROM programa_solicitudes WHERE id = ? AND user_id = ?", 
+                "SELECT ps.*, pp.titulo_programa, pp.idioma_predeterminado, pp.foto_portada 
+                 FROM programa_solicitudes ps 
+                 LEFT JOIN programa_personalizacion pp ON ps.id = pp.solicitud_id 
+                 WHERE ps.id = ? AND ps.user_id = ?",
                 [$id, $user_id]
             );
             
@@ -489,18 +488,9 @@ class ProgramaAPI {
                 throw new Exception('Programa no encontrado');
             }
             
-            // Obtener personalización
-            $personalizacion = $this->db->fetch(
-                "SELECT * FROM programa_personalizacion WHERE solicitud_id = ?", 
-                [$id]
-            );
-            
-            // Combinar datos
-            $data = array_merge($programa, $personalizacion ?: []);
-            
             return [
                 'success' => true,
-                'data' => $data
+                'data' => $programa
             ];
             
         } catch(Exception $e) {
@@ -512,37 +502,15 @@ class ProgramaAPI {
     private function listProgramas() {
         try {
             $user_id = $_SESSION['user_id'];
-            $user_role = $_SESSION['user_role'];
             
-            // Query base
-            $query = "SELECT 
-                ps.id,
-                ps.id_solicitud,
-                ps.nombre_viajero,
-                ps.apellido_viajero,
-                ps.destino,
-                ps.fecha_llegada,
-                ps.fecha_salida,
-                ps.numero_pasajeros,
-                ps.created_at,
-                pp.titulo_programa,
-                pp.foto_portada,
-                u.full_name as agent_name
-            FROM programa_solicitudes ps
-            LEFT JOIN programa_personalizacion pp ON ps.id = pp.solicitud_id
-            LEFT JOIN users u ON ps.user_id = u.id";
-            
-            $params = [];
-            
-            // Si es agente, solo ver sus programas
-            if ($user_role !== 'admin') {
-                $query .= " WHERE ps.user_id = ?";
-                $params[] = $user_id;
-            }
-            
-            $query .= " ORDER BY ps.created_at DESC";
-            
-            $programas = $this->db->fetchAll($query, $params);
+            $programas = $this->db->fetchAll(
+                "SELECT ps.*, pp.titulo_programa, pp.foto_portada 
+                 FROM programa_solicitudes ps 
+                 LEFT JOIN programa_personalizacion pp ON ps.id = pp.solicitud_id 
+                 WHERE ps.user_id = ? 
+                 ORDER BY ps.created_at DESC",
+                [$user_id]
+            );
             
             return [
                 'success' => true,
@@ -556,39 +524,20 @@ class ProgramaAPI {
     }
     
     private function deletePrograma($id) {
-        if (!$id) {
-            throw new Exception('ID de programa requerido');
-        }
-        
         try {
+            if (!$id) {
+                throw new Exception('ID de programa requerido');
+            }
+            
             $user_id = $_SESSION['user_id'];
-            $user_role = $_SESSION['user_role'];
+            $this->verifyPermissions($id, $user_id);
             
-            // Verificar permisos
-            if ($user_role !== 'admin') {
-                $this->verifyPermissions($id, $user_id);
-            }
-            
-            // Obtener datos antes de eliminar (para borrar imagen)
-            $personalizacion = $this->db->fetch(
-                "SELECT foto_portada FROM programa_personalizacion WHERE solicitud_id = ?", 
-                [$id]
-            );
-            
-            // Eliminar personalización (CASCADE debería eliminar automáticamente)
+            // Eliminar en orden para respetar las foreign keys
+            $this->db->delete('programa_precios', 'solicitud_id = ?', [$id]);
+            $this->db->delete('programa_dias_servicios', 'programa_dia_id IN (SELECT id FROM programa_dias WHERE solicitud_id = ?)', [$id]);
+            $this->db->delete('programa_dias', 'solicitud_id = ?', [$id]);
             $this->db->delete('programa_personalizacion', 'solicitud_id = ?', [$id]);
-            
-            // Eliminar programa principal
-            $result = $this->db->delete('programa_solicitudes', 'id = ?', [$id]);
-            
-            if (!$result) {
-                throw new Exception('Error al eliminar el programa');
-            }
-            
-            // Eliminar imagen física si existe
-            if ($personalizacion && $personalizacion['foto_portada']) {
-                $this->deleteImageFile($personalizacion['foto_portada']);
-            }
+            $this->db->delete('programa_solicitudes', 'id = ?', [$id]);
             
             return [
                 'success' => true,
@@ -601,42 +550,29 @@ class ProgramaAPI {
         }
     }
     
-    private function deleteImageFile($imageUrl) {
-        try {
-            // Extraer path del archivo desde la URL
-            $urlPath = parse_url($imageUrl, PHP_URL_PATH);
-            $filePath = dirname(__DIR__, 2) . $urlPath;
-            
-            if (file_exists($filePath)) {
-                unlink($filePath);
-                error_log("✅ Imagen eliminada: $filePath");
-            }
-        } catch(Exception $e) {
-            error_log("⚠️ Error eliminando imagen: " . $e->getMessage());
-        }
-    }
-    
     private function sendError($message) {
         ob_clean();
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode([
             'success' => false,
-            'error' => $message
+            'message' => $message
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }
 
-// Ejecutar API
+// =====================================================
+// EJECUTAR API
+// =====================================================
+
 try {
     $api = new ProgramaAPI();
     $api->handleRequest();
 } catch(Exception $e) {
-    error_log("Error fatal en API: " . $e->getMessage());
     ob_clean();
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
         'success' => false,
-        'error' => 'Error interno del servidor'
+        'message' => 'Error interno del servidor: ' . $e->getMessage()
     ], JSON_UNESCAPED_UNICODE);
 }

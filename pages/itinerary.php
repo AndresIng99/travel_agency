@@ -674,95 +674,262 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         }
         
         /* ========================================
-           PRICING SECTION
+           PRICING SECTION - NUEVA Y MEJORADA
            ======================================== */
         .pricing-section {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+            background: #f8f9fa;
             padding: 80px 0;
             margin: 100px 0;
             border-radius: 30px;
         }
-        
+
         .pricing-content {
-            max-width: 1000px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 0 20px;
-            text-align: center;
         }
-        
+
+        .pricing-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
         .pricing-header h2 {
             font-family: 'Playfair Display', serif;
-            font-size: 3rem;
-            margin-bottom: 20px;
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 15px;
         }
-        
-        .pricing-main {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 60px;
-            margin-top: 50px;
-            text-align: left;
+
+        .pricing-header p {
+            font-size: 1.1rem;
+            color: #7f8c8d;
         }
-        
-        .pricing-card {
-            background: rgba(255,255,255,0.15);
-            backdrop-filter: blur(20px);
-            padding: 40px;
+
+        /* Precio Principal */
+        .price-main-card {
+            background: white;
             border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.2);
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            text-align: center;
         }
-        
-        .price-amount {
-            font-size: 3.5rem;
-            font-weight: 700;
-            margin-bottom: 10px;
+
+        .price-display {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 20px;
         }
-        
+
+        .price-amount {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
         .price-currency {
             font-size: 1.5rem;
-            opacity: 0.8;
+            font-weight: 600;
+            color: #7f8c8d;
         }
-        
+
+        .price-value {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
         .price-per {
-            font-size: 1rem;
-            opacity: 0.9;
+            font-size: 1.2rem;
+            color: #7f8c8d;
         }
-        
-        .pricing-details {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(20px);
-            padding: 40px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        .pricing-section h3 {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
+
+        .nights-included {
             display: flex;
             align-items: center;
             gap: 10px;
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border-radius: 50px;
+            font-weight: 600;
         }
-        
+
+        /* Acordeones */
+        .pricing-accordions {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        .pricing-accordion {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .pricing-accordion:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .accordion-header {
+            padding: 20px 25px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fafbfc;
+            transition: background-color 0.3s ease;
+        }
+
+        .accordion-header:hover {
+            background: #f1f3f4;
+        }
+
+        .accordion-header.active {
+            background: #e8f4f8;
+        }
+
+        .accordion-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.1rem;
+        }
+
+        .accordion-title i {
+            font-size: 1.3rem;
+        }
+
+        .accordion-arrow {
+            color: #7f8c8d;
+            transition: transform 0.3s ease;
+        }
+
+        .accordion-arrow.rotated {
+            transform: rotate(180deg);
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background: white;
+        }
+
+        .accordion-content.active {
+            max-height: 1000px;
+            padding: 0 25px 25px 25px;
+        }
+
+        /* Listas de precios */
         .pricing-list {
             list-style: none;
             padding: 0;
+            margin: 15px 0 0 0;
         }
-        
+
         .pricing-list li {
-            padding: 8px 0;
             display: flex;
             align-items: flex-start;
-            gap: 10px;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f8f9fa;
         }
-        
-        .pricing-list i {
-            color: #2ecc71;
+
+        .pricing-list li:last-child {
+            border-bottom: none;
+        }
+
+        .pricing-list.included i {
+            color: #27ae60;
             margin-top: 2px;
+        }
+
+        .pricing-list.excluded i {
+            color: #e74c3c;
+            margin-top: 2px;
+        }
+
+        .pricing-list span {
+            color: #2c3e50;
+            line-height: 1.5;
+        }
+
+        /* Texto de condiciones */
+        .conditions-text,
+        .passport-info,
+        .insurance-info,
+        .additional-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            line-height: 1.6;
+            color: #5a6c7d;
+            border-left: 4px solid #3498db;
+        }
+
+        /* Información de accesibilidad */
+        .accessibility-info {
+            margin-top: 15px;
+        }
+
+        .accessibility-status {
+            margin-bottom: 15px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .status-badge.fully-accessible {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .status-badge.partially-accessible {
+            background: #fef9e7;
+            color: #f39c12;
+        }
+
+        .status-badge.not-accessible {
+            background: #fdf2f2;
+            color: #e74c3c;
+        }
+
+        .accessibility-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            color: #5a6c7d;
+            line-height: 1.6;
+        }
+
+        /* Botones de acción */
+        .pricing-actions {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
         
         /* ========================================
@@ -808,6 +975,9 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             display: inline-flex;
             align-items: center;
             gap: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
         }
         
         .btn-primary {
@@ -818,6 +988,7 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(52, 152, 219, 0.3);
+            color: white;
         }
         
         .btn-outline {
@@ -870,11 +1041,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         @media (max-width: 1024px) {
             .overview-grid {
                 grid-template-columns: 1fr;
-            }
-            
-            .pricing-main {
-                grid-template-columns: 1fr;
-                gap: 40px;
             }
             
             .day-card {
@@ -936,6 +1102,47 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             
             .navbar-nav {
                 display: none;
+            }
+            
+            /* Responsive para precios */
+            .pricing-content {
+                padding: 0 15px;
+            }
+            
+            .price-main-card {
+                padding: 25px 20px;
+            }
+            
+            .price-value {
+                font-size: 2.5rem;
+            }
+            
+            .accordion-header {
+                padding: 15px 20px;
+            }
+            
+            .accordion-title {
+                font-size: 1rem;
+            }
+            
+            .accordion-content.active {
+                padding: 0 20px 20px 20px;
+            }
+            
+            .pricing-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+            
+            .footer-actions {
+                flex-direction: column;
+                align-items: center;
             }
         }
     </style>
@@ -1249,79 +1456,224 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             </div>
         </section>
 
-        <!-- Pricing Section -->
+        <!-- Pricing Section - NUEVA Y MEJORADA -->
         <?php if ($precios): ?>
         <section id="pricing" class="pricing-section">
             <div class="pricing-content">
                 <div class="pricing-header">
-                    <h2>Inversión en tu experiencia</h2>
-                    <p>Un precio justo por momentos inolvidables</p>
+                    <h2>Información de Precios</h2>
+                    <p>Todos los detalles sobre la inversión de tu viaje</p>
                 </div>
                 
-                <div class="pricing-main">
-                    <div class="pricing-card">
+                <!-- Precio Principal -->
+                <div class="price-main-card">
+                    <div class="price-display">
                         <div class="price-amount">
                             <span class="price-currency"><?= htmlspecialchars($precios['moneda']) ?></span>
                             <?php if ($precios['precio_por_persona']): ?>
-                            <?= number_format($precios['precio_por_persona'], 0, ',', '.') ?>
+                            <span class="price-value"><?= number_format($precios['precio_por_persona'], 0, ',', '.') ?></span>
+                            <span class="price-per">por persona</span>
                             <?php elseif ($precios['precio_total']): ?>
-                            <?= number_format($precios['precio_total'], 0, ',', '.') ?>
+                            <span class="price-value"><?= number_format($precios['precio_total'], 0, ',', '.') ?></span>
+                            <span class="price-per">precio total</span>
                             <?php else: ?>
-                            <span style="font-size: 1.5rem;">Consultar</span>
+                            <span class="price-value">Consultar</span>
+                            <span class="price-per">precio</span>
                             <?php endif; ?>
-                        </div>
-                        <div class="price-per">
-                            <?= $precios['precio_por_persona'] ? 'por persona' : ($precios['precio_total'] ? 'precio total' : '') ?>
                         </div>
                         
                         <?php if ($precios['noches_incluidas'] > 0): ?>
-                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.3);">
-                            <div style="font-size: 1.2rem; font-weight: 600;">
-                                <?= $precios['noches_incluidas'] ?> <?= $precios['noches_incluidas'] == 1 ? 'noche' : 'noches' ?> incluidas
-                            </div>
+                        <div class="nights-included">
+                            <i class="fas fa-bed"></i>
+                            <?= $precios['noches_incluidas'] ?> <?= $precios['noches_incluidas'] == 1 ? 'noche' : 'noches' ?> incluidas
                         </div>
                         <?php endif; ?>
                     </div>
+                </div>
+                
+                <!-- Desplegables de Información -->
+                <div class="pricing-accordions">
                     
-                    <div class="pricing-details">
-                        <?php if ($precios['precio_incluye']): ?>
-                        <div style="margin-bottom: 30px;">
-                            <h3>
-                                <i class="fas fa-check-circle"></i>
-                                ¿Qué incluye?
-                            </h3>
-                            <ul class="pricing-list">
+                    <!-- ¿Qué incluye? -->
+                    <?php if ($precios['precio_incluye']): ?>
+                    <div class="pricing-accordion">
+                        <div class="accordion-header" onclick="toggleAccordion('incluye')">
+                            <div class="accordion-title">
+                                <i class="fas fa-check-circle" style="color: #27ae60;"></i>
+                                <span>¿Qué incluye el precio?</span>
+                            </div>
+                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-incluye"></i>
+                        </div>
+                        <div class="accordion-content" id="content-incluye">
+                            <ul class="pricing-list included">
                                 <?php foreach (explode("\n", $precios['precio_incluye']) as $item): ?>
                                 <?php if (trim($item)): ?>
                                 <li>
                                     <i class="fas fa-check"></i>
-                                    <?= htmlspecialchars(trim($item)) ?>
+                                    <span><?= htmlspecialchars(trim($item)) ?></span>
                                 </li>
                                 <?php endif; ?>
                                 <?php endforeach; ?>
                             </ul>
                         </div>
-                        <?php endif; ?>
-                        
-                        <?php if ($precios['precio_no_incluye']): ?>
-                        <div>
-                            <h3>
-                                <i class="fas fa-times-circle"></i>
-                                ¿Qué NO incluye?
-                            </h3>
-                            <ul class="pricing-list">
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- ¿Qué NO incluye? -->
+                    <?php if ($precios['precio_no_incluye']): ?>
+                    <div class="pricing-accordion">
+                        <div class="accordion-header" onclick="toggleAccordion('no-incluye')">
+                            <div class="accordion-title">
+                                <i class="fas fa-times-circle" style="color: #e74c3c;"></i>
+                                <span>¿Qué NO incluye?</span>
+                            </div>
+                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-no-incluye"></i>
+                        </div>
+                        <div class="accordion-content" id="content-no-incluye">
+                            <ul class="pricing-list excluded">
                                 <?php foreach (explode("\n", $precios['precio_no_incluye']) as $item): ?>
                                 <?php if (trim($item)): ?>
                                 <li>
                                     <i class="fas fa-times"></i>
-                                    <?= htmlspecialchars(trim($item)) ?>
+                                    <span><?= htmlspecialchars(trim($item)) ?></span>
                                 </li>
                                 <?php endif; ?>
                                 <?php endforeach; ?>
                             </ul>
                         </div>
-                        <?php endif; ?>
                     </div>
+                    <?php endif; ?>
+                    
+                    <!-- Condiciones Generales -->
+                    <?php if ($precios['condiciones_generales']): ?>
+                    <div class="pricing-accordion">
+                        <div class="accordion-header" onclick="toggleAccordion('condiciones')">
+                            <div class="accordion-title">
+                                <i class="fas fa-file-contract" style="color: #3498db;"></i>
+                                <span>Condiciones Generales</span>
+                            </div>
+                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-condiciones"></i>
+                        </div>
+                        <div class="accordion-content" id="content-condiciones">
+                            <div class="conditions-text">
+                                <?= nl2br(htmlspecialchars($precios['condiciones_generales'])) ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- Información de Pasaporte -->
+                    <?php if ($precios['info_pasaporte']): ?>
+                    <div class="pricing-accordion">
+                        <div class="accordion-header" onclick="toggleAccordion('pasaporte')">
+                            <div class="accordion-title">
+                                <i class="fas fa-passport" style="color: #9b59b6;"></i>
+                                <span>Información de Documentación</span>
+                            </div>
+                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-pasaporte"></i>
+                        </div>
+                        <div class="accordion-content" id="content-pasaporte">
+                            <div class="passport-info">
+                                <?= nl2br(htmlspecialchars($precios['info_pasaporte'])) ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- Información de Seguros -->
+                    <?php if ($precios['info_seguros']): ?>
+                    <div class="pricing-accordion">
+                        <div class="accordion-header" onclick="toggleAccordion('seguros')">
+                            <div class="accordion-title">
+                                <i class="fas fa-shield-alt" style="color: #f39c12;"></i>
+                                <span>Información de Seguros</span>
+                            </div>
+                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-seguros"></i>
+                        </div>
+                        <div class="accordion-content" id="content-seguros">
+                            <div class="insurance-info">
+                                <?= nl2br(htmlspecialchars($precios['info_seguros'])) ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- Movilidad Reducida -->
+                    <?php if ($precios['movilidad_reducida']): ?>
+                    <div class="pricing-accordion">
+                        <div class="accordion-header" onclick="toggleAccordion('movilidad')">
+                            <div class="accordion-title">
+                                <i class="fas fa-wheelchair" style="color: #16a085;"></i>
+                                <span>Accesibilidad</span>
+                            </div>
+                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-movilidad"></i>
+                        </div>
+                        <div class="accordion-content" id="content-movilidad">
+                            <div class="accessibility-info">
+                                <div class="accessibility-status">
+                                    <?php
+                                    $status = strtolower($precios['movilidad_reducida']);
+                                    $statusClass = '';
+                                    $statusIcon = '';
+                                    $statusText = '';
+                                    
+                                    if (strpos($status, 'totalmente') !== false || strpos($status, 'sí') !== false) {
+                                        $statusClass = 'fully-accessible';
+                                        $statusIcon = 'fas fa-check-circle';
+                                        $statusText = 'Totalmente Accesible';
+                                    } elseif (strpos($status, 'parcialmente') !== false) {
+                                        $statusClass = 'partially-accessible';
+                                        $statusIcon = 'fas fa-exclamation-circle';
+                                        $statusText = 'Parcialmente Accesible';
+                                    } else {
+                                        $statusClass = 'not-accessible';
+                                        $statusIcon = 'fas fa-times-circle';
+                                        $statusText = 'Consultar Disponibilidad';
+                                    }
+                                    ?>
+                                    <div class="status-badge <?= $statusClass ?>">
+                                        <i class="<?= $statusIcon ?>"></i>
+                                        <span><?= $statusText ?></span>
+                                    </div>
+                                </div>
+                                <div class="accessibility-details">
+                                    <?= nl2br(htmlspecialchars($precios['movilidad_reducida'])) ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- Información Adicional -->
+                    <?php if ($precios['informacion_adicional']): ?>
+                    <div class="pricing-accordion">
+                        <div class="accordion-header" onclick="toggleAccordion('adicional')">
+                            <div class="accordion-title">
+                                <i class="fas fa-info-circle" style="color: #34495e;"></i>
+                                <span>Información Adicional</span>
+                            </div>
+                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-adicional"></i>
+                        </div>
+                        <div class="accordion-content" id="content-adicional">
+                            <div class="additional-info">
+                                <?= nl2br(htmlspecialchars($precios['informacion_adicional'])) ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                </div>
+                
+                <!-- Botones de Acción -->
+                <div class="pricing-actions">
+                    <button class="btn btn-primary" onclick="requestQuote()">
+                        <i class="fas fa-calculator"></i>
+                        Solicitar Cotización
+                    </button>
+                    <button class="btn btn-outline" onclick="downloadPricing()">
+                        <i class="fas fa-download"></i>
+                        Descargar Precios
+                    </button>
                 </div>
             </div>
         </section>
@@ -1505,6 +1857,47 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                 el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
                 observer.observe(el);
             });
+        }
+        
+        // ========================================
+        // FUNCIONES PARA ACORDEONES DE PRECIOS
+        // ========================================
+        function toggleAccordion(id) {
+            const content = document.getElementById(`content-${id}`);
+            const arrow = document.getElementById(`arrow-${id}`);
+            const header = arrow.closest('.accordion-header');
+            
+            // Cerrar otros acordeones (opcional - comenta estas líneas si quieres múltiples abiertos)
+            document.querySelectorAll('.accordion-content.active').forEach(item => {
+                if (item.id !== `content-${id}`) {
+                    item.classList.remove('active');
+                    const otherArrow = document.querySelector(`#arrow-${item.id.replace('content-', '')}`);
+                    const otherHeader = otherArrow?.closest('.accordion-header');
+                    if (otherArrow) otherArrow.classList.remove('rotated');
+                    if (otherHeader) otherHeader.classList.remove('active');
+                }
+            });
+            
+            // Toggle del acordeón actual
+            content.classList.toggle('active');
+            arrow.classList.toggle('rotated');
+            header.classList.toggle('active');
+            
+            // Log para debugging
+            console.log(`🔽 Acordeón "${id}" ${content.classList.contains('active') ? 'abierto' : 'cerrado'}`);
+        }
+
+        // Funciones para los botones de precios
+        function requestQuote() {
+            // Aquí puedes agregar lógica para solicitar cotización
+            alert('Funcionalidad de cotización - Por implementar');
+            console.log('💰 Solicitud de cotización iniciada');
+        }
+
+        function downloadPricing() {
+            // Aquí puedes agregar lógica para descargar PDF de precios
+            window.print();
+            console.log('📄 Descarga de precios iniciada');
         }
         
         // ========================================
