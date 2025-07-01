@@ -1,13 +1,20 @@
 <?php
 // =====================================
-// ARCHIVO: pages/login.php - Login con Configuración Personalizada
+// ARCHIVO: pages/login.php - Login Moderno con Configuración Personalizada
 // =====================================
+
+// Incluir ConfigManager para acceso completo a configuración
+require_once 'config/config_functions.php';
 
 // Obtener configuración de colores y empresa
 $loginColors = App::getLoginColors();
 $companyName = App::getCompanyName();
 $logo = App::getLogo();
 $defaultLanguage = App::getDefaultLanguage();
+
+// Obtener imagen de fondo desde la base de datos
+ConfigManager::init();
+$backgroundImage = ConfigManager::get('background_image');
 ?>
 <!DOCTYPE html>
 <html lang="<?= $defaultLanguage ?>">
@@ -29,15 +36,138 @@ $defaultLanguage = App::getDefaultLanguage();
     </script>
     
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .login-wrapper {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+        
+        /* Lado izquierdo - Hero Section con colores dinámicos */
+        .left-side {
+            flex: 1;
             background: linear-gradient(135deg, <?= $loginColors['primary'] ?> 0%, <?= $loginColors['secondary'] ?> 100%);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 60px;
+            color: white;
+            overflow: hidden;
+        }
+        
+        /* Imagen de fondo desde base de datos */
+        <?php if ($backgroundImage): ?>
+        .left-side {
+            background-image: url('<?= htmlspecialchars($backgroundImage) ?>');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .left-side::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, <?= $loginColors['primary'] ?>CC 0%, <?= $loginColors['secondary'] ?>CC 100%);
+            z-index: 1;
+        }
+        <?php else: ?>
+        .left-side::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.15);
+            z-index: 1;
+        }
+        <?php endif; ?>
+        
+        /* Patrón decorativo si no hay imagen de fondo */
+        <?php if (!$backgroundImage): ?>
+        .left-side::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(255,255,255,0.05) 0%, transparent 50%);
+            z-index: 0;
+        }
+        <?php endif; ?>
+        
+        .left-content {
+            position: relative;
+            z-index: 2;
+            max-width: 500px;
+        }
+        
+        .hello-subtitle {
+            font-size: 1.3rem;
+            opacity: 0.95;
+            line-height: 1.6;
+            animation: slideInLeft 1s ease-out 0.2s both;
+            margin-top: 40px;
+            <?php if ($backgroundImage): ?>
+            text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.25);
+            padding: 25px 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            <?php endif; ?>
+        }
+        
+        .company-logo {
+            margin: 25px 0 0 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 1s ease-out 0.5s both;
+        }
+        
+        .company-logo img {
+            max-width: 250px;
+            max-height: 125px;
+            object-fit: contain;
+            filter: none;
+        }
+        
+        .company-logo-text {
+            color: #2d3748;
+            font-size: 42px;
+            font-weight: 600;
+            text-shadow: none;
+        }
+        
+        /* Lado derecho - Formulario */
+        .right-side {
+            flex: 1;
+            background: white;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 40px;
             position: relative;
         }
         
@@ -50,77 +180,39 @@ $defaultLanguage = App::getDefaultLanguage();
         }
         
         #google_translate_element {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.05);
             padding: 8px 12px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
+            border-radius: 8px;
         }
         
         .goog-te-banner-frame.skiptranslate { display: none !important; }
         body { top: 0px !important; }
         
-        .login-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        .form-container {
             width: 100%;
             max-width: 400px;
+            animation: slideInRight 1s ease-out;
+        }
+        
+        .form-header {
             text-align: center;
-            animation: slideIn 0.6s ease-out;
+            margin-bottom: 40px;
         }
         
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .logo {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, <?= $loginColors['primary'] ?> 0%, <?= $loginColors['secondary'] ?> 100%);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            color: white;
-            font-size: 32px;
-            font-weight: bold;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 20px;
-        }
-        
-        .company-name {
-            font-size: 24px;
+        .form-title {
+            font-size: 2rem;
             color: #2d3748;
             margin-bottom: 8px;
             font-weight: 600;
         }
         
-        .company-subtitle {
+        .form-subtitle {
             color: #718096;
             font-size: 14px;
-            margin-bottom: 30px;
         }
         
         .form-group {
-            margin-bottom: 20px;
-            text-align: left;
+            margin-bottom: 25px;
         }
         
         .form-group label {
@@ -129,23 +221,25 @@ $defaultLanguage = App::getDefaultLanguage();
             color: #4a5568;
             font-weight: 500;
             font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .form-group input {
             width: 100%;
-            padding: 14px 18px;
+            padding: 16px 20px;
             border: 2px solid #e2e8f0;
-            border-radius: 12px;
+            border-radius: 8px;
             font-size: 16px;
             transition: all 0.3s ease;
-            background: white;
+            background: #fafafa;
         }
         
         .form-group input:focus {
             outline: none;
             border-color: <?= $loginColors['primary'] ?>;
+            background: white;
             box-shadow: 0 0 0 3px <?= $loginColors['primary'] ?>20;
-            transform: translateY(-1px);
         }
         
         .form-group input::placeholder {
@@ -157,19 +251,21 @@ $defaultLanguage = App::getDefaultLanguage();
             background: linear-gradient(135deg, <?= $loginColors['primary'] ?> 0%, <?= $loginColors['secondary'] ?> 100%);
             color: white;
             border: none;
-            padding: 16px;
-            border-radius: 12px;
+            padding: 18px;
+            border-radius: 8px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             position: relative;
             overflow: hidden;
         }
         
         .login-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 30px <?= $loginColors['primary'] ?>40;
+            box-shadow: 0 15px 35px <?= $loginColors['primary'] ?>40;
         }
         
         .login-btn:active {
@@ -182,15 +278,40 @@ $defaultLanguage = App::getDefaultLanguage();
             transform: none;
         }
         
+        .social-login {
+            margin-top: 30px;
+            text-align: center;
+            display: none;
+        }
+        
+        .social-buttons {
+            display: none;
+        }
+        
+        .social-btn {
+            display: none;
+        }
+        
+        .social-btn.facebook {
+            display: none;
+        }
+        
+        .social-btn.twitter {
+            display: none;
+        }
+        
+        .social-btn.google {
+            display: none;
+        }
+        
         .error-message {
             background: #fed7d7;
             border: 1px solid #fc8181;
             color: #e53e3e;
             padding: 12px 16px;
-            border-radius: 10px;
+            border-radius: 8px;
             margin-top: 15px;
             font-size: 14px;
-            text-align: left;
             animation: shake 0.5s ease-in-out;
         }
         
@@ -205,44 +326,40 @@ $defaultLanguage = App::getDefaultLanguage();
             border: 1px solid #9ae6b4;
             color: #2f855a;
             padding: 12px 16px;
-            border-radius: 10px;
+            border-radius: 8px;
             margin-top: 15px;
             font-size: 14px;
-            text-align: left;
-        }
-        
-        .login-footer {
-            margin-top: 25px;
-            padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
-            color: #718096;
-            font-size: 13px;
         }
         
         .demo-accounts {
             background: #f7fafc;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 15px;
-            text-align: left;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            border-left: 4px solid <?= $loginColors['primary'] ?>;
         }
         
         .demo-accounts h4 {
             color: #4a5568;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             font-size: 14px;
+            font-weight: 600;
         }
         
         .demo-account {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 5px;
-            font-family: monospace;
-            font-size: 12px;
+            margin-bottom: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
         }
         
         .demo-account .username {
-            color: #667eea;
+            color: <?= $loginColors['primary'] ?>;
             font-weight: bold;
         }
         
@@ -267,20 +384,35 @@ $defaultLanguage = App::getDefaultLanguage();
             100% { transform: rotate(360deg); }
         }
         
-        /* Responsive */
-        @media (max-width: 480px) {
-            .login-container {
-                margin: 20px;
-                padding: 30px 25px;
+        /* Animaciones */
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
             }
-            
-            .translate-container {
-                top: 10px;
-                right: 10px;
+            to {
+                opacity: 1;
+                transform: translateX(0);
             }
-            
-            .company-name {
-                font-size: 20px;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
             }
         }
         
@@ -290,92 +422,231 @@ $defaultLanguage = App::getDefaultLanguage();
             border: 1px solid #fc8181;
             color: #e53e3e;
             padding: 12px 16px;
-            border-radius: 10px;
+            border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
-            animation: slideIn 0.5s ease-out;
+            animation: slideInRight 0.5s ease-out;
+        }
+        
+        /* Floating elements con colores dinámicos */
+        .floating-elements {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .floating-element {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 15s infinite linear;
+        }
+        
+        .floating-element:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            left: 10%;
+            animation-delay: 0s;
+        }
+        
+        .floating-element:nth-child(2) {
+            width: 120px;
+            height: 120px;
+            left: 70%;
+            animation-delay: 5s;
+        }
+        
+        .floating-element:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            left: 40%;
+            animation-delay: 10s;
+        }
+        
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .login-wrapper {
+                flex-direction: column;
+            }
+            
+            .left-side {
+                flex: 0 0 40%;
+                padding: 40px 30px;
+                text-align: center;
+                align-items: center;
+            }
+            
+            .hello-title {
+                font-size: 2.5rem;
+            }
+            
+            .right-side {
+                flex: 1;
+                padding: 30px 20px;
+            }
+            
+            .translate-container {
+                top: 10px;
+                right: 10px;
+            }
+            
+            .social-buttons {
+                flex-direction: column;
+            }
+            
+            .social-btn {
+                justify-content: center;
+            }
+            
+            .company-logo {
+                position: relative;
+                top: auto;
+                left: auto;
+                margin: 20px 0;
+                justify-content: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .left-side {
+                flex: 0 0 30%;
+                padding: 20px;
+            }
+            
+            .hello-title {
+                font-size: 2rem;
+            }
+            
+            .form-container {
+                max-width: 100%;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Google Translate -->
-    <div class="translate-container">
-        <div id="google_translate_element"></div>
-    </div>
-
-    <div class="login-container">
-        <!-- Logo -->
-        <div class="logo">
-            <?php if ($logo): ?>
-                <img src="<?= htmlspecialchars($logo) ?>" alt="<?= htmlspecialchars($companyName) ?>">
-            <?php else: ?>
-                <?= strtoupper(substr($companyName, 0, 2)) ?>
-            <?php endif; ?>
+    <div class="login-wrapper">
+        <!-- Lado Izquierdo - Hero Section -->
+        <div class="left-side">
+            <div class="floating-elements">
+                <div class="floating-element"></div>
+                <div class="floating-element"></div>
+                <div class="floating-element"></div>
+            </div>
+            
+            <div class="left-content">
+                <p class="hello-subtitle">
+                    Bienvenido a <?= htmlspecialchars($companyName) ?>. 
+                    Sistema integral de gestión de viajes corporativos que optimiza 
+                    tus procesos y mejora la experiencia de tus colaboradores.
+                </p>
+            </div>
         </div>
         
-        <!-- Company Info -->
-        <h1 class="company-name"><?= htmlspecialchars($companyName) ?></h1>
-        <p class="company-subtitle">Sistema de Gestión de Viajes</p>
-
-        <!-- Session expired message -->
-        <?php if (isset($_SESSION['session_expired'])): ?>
-            <div class="session-expired">
-                ⏰ Tu sesión ha expirado por inactividad. Por favor, inicia sesión nuevamente.
-            </div>
-            <?php unset($_SESSION['session_expired']); ?>
-        <?php endif; ?>
-
-        <!-- Login Form -->
-        <form action="<?= APP_URL ?>/auth/login" method="POST" id="loginForm">
-            <div class="form-group">
-                <label for="username">Usuario</label>
-                <input type="text" id="username" name="username" required 
-                       placeholder="Ingrese su usuario" autocomplete="username">
-            </div>
-
-            <div class="form-group">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" required 
-                       placeholder="Ingrese su contraseña" autocomplete="current-password">
-            </div>
-
-            <button type="submit" class="login-btn" id="loginBtn">
-                Iniciar Sesión
-                <span class="loading" id="loading"></span>
-            </button>
-
-            <?php if (isset($_SESSION['error'])): ?>
-                <div class="error-message">
-                    🚫 <?= htmlspecialchars($_SESSION['error']) ?>
-                </div>
-                <?php unset($_SESSION['error']); ?>
-            <?php endif; ?>
-            
-            <?php if (isset($_SESSION['success'])): ?>
-                <div class="success-message">
-                    ✅ <?= htmlspecialchars($_SESSION['success']) ?>
-                </div>
-                <?php unset($_SESSION['success']); ?>
-            <?php endif; ?>
-        </form>
-
-        <!-- Demo Accounts -->
-        <div class="login-footer">
-            <div class="demo-accounts">
-                <h4>👥 Cuentas de Demostración:</h4>
-                <div class="demo-account">
-                    <span class="username">admin</span>
-                    <span class="password">password</span>
-                </div>
-                <div class="demo-account">
-                    <span class="username">agente1</span>
-                    <span class="password">password</span>
-                </div>
+        <!-- Lado Derecho - Formulario -->
+        <div class="right-side">
+            <!-- Google Translate -->
+            <div class="translate-container">
+                <div id="google_translate_element"></div>
             </div>
             
-            <p style="margin-top: 15px; font-size: 12px;">
-                © <?= date('Y') ?> <?= htmlspecialchars($companyName) ?>. Todos los derechos reservados.
-            </p>
+            <div class="form-container">
+                <!-- Header del formulario -->
+                <div class="form-header">
+                    <h2 class="form-title">Acceso</h2>
+                    <p class="form-subtitle">
+                        Ingresa tus credenciales para acceder al sistema
+                    </p>
+                    
+                    <!-- Logo de la empresa -->
+                    <div class="company-logo">
+                        <?php if ($logo): ?>
+                            <img src="<?= htmlspecialchars($logo) ?>" alt="<?= htmlspecialchars($companyName) ?>">
+                        <?php else: ?>
+                            <div class="company-logo-text"><?= htmlspecialchars($companyName) ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Session expired message -->
+                <?php if (isset($_SESSION['session_expired'])): ?>
+                    <div class="session-expired">
+                        ⏰ Tu sesión ha expirado por inactividad. Por favor, inicia sesión nuevamente.
+                    </div>
+                    <?php unset($_SESSION['session_expired']); ?>
+                <?php endif; ?>
+
+                <!-- Login Form -->
+                <form action="<?= APP_URL ?>/auth/login" method="POST" id="loginForm">
+                    <div class="form-group">
+                        <label for="username">USUARIO</label>
+                        <input type="text" id="username" name="username" required 
+                               placeholder="Ingrese su usuario" autocomplete="username">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">CONTRASEÑA</label>
+                        <input type="password" id="password" name="password" required 
+                               placeholder="• • • • • •" autocomplete="current-password">
+                    </div>
+
+                    <button type="submit" class="login-btn" id="loginBtn">
+                        INICIAR SESIÓN
+                        <span class="loading" id="loading"></span>
+                    </button>
+
+                    <?php if (isset($_SESSION['error'])): ?>
+                        <div class="error-message">
+                            🚫 <?= htmlspecialchars($_SESSION['error']) ?>
+                        </div>
+                        <?php unset($_SESSION['error']); ?>
+                    <?php endif; ?>
+                    
+                    <?php if (isset($_SESSION['success'])): ?>
+                        <div class="success-message">
+                            ✅ <?= htmlspecialchars($_SESSION['success']) ?>
+                        </div>
+                        <?php unset($_SESSION['success']); ?>
+                    <?php endif; ?>
+                </form>
+
+                <!-- Demo Accounts -->
+                <div class="demo-accounts">
+                    <h4>👥 Cuentas de Demostración:</h4>
+                    <div class="demo-account">
+                        <span class="username">admin</span>
+                        <span class="password">password</span>
+                    </div>
+                    <div class="demo-account">
+                        <span class="username">agente1</span>
+                        <span class="password">password</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #718096; font-size: 13px; text-align: center;">
+                    <p>© <?= date('Y') ?> <?= htmlspecialchars($companyName) ?>. Todos los derechos reservados.</p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -484,71 +755,24 @@ $defaultLanguage = App::getDefaultLanguage();
             localStorage.setItem('preferredLanguage', lang);
         }
 
+        // Social media login handlers
+        // Funcionalidad removida - solo login nativo
+
         // Efectos adicionales
         document.addEventListener('DOMContentLoaded', function() {
-            // Animación de entrada para elementos
+            // Animaciones de entrada escalonadas
             const elements = document.querySelectorAll('.form-group, .login-btn, .demo-accounts');
             elements.forEach((el, index) => {
                 el.style.opacity = '0';
                 el.style.transform = 'translateY(20px)';
                 
                 setTimeout(() => {
-                    el.style.transition = 'all 0.4s ease';
+                    el.style.transition = 'all 0.6s ease';
                     el.style.opacity = '1';
                     el.style.transform = 'translateY(0)';
-                }, 100 * (index + 1));
+                }, 150 * (index + 1));
             });
-
-            // Partículas de fondo (opcional)
-            createBackgroundParticles();
         });
-
-        // Crear partículas de fondo sutiles
-        function createBackgroundParticles() {
-            const body = document.body;
-            
-            for (let i = 0; i < 6; i++) {
-                const particle = document.createElement('div');
-                particle.style.cssText = `
-                    position: absolute;
-                    width: ${Math.random() * 100 + 50}px;
-                    height: ${Math.random() * 100 + 50}px;
-                    background: rgba(255, 255, 255, 0.05);
-                    border-radius: 50%;
-                    pointer-events: none;
-                    animation: float ${Math.random() * 10 + 10}s infinite linear;
-                    left: ${Math.random() * 100}%;
-                    top: ${Math.random() * 100}%;
-                `;
-                
-                body.appendChild(particle);
-            }
-            
-            // CSS para animación de flotación
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes float {
-                    0% {
-                        transform: translateY(0px) rotate(0deg);
-                        opacity: 0;
-                    }
-                    50% {
-                        opacity: 1;
-                    }
-                    100% {
-                        transform: translateY(-100vh) rotate(360deg);
-                        opacity: 0;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
-        // Detección de modo oscuro del sistema
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            // Ajustar colores si el usuario prefiere modo oscuro
-            document.body.style.filter = 'brightness(0.9)';
-        }
 
         // Manejar errores de conexión
         window.addEventListener('offline', function() {
@@ -556,6 +780,7 @@ $defaultLanguage = App::getDefaultLanguage();
             const message = document.createElement('div');
             message.className = 'error-message';
             message.innerHTML = '🌐 Sin conexión a internet. Verifica tu conexión.';
+            message.style.display = 'block';
             form.appendChild(message);
         });
 

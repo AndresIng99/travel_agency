@@ -1,6 +1,6 @@
 <?php
 // =====================================
-// ARCHIVO: config/database.php - CORREGIDO PARA EVITAR MEZCLA DE PARÁMETROS
+// ARCHIVO: config/database.php - CLASE DATABASE COMPLETA Y CORREGIDA
 // =====================================
 
 class Database {
@@ -55,6 +55,10 @@ class Database {
         return $this->pdo;
     }
 
+    // ============================================
+    // MÉTODOS BÁSICOS DE CONSULTA
+    // ============================================
+
     public function query($sql, $params = []) {
         try {
             $stmt = $this->pdo->prepare($sql);
@@ -76,6 +80,14 @@ class Database {
         return $this->query($sql, $params)->fetch();
     }
 
+    public function fetchColumn($sql, $params = []) {
+        return $this->query($sql, $params)->fetchColumn();
+    }
+
+    // ============================================
+    // MÉTODO INSERT CORREGIDO
+    // ============================================
+
     public function insert($table, $data) {
         if (empty($data)) {
             throw new Exception("No data provided for insert");
@@ -84,6 +96,7 @@ class Database {
         $keys = array_keys($data);
         $values = array_values($data);
         
+        // Crear placeholders para los valores
         $placeholders = str_repeat('?,', count($keys) - 1) . '?';
         $keysStr = '`' . implode('`, `', $keys) . '`';
         
@@ -105,12 +118,16 @@ class Database {
         }
     }
 
-    public function update($table, $data, $condition, $conditionParams = []) {
+    // ============================================
+    // MÉTODO UPDATE CORREGIDO
+    // ============================================
+
+    public function update($table, $data, $where, $whereParams = []) {
         if (empty($data)) {
             throw new Exception("No data provided for update");
         }
         
-        // Construir SET clause con placeholders posicionales
+        // Construir SET clause
         $setParts = [];
         $values = [];
         
@@ -121,10 +138,26 @@ class Database {
         
         $setClause = implode(', ', $setParts);
         
-        // Agregar parámetros de condición al final
-        $allParams = array_merge($values, $conditionParams);
+        // Construir WHERE clause
+        $whereClause = '';
+        $allParams = $values; // Empezar con los valores del SET
         
-        $sql = "UPDATE `{$table}` SET {$setClause} WHERE {$condition}";
+        if (is_array($where)) {
+            // Si $where es un array asociativo, construir condiciones AND
+            $whereConditions = [];
+            foreach ($where as $key => $value) {
+                $whereConditions[] = "`{$key}` = ?";
+                $allParams[] = $value;
+            }
+            $whereClause = implode(' AND ', $whereConditions);
+        } else {
+            // Si $where es una string, usarla directamente
+            $whereClause = $where;
+            // Agregar parámetros de WHERE al final
+            $allParams = array_merge($allParams, $whereParams);
+        }
+        
+        $sql = "UPDATE `{$table}` SET {$setClause} WHERE {$whereClause}";
         
         try {
             error_log("UPDATE SQL: " . $sql);
@@ -138,29 +171,57 @@ class Database {
             error_log("Update error: " . $e->getMessage());
             error_log("SQL: " . $sql);
             error_log("Data: " . print_r($data, true));
-            error_log("Condition: " . $condition);
+            error_log("Where: " . print_r($where, true));
             error_log("All Params: " . print_r($allParams, true));
             throw $e;
         }
     }
 
-    public function delete($table, $condition, $params = []) {
-        $sql = "DELETE FROM `{$table}` WHERE {$condition}";
+    // ============================================
+    // MÉTODO DELETE CORREGIDO
+    // ============================================
+
+    public function delete($table, $where, $whereParams = []) {
+        // Construir WHERE clause
+        $whereClause = '';
+        $allParams = [];
+        
+        if (is_array($where)) {
+            // Si $where es un array asociativo, construir condiciones AND
+            $whereConditions = [];
+            foreach ($where as $key => $value) {
+                $whereConditions[] = "`{$key}` = ?";
+                $allParams[] = $value;
+            }
+            $whereClause = implode(' AND ', $whereConditions);
+        } else {
+            // Si $where es una string, usarla directamente
+            $whereClause = $where;
+            $allParams = $whereParams;
+        }
+        
+        $sql = "DELETE FROM `{$table}` WHERE {$whereClause}";
         
         try {
+            error_log("DELETE SQL: " . $sql);
+            error_log("DELETE Params: " . print_r($allParams, true));
+            
             $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($params);
+            $stmt->execute($allParams);
             
             return $stmt->rowCount();
         } catch (PDOException $e) {
             error_log("Delete error: " . $e->getMessage());
             error_log("SQL: " . $sql);
-            error_log("Params: " . print_r($params, true));
+            error_log("Params: " . print_r($allParams, true));
             throw $e;
         }
     }
 
-    // Método auxiliar para transacciones
+    // ============================================
+    // MÉTODOS DE TRANSACCIONES
+    // ============================================
+
     public function beginTransaction() {
         return $this->pdo->beginTransaction();
     }
@@ -185,6 +246,152 @@ class Database {
             $this->rollback();
             throw $e;
         }
+    }
+
+    // ============================================
+    // MÉTODOS AUXILIARES
+    // ============================================
+
+    public function exists($table, $where, $whereParams = []) {
+        $whereClause = '';
+        $allParams = [];
+        
+        if (is_array($where)) {
+            $whereConditions = [];
+            foreach ($where as $key => $value) {
+                $whereConditions[] = "`{$key}` = ?";
+                $allParams[] = $value;
+            }
+            $whereClause = implode(' AND ', $whereConditions);
+        } else {
+            $whereClause = $where;
+            $allParams = $whereParams;
+        }
+        
+        $sql = "SELECT 1 FROM `{$table}` WHERE {$whereClause} LIMIT 1";
+        $result = $this->fetch($sql, $allParams);
+        
+        return !empty($result);
+    }
+
+    public function count($table, $where = '', $whereParams = []) {
+        $sql = "SELECT COUNT(*) as count FROM `{$table}`";
+        
+        if (!empty($where)) {
+            $sql .= " WHERE {$where}";
+        }
+        
+        $result = $this->fetch($sql, $whereParams);
+        return (int)$result['count'];
+    }
+
+    public function getLastInsertId() {
+        return $this->pdo->lastInsertId();
+    }
+
+    // ============================================
+    // MÉTODOS PARA MANEJO DE ESQUEMAS
+    // ============================================
+
+    public function tableExists($tableName) {
+        try {
+            $result = $this->fetch("SHOW TABLES LIKE ?", [$tableName]);
+            return !empty($result);
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    public function createTable($sql) {
+        try {
+            $this->pdo->exec($sql);
+            return true;
+        } catch (PDOException $e) {
+            error_log("Create table error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    public function dropTable($tableName) {
+        try {
+            $this->pdo->exec("DROP TABLE IF EXISTS `{$tableName}`");
+            return true;
+        } catch (PDOException $e) {
+            error_log("Drop table error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    // ============================================
+    // MÉTODOS DE UTILIDAD PARA DEBUGGING
+    // ============================================
+
+    public function getTableInfo($tableName) {
+        try {
+            return $this->fetchAll("DESCRIBE `{$tableName}`");
+        } catch (Exception $e) {
+            error_log("Get table info error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function getTables() {
+        try {
+            $tables = $this->fetchAll("SHOW TABLES");
+            $tableNames = [];
+            foreach ($tables as $table) {
+                $tableNames[] = array_values($table)[0];
+            }
+            return $tableNames;
+        } catch (Exception $e) {
+            error_log("Get tables error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    // ============================================
+    // MÉTODO PARA OBTENER ESTADÍSTICAS DEL SERVIDOR
+    // ============================================
+
+    public function getServerInfo() {
+        try {
+            return [
+                'version' => $this->pdo->getAttribute(PDO::ATTR_SERVER_VERSION),
+                'connection_status' => $this->pdo->getAttribute(PDO::ATTR_CONNECTION_STATUS),
+                'driver_name' => $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME),
+                'server_info' => $this->pdo->getAttribute(PDO::ATTR_SERVER_INFO)
+            ];
+        } catch (Exception $e) {
+            error_log("Get server info error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    // ============================================
+    // MÉTODO PARA PREPARAR DATOS DE INSERCIÓN/ACTUALIZACIÓN
+    // ============================================
+
+    public function sanitizeData($data, $allowedFields = []) {
+        if (empty($allowedFields)) {
+            return $data;
+        }
+        
+        $sanitized = [];
+        foreach ($allowedFields as $field) {
+            if (isset($data[$field])) {
+                $sanitized[$field] = $data[$field];
+            }
+        }
+        
+        return $sanitized;
+    }
+
+    // ============================================
+    // DESTRUCTOR
+    // ============================================
+
+    public function __destruct() {
+        $this->pdo = null;
     }
 }
 ?>

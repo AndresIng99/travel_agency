@@ -1,14 +1,17 @@
 <?php
 // =====================================
-// ARCHIVO: pages/dashboard.php - Dashboard con Colores Dinámicos
+// ARCHIVO: pages/dashboard.php - Dashboard con Componentes Recursivos Mejorados
 // =====================================
 
-$user = App::getUser(); 
+// Incluir constantes necesarias
+require_once __DIR__ . '/../config/constants.php';
 
-// Obtener configuración de colores según el rol
+// Incluir sistema de componentes
+require_once __DIR__ . '/../includes/ui_components.php';
+
+$user = App::getUser(); 
 $userColors = App::getColorsForRole($user['role']);
 $companyName = App::getCompanyName();
-$logo = App::getLogo();
 $defaultLanguage = App::getDefaultLanguage();
 
 // Inicializar conexión a base de datos para las estadísticas
@@ -24,6 +27,9 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - <?= htmlspecialchars($companyName) ?></title>
+    
+    <?= UIComponents::getComponentStyles() ?>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -31,15 +37,20 @@ try {
             --primary-color: <?= $userColors['primary'] ?>;
             --secondary-color: <?= $userColors['secondary'] ?>;
             --primary-gradient: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            
+            /* Convertir colores hex a RGB para usar con opacity */
+            --primary-color-rgb: <?= implode(', ', sscanf($userColors['primary'], "#%02x%02x%02x")) ?>;
+            --secondary-color-rgb: <?= implode(', ', sscanf($userColors['secondary'], "#%02x%02x%02x")) ?>;
         }
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f7fa;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
             color: #333;
+            min-height: 100vh;
         }
 
-        /* Header con colores dinámicos */
+        /* Header mejorado */
         .header {
             background: var(--primary-gradient);
             color: white;
@@ -47,7 +58,13 @@ try {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
         }
 
         .header-left {
@@ -57,12 +74,19 @@ try {
         }
 
         .menu-toggle {
-            background: none;
+            background: rgba(255, 255, 255, 0.2);
             border: none;
             color: white;
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
-            padding: 5px;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .menu-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
         }
 
         .header-center {
@@ -80,167 +104,130 @@ try {
         .user-info {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .user-info:hover {
+            background: rgba(255, 255, 255, 0.2);
         }
 
         .user-avatar {
-            width: 35px;
-            height: 35px;
+            width: 40px;
+            height: 40px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
+            border: 2px solid rgba(255, 255, 255, 0.3);
         }
 
-        /* Google Translate */
+        /* Google Translate mejorado */
         #google_translate_element {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 5px 10px;
-            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 15px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
         }
 
         .goog-te-banner-frame.skiptranslate { display: none !important; }
         body { top: 0px !important; }
 
-        /* Sidebar con colores diferenciados */
-        .sidebar {
-            position: fixed;
-            left: -280px;
-            top: 70px;
-            width: 280px;
-            height: calc(100vh - 70px);
-            background: white;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-            transition: left 0.3s ease;
-            z-index: 1000;
-            overflow-y: auto;
-        }
-
-        .sidebar.open {
-            left: 0;
-        }
-
-        .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid #e2e8f0;
-            background: linear-gradient(135deg, <?= $user['role'] === 'admin' ? '#fed7d7 0%, #feb2b2 100%' : '#edf2f7 0%, #e2e8f0 100%' ?>);
-        }
-
-        .company-logo {
-            width: 40px;
-            height: 40px;
-            background: var(--primary-gradient);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            margin-bottom: 10px;
-            overflow: hidden;
-        }
-
-        .company-logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 8px;
-        }
-
-        .sidebar-menu {
-            padding: 20px 0;
-        }
-
-        .menu-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 12px 20px;
-            color: #4a5568;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border-left: 3px solid transparent;
-        }
-
-        .menu-item:hover, .menu-item.active {
-            background-color: #f7fafc;
-            color: var(--primary-color);
-            border-left-color: var(--primary-color);
-        }
-
-        .menu-icon {
-            font-size: 18px;
-            width: 20px;
-        }
-
-        /* Main Content */
+        /* Main Content mejorado */
         .main-content {
             margin-left: 0;
             margin-top: 70px;
-            padding: 30px;
-            transition: margin-left 0.3s ease;
+            padding: 40px;
+            transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: calc(100vh - 70px);
         }
 
         .main-content.sidebar-open {
-            margin-left: 280px;
+            margin-left: 320px;
         }
 
-        /* Welcome Section */
+        /* Welcome Section mejorada */
         .welcome-section {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            border-left: 4px solid var(--primary-color);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .welcome-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-gradient);
         }
 
         .welcome-title {
-            font-size: 28px;
+            font-size: 32px;
             color: #2d3748;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .welcome-subtitle {
             color: #718096;
             font-size: 16px;
+            line-height: 1.6;
         }
 
-        /* Role Badge */
+        /* Role Badge mejorado */
         .role-badge {
-            display: inline-block;
-            padding: 6px 15px;
-            border-radius: 20px;
-            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 13px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             background: var(--primary-gradient);
             color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
-        /* Quick Actions */
+        /* Quick Actions mejoradas */
         .quick-actions {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
         }
 
         .action-card {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
-            border: 1px solid #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             position: relative;
             overflow: hidden;
+            backdrop-filter: blur(20px);
         }
 
         .action-card::before {
@@ -251,76 +238,93 @@ try {
             right: 0;
             height: 4px;
             background: var(--primary-gradient);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .action-card:hover::before {
+            transform: scaleX(1);
         }
 
         .action-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
         }
 
         .action-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            margin-bottom: 15px;
+            font-size: 28px;
+            margin-bottom: 20px;
             background: var(--primary-gradient);
             color: white;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
 
         .action-title {
-            font-size: 18px;
-            font-weight: 600;
+            font-size: 20px;
+            font-weight: 700;
             color: #2d3748;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .action-description {
             color: #718096;
             font-size: 14px;
-            line-height: 1.5;
+            line-height: 1.6;
         }
 
-        /* Stats Section */
+        /* Stats Section mejorada */
         .stats-section {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+            border-radius: 20px;
+            padding: 35px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .stats-title {
-            font-size: 20px;
+            font-size: 24px;
             color: #2d3748;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
+            font-weight: 700;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
         }
 
         .stat-item {
             text-align: center;
-            padding: 20px;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            transition: background-color 0.3s ease;
+            padding: 25px 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
         }
 
         .stat-item:hover {
-            background-color: #f7fafc;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.8);
         }
 
         .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--primary-color);
-            margin-bottom: 5px;
+            font-size: 28px;
+            font-weight: 800;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
         }
 
         .stat-label {
@@ -328,20 +332,22 @@ try {
             color: #718096;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            font-weight: 600;
         }
 
-        /* Overlay */
+        /* Overlay mejorado */
         .overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             z-index: 999;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.3s ease;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(5px);
         }
 
         .overlay.show {
@@ -349,7 +355,7 @@ try {
             visibility: visible;
         }
 
-        /* Responsive */
+        /* Responsive mejorado */
         @media (max-width: 768px) {
             .header {
                 padding: 15px 20px;
@@ -365,6 +371,7 @@ try {
 
             .quick-actions {
                 grid-template-columns: 1fr;
+                gap: 20px;
             }
 
             .stats-grid {
@@ -372,112 +379,68 @@ try {
             }
 
             .welcome-title {
-                font-size: 24px;
+                font-size: 26px;
             }
+
+            .welcome-section, .action-card, .stats-section {
+                padding: 25px;
+            }
+        }
+
+        /* Animaciones de entrada */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: slideInUp 0.6s ease forwards;
+        }
+
+        /* Fondo elegante y sencillo - Solo tonos blancos */
+        .background-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%);
+        }
+
+        .background-particles::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 25% 25%, rgba(248, 250, 252, 0.8) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(241, 245, 249, 0.6) 0%, transparent 50%);
+            animation: float 30s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div class="header-left">
-            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-            <h2><?= htmlspecialchars($companyName) ?></h2>
-        </div>
-        
-        <div class="header-center">
-            <div id="google_translate_element"></div>
-        </div>
-
-        <div class="header-right">
-            <div class="user-info" onclick="toggleUserMenu()">
-                <div class="user-avatar"><?= strtoupper(substr($user['name'], 0, 2)) ?></div>
-                <div>
-                    <div style="font-size: 14px; font-weight: 500;"><?= htmlspecialchars($user['name']) ?></div>
-                    <div style="font-size: 12px; opacity: 0.8;"><?= $user['role'] === 'admin' ? 'Administrador' : 'Agente de Viajes' ?></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="company-logo">
-                <?php if ($logo): ?>
-                    <img src="<?= htmlspecialchars($logo) ?>" alt="<?= htmlspecialchars($companyName) ?>">
-                <?php else: ?>
-                    <?= strtoupper(substr($companyName, 0, 2)) ?>
-                <?php endif; ?>
-            </div>
-            <h3><?= htmlspecialchars($companyName) ?></h3>
-            <p style="color: #718096; font-size: 14px;">
-                <?= $user['role'] === 'admin' ? 'Panel de Administración' : 'Sistema de Gestión' ?>
-            </p>
-        </div>
-
-        <nav class="sidebar-menu">
-    <a href="<?= APP_URL ?>/dashboard" class="menu-item active">
-        <div class="menu-icon">🏠</div>
-        Dashboard
-    </a>
+    <div class="background-particles"></div>
     
-    <?php if ($user['role'] === 'admin'): ?>
-    <!-- Menú del Administrador -->
-    <a href="<?= APP_URL ?>/administrador" class="menu-item">
-        <div class="menu-icon">👥</div>
-        Gestión de Usuarios
-    </a>
-    <a href="<?= APP_URL ?>/administrador/configuracion" class="menu-item">
-        <div class="menu-icon">⚙️</div>
-        Configuración Sistema
-    </a>
-    <a href="<?= APP_URL ?>/biblioteca" class="menu-item">
-        <div class="menu-icon">📚</div>
-        Supervisar Biblioteca
-    </a>
-    <a href="<?= APP_URL ?>/programa" class="menu-item">
-        <div class="menu-icon">✈️</div>
-        Supervisar Programas
-    </a>
-    <a href="<?= APP_URL ?>/itinerarios" class="menu-item">
-        <div class="menu-icon">🗺️</div>
-        Gestión de Itinerarios
-    </a>
-    <a href="<?= APP_URL ?>/reportes" class="menu-item">
-        <div class="menu-icon">📊</div>
-        Reportes del Sistema
-    </a>
-    <?php else: ?>
-    <!-- Menú del Agente -->
-    <a href="<?= APP_URL ?>/programa" class="menu-item">
-        <div class="menu-icon">✈️</div>
-        Mi Programa
-    </a>
-    <a href="<?= APP_URL ?>/itinerarios" class="menu-item">
-        <div class="menu-icon">🗺️</div>
-        Mis Itinerarios
-    </a>
-    <a href="<?= APP_URL ?>/biblioteca" class="menu-item">
-        <div class="menu-icon">📚</div>
-        Biblioteca
-    </a>
-    <a href="<?= APP_URL ?>/reportes" class="menu-item">
-        <div class="menu-icon">📊</div>
-        Mis Reportes
-    </a>
-    <a href="<?= APP_URL ?>/perfil" class="menu-item">
-        <div class="menu-icon">👤</div>
-        Mi Perfil
-    </a>
-    <?php endif; ?>
-    
-    <a href="<?= APP_URL ?>/auth/logout" class="menu-item">
-        <div class="menu-icon">🚪</div>
-        Cerrar Sesión
-    </a>
-</nav>
-    </div>
+    <!-- Header con componente recursivo -->
+    <?= UIComponents::renderHeader($user) ?>
+
+    <!-- Sidebar con componente recursivo mejorado -->
+    <?= UIComponents::renderSidebar($user, '/dashboard') ?>
 
     <!-- Overlay -->
     <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
@@ -485,16 +448,16 @@ try {
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
         <!-- Welcome Section -->
-        <div class="welcome-section">
+        <div class="welcome-section animate-in">
             <div class="role-badge">
                 <?= $user['role'] === 'admin' ? '👑 Administrador del Sistema' : '✈️ Agente de Viajes' ?>
             </div>
             <h1 class="welcome-title">¡Bienvenido<?= $user['role'] === 'admin' ? '' : 'a' ?>, <?= htmlspecialchars($user['name']) ?>!</h1>
             <p class="welcome-subtitle">
                 <?php if ($user['role'] === 'admin'): ?>
-                    Administra el sistema, gestiona usuarios, supervisa operaciones y configura la plataforma desde este panel de control.
+                    Administra el sistema completo, gestiona usuarios, supervisa todas las operaciones y configura la plataforma desde este panel de control avanzado.
                 <?php else: ?>
-                    Gestiona tus programas de viaje, crea solicitudes de viajeros y administra recursos desde este panel de control.
+                    Gestiona tus programas de viaje, crea solicitudes personalizadas para viajeros y administra todos tus recursos desde este panel de control intuitivo.
                 <?php endif; ?>
             </p>
         </div>
@@ -503,51 +466,57 @@ try {
         <div class="quick-actions">
             <?php if ($user['role'] === 'admin'): ?>
             <!-- Acciones para Administrador -->
-            <div class="action-card" onclick="goTo('/administrador')">
+            <div class="action-card animate-in" onclick="goTo('/administrador')" style="animation-delay: 0.1s;">
                 <div class="action-icon">👥</div>
                 <h3 class="action-title">Gestión de Usuarios</h3>
-                <p class="action-description">Administra usuarios del sistema, crea nuevos agentes, gestiona permisos y supervisa la actividad de todos los usuarios.</p>
+                <p class="action-description">Administra todos los usuarios del sistema, crea nuevos agentes, gestiona permisos y supervisa la actividad completa de la plataforma.</p>
             </div>
 
-            <div class="action-card" onclick="goTo('/administrador/configuracion')">
+            <div class="action-card animate-in" onclick="goTo('/administrador/configuracion')" style="animation-delay: 0.2s;">
                 <div class="action-icon">⚙️</div>
                 <h3 class="action-title">Configuración del Sistema</h3>
-                <p class="action-description">Configura colores, logos, integraciones, políticas de seguridad y parámetros generales del sistema.</p>
+                <p class="action-description">Personaliza colores, logos, integraciones, políticas de seguridad y todos los parámetros generales del sistema.</p>
             </div>
 
-            <div class="action-card" onclick="goTo('/biblioteca')">
+            <div class="action-card animate-in" onclick="goTo('/biblioteca')" style="animation-delay: 0.3s;">
                 <div class="action-icon">📚</div>
                 <h3 class="action-title">Supervisar Biblioteca</h3>
-                <p class="action-description">Supervisa y administra todos los recursos de la biblioteca: días, alojamientos, actividades y transportes de todos los agentes.</p>
+                <p class="action-description">Supervisa y administra todos los recursos globales: días, alojamientos, actividades y transportes de todos los agentes.</p>
             </div>
 
-            <div class="action-card" onclick="goTo('/itinerarios')">
+            <div class="action-card animate-in" onclick="goTo('/programa')" style="animation-delay: 0.4s;">
                 <div class="action-icon">✈️</div>
                 <h3 class="action-title">Supervisar Programas</h3>
                 <p class="action-description">Revisa y supervisa todos los programas de viaje y solicitudes creadas por los agentes del sistema.</p>
             </div>
 
             <?php else: ?>
-            <!-- Acciones para Agente -->
-            <div class="action-card" onclick="goTo('/programa')">
-                <div class="action-icon">✈️</div>
-                <h3 class="action-title">Mi Programa de Viajes</h3>
-                <p class="action-description">Crea nuevas solicitudes de viajero y gestiona programas personalizados con destinos, fechas y acompañamiento específico.</p>
+            <!-- Acciones para Agente - LIMITADAS según especificación -->
+            <div class="action-card animate-in" onclick="goTo('/itinerarios')" style="animation-delay: 0.1s;">
+                <div class="action-icon">🗺️</div>
+                <h3 class="action-title">Mis Itinerarios</h3>
+                <p class="action-description">Crea y gestiona itinerarios detallados para tus clientes con rutas personalizadas y experiencias únicas.</p>
             </div>
 
-            <div class="action-card" onclick="goTo('/biblioteca')">
+            <div class="action-card animate-in" onclick="goTo('/biblioteca')" style="animation-delay: 0.2s;">
                 <div class="action-icon">📚</div>
                 <h3 class="action-title">Mi Biblioteca de Recursos</h3>
-                <p class="action-description">Administra tus días, alojamientos, actividades y transportes. Crea y edita recursos para usar en tus programas de viaje.</p>
+                <p class="action-description">Administra tus recursos personales: días, alojamientos, actividades y transportes para usar en tus itinerarios.</p>
+            </div>
+
+            <div class="action-card animate-in" onclick="goTo('/perfil')" style="animation-delay: 0.3s;">
+                <div class="action-icon">👤</div>
+                <h3 class="action-title">Mi Perfil</h3>
+                <p class="action-description">Configura tu información personal, preferencias y ajustes de tu cuenta de agente de viajes.</p>
             </div>
 
             <?php endif; ?>
         </div>
 
         <!-- Stats Section diferenciada por rol -->
-        <div class="stats-section">
+        <div class="stats-section animate-in" style="animation-delay: 0.5s;">
             <h2 class="stats-title">
-                <?= $user['role'] === 'admin' ? 'Estadísticas del Sistema' : 'Resumen de Mi Actividad' ?>
+                <?= $user['role'] === 'admin' ? '📊 Estadísticas del Sistema' : '📈 Resumen de Mi Actividad' ?>
             </h2>
             <div class="stats-grid">
                 <?php if ($user['role'] === 'admin'): ?>
@@ -601,17 +570,17 @@ try {
                     <div class="stat-label">Sesiones Activas</div>
                 </div>
                 <?php else: ?>
-                <!-- Stats para Agente -->
+                <!-- Stats para Agente - Solo funcionalidades disponibles -->
                 <div class="stat-item">
                     <div class="stat-number"><?php 
                         try {
-                            $count = $db->fetch("SELECT COUNT(*) as total FROM programa_solicitudes WHERE user_id = ?", [$user['id']]);
+                            $count = $db->fetch("SELECT COUNT(*) as total FROM itinerarios WHERE user_id = ? AND activo = 1", [$user['id']]);
                             echo $count['total'] ?? 0;
                         } catch(Exception $e) {
                             echo "0";
                         }
                     ?></div>
-                    <div class="stat-label">Mis Programas</div>
+                    <div class="stat-label">Mis Itinerarios</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-number"><?php 
@@ -655,7 +624,7 @@ try {
         let sidebarOpen = false;
         const DEFAULT_LANGUAGE = '<?= $defaultLanguage ?>';
 
-        // Sidebar functions
+        // Sidebar functions mejoradas
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('overlay');
@@ -682,18 +651,26 @@ try {
             }
         }
 
-        // Navigation
+        // Navigation con animaciones
         function goTo(path) {
-            window.location.href = '<?= APP_URL ?>' + path;
+            // Animación de salida
+            document.querySelectorAll('.animate-in').forEach(el => {
+                el.style.animation = 'slideInUp 0.3s ease reverse';
+            });
+            
+            setTimeout(() => {
+                window.location.href = '<?= APP_URL ?>' + path;
+            }, 300);
         }
 
         function toggleUserMenu() {
-            if (confirm('¿Desea cerrar sesión?')) {
-                window.location.href = '<?= APP_URL ?>/auth/logout';
+            const confirmMessage = '¿Desea cerrar sesión?';
+            if (confirm(confirmMessage)) {
+                goTo('/auth/logout');
             }
         }
 
-        // Google Translate con idioma por defecto del sistema
+        // Google Translate mejorado
         function googleTranslateElementInit() {
             new google.translate.TranslateElement({
                 pageLanguage: DEFAULT_LANGUAGE,
@@ -724,7 +701,7 @@ try {
             }
         }
 
-        // Event listeners
+        // Event listeners mejorados
         document.addEventListener('DOMContentLoaded', function() {
             // Detectar cambios de idioma
             setTimeout(function() {
@@ -736,7 +713,7 @@ try {
                 }
             }, 2000);
 
-            // Responsive behavior
+            // Responsive behavior mejorado
             window.addEventListener('resize', function() {
                 if (window.innerWidth <= 768 && sidebarOpen) {
                     document.getElementById('mainContent').classList.remove('sidebar-open');
@@ -745,28 +722,57 @@ try {
                 }
             });
 
-            // Animaciones de entrada
-            animateElements();
+            // Efectos de hover para las cards
+            const actionCards = document.querySelectorAll('.action-card');
+            actionCards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-8px) scale(1.02)';
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+
+            // Contador animado para estadísticas
+            animateCounters();
         });
 
-        // Animaciones
-        function animateElements() {
-            const elements = document.querySelectorAll('.welcome-section, .action-card, .stats-section');
-            elements.forEach((el, index) => {
-                el.style.opacity = '0';
-                el.style.transform = 'translateY(20px)';
+        // Animación de contadores
+        function animateCounters() {
+            const counters = document.querySelectorAll('.stat-number');
+            
+            counters.forEach(counter => {
+                const target = parseInt(counter.textContent);
+                let current = 0;
+                const increment = target / 50;
                 
-                setTimeout(() => {
-                    el.style.transition = 'all 0.6s ease';
-                    el.style.opacity = '1';
-                    el.style.transform = 'translateY(0)';
-                }, 100 * (index + 1));
+                const updateCounter = () => {
+                    if (current < target) {
+                        current += increment;
+                        counter.textContent = Math.ceil(current);
+                        requestAnimationFrame(updateCounter);
+                    } else {
+                        counter.textContent = target;
+                    }
+                };
+                
+                // Iniciar animación cuando el elemento sea visible
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            updateCounter();
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                });
+                
+                observer.observe(counter);
             });
         }
 
         // Verificar actualizaciones de estadísticas cada 5 minutos
         setInterval(function() {
-            // Solo para admin
             <?php if ($user['role'] === 'admin'): ?>
             fetch('<?= APP_URL ?>/admin/api?action=statistics')
                 .then(response => response.json())
@@ -782,22 +788,84 @@ try {
         function updateStats(stats) {
             const statNumbers = document.querySelectorAll('.stat-number');
             if (statNumbers.length >= 4) {
-                statNumbers[0].textContent = stats.totalUsers;
-                statNumbers[1].textContent = stats.totalPrograms;
-                statNumbers[2].textContent = stats.totalResources;
-                statNumbers[3].textContent = stats.activeSessions;
+                animateStatUpdate(statNumbers[0], stats.totalUsers);
+                animateStatUpdate(statNumbers[1], stats.totalPrograms);
+                animateStatUpdate(statNumbers[2], stats.totalResources);
+                animateStatUpdate(statNumbers[3], stats.activeSessions);
             }
         }
 
-        // Notificaciones del sistema
-        function checkSystemNotifications() {
-            // Implementar verificación de notificaciones del sistema
-            // Por ejemplo: mantenimiento programado, actualizaciones, etc.
+        function animateStatUpdate(element, newValue) {
+            const currentValue = parseInt(element.textContent);
+            let current = currentValue;
+            const increment = (newValue - currentValue) / 20;
+            
+            const update = () => {
+                if (Math.abs(current - newValue) > Math.abs(increment)) {
+                    current += increment;
+                    element.textContent = Math.round(current);
+                    requestAnimationFrame(update);
+                } else {
+                    element.textContent = newValue;
+                }
+            };
+            
+            update();
         }
 
-        // Llamar verificación de notificaciones al cargar
+        // Sistema de notificaciones mejorado
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                    <span class="notification-message">${message}</span>
+                </div>
+            `;
+            
+            notification.style.cssText = `
+                position: fixed;
+                top: 90px;
+                right: 20px;
+                background: white;
+                border-radius: 12px;
+                padding: 15px 20px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+                z-index: 10000;
+                transform: translateX(400px);
+                transition: transform 0.3s ease;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            setTimeout(() => {
+                notification.style.transform = 'translateX(400px)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Verificación del estado del sistema
+        function checkSystemStatus() {
+            fetch('<?= APP_URL ?>/api/system-status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.maintenance) {
+                        showNotification('El sistema entrará en mantenimiento pronto', 'warning');
+                    }
+                })
+                .catch(error => console.log('System status check failed:', error));
+        }
+
+        // Llamar verificaciones al cargar
         document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(checkSystemNotifications, 2000);
+            setTimeout(checkSystemStatus, 2000);
         });
     </script>
     <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>

@@ -1,6 +1,6 @@
 <?php
 // =====================================
-// ARCHIVO: modules/admin/api.php - API Corregida
+// ARCHIVO: modules/admin/api.php - API COMPLETA CORREGIDA
 // =====================================
 
 // Evitar cualquier output antes del JSON
@@ -13,6 +13,7 @@ error_reporting(E_ALL);
 // Incluir archivos necesarios
 require_once dirname(__DIR__, 2) . '/config/database.php';
 require_once dirname(__DIR__, 2) . '/config/app.php';
+require_once dirname(__DIR__, 2) . '/config/config_functions.php';
 
 // Verificar sesión y permisos
 App::init();
@@ -41,6 +42,7 @@ class AdminAPI {
         
         try {
             switch($action) {
+                // Configuración
                 case 'save_config':
                     $result = $this->saveConfiguration();
                     break;
@@ -50,12 +52,29 @@ class AdminAPI {
                 case 'upload_config_image':
                     $result = $this->uploadConfigImage();
                     break;
+                    
+                // Usuarios - ACCIONES FALTANTES
                 case 'users':
                     $result = $this->getUsers();
                     break;
+                case 'create_user':
+                    $result = $this->createUser();
+                    break;
+                case 'update_user':
+                    $result = $this->updateUser();
+                    break;
+                case 'toggle_user':
+                    $result = $this->toggleUser();
+                    break;
+                case 'delete_user':
+                    $result = $this->deleteUser();
+                    break;
+                    
+                // Estadísticas
                 case 'statistics':
                     $result = $this->getStatistics();
                     break;
+                    
                 default:
                     $result = ['success' => false, 'error' => 'Acción no válida: ' . $action];
             }
@@ -63,7 +82,7 @@ class AdminAPI {
             echo json_encode($result, JSON_UNESCAPED_UNICODE);
             
         } catch(Exception $e) {
-            error_log("Admin API Error: " . $e->getMessage());
+            error_log("Admin API Error ({$action}): " . $e->getMessage() . " - " . $e->getTraceAsString());
             $this->sendError($e->getMessage());
         }
         
@@ -76,6 +95,296 @@ class AdminAPI {
         echo json_encode(['success' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
         exit;
     }
+    
+    // ============================================
+    // MÉTODOS DE USUARIOS - IMPLEMENTACIÓN COMPLETA
+    // ============================================
+    
+    private function createUser() {
+        try {
+            // Validar datos obligatorios
+            $username = trim($_POST['username'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $full_name = trim($_POST['full_name'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $role = $_POST['role'] ?? '';
+            $active = isset($_POST['active']) ? (int)$_POST['active'] : 1;
+            
+            if (empty($username) || empty($email) || empty($full_name) || empty($password) || empty($role)) {
+                throw new Exception('Todos los campos obligatorios deben estar completos');
+            }
+            
+            // Validar longitud de campos
+            if (strlen($username) < 3 || strlen($username) > 50) {
+                throw new Exception('El nombre de usuario debe tener entre 3 y 50 caracteres');
+            }
+            
+            if (strlen($password) < 6) {
+                throw new Exception('La contraseña debe tener al menos 6 caracteres');
+            }
+            
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new Exception('El email no tiene un formato válido');
+            }
+            
+            if (!in_array($role, ['admin', 'agent'])) {
+                throw new Exception('Rol no válido');
+            }
+            
+            // Verificar que no exista username o email duplicado
+            $existing = $this->db->fetch(
+                "SELECT id FROM users WHERE username = ? OR email = ?",
+                [$username, $email]
+            );
+            
+            if ($existing) {
+                throw new Exception('El nombre de usuario o email ya existe');
+            }
+            
+            // Hashear contraseña
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            
+            // Insertar usuario
+            $userId = $this->db->insert('users', [
+                'username' => $username,
+                'email' => $email,
+                'full_name' => $full_name,
+                'password' => $hashedPassword,
+                'role' => $role,
+                'active' => $active,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+            
+            if (!$userId) {
+                throw new Exception('Error al crear el usuario en la base de datos');
+            }
+            
+            return [
+                'success' => true,
+                'message' => 'Usuario creado correctamente',
+                'data' => ['id' => $userId]
+            ];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error al crear usuario: ' . $e->getMessage());
+        }
+    }
+    
+    private function updateUser() {
+        try {
+            $id = (int)($_POST['id'] ?? 0);
+            if (!$id) {
+                throw new Exception('ID de usuario requerido');
+            }
+            
+            // Verificar que el usuario existe
+            $existingUser = $this->db->fetch("SELECT * FROM users WHERE id = ?", [$id]);
+            if (!$existingUser) {
+                throw new Exception('Usuario no encontrado');
+            }
+            
+            // Validar datos
+            $username = trim($_POST['username'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $full_name = trim($_POST['full_name'] ?? '');
+            $password = trim($_POST['password'] ?? '');
+            $role = $_POST['role'] ?? '';
+            $active = isset($_POST['active']) ? (int)$_POST['active'] : 1;
+            
+            if (empty($username) || empty($email) || empty($full_name) || empty($role)) {
+                throw new Exception('Todos los campos obligatorios deben estar completos');
+            }
+            
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new Exception('El email no tiene un formato válido');
+            }
+            
+            if (!in_array($role, ['admin', 'agent'])) {
+                throw new Exception('Rol no válido');
+            }
+            
+            // Verificar duplicados (excluyendo el usuario actual)
+            $duplicate = $this->db->fetch(
+                "SELECT id FROM users WHERE (username = ? OR email = ?) AND id != ?",
+                [$username, $email, $id]
+            );
+            
+            if ($duplicate) {
+                throw new Exception('El nombre de usuario o email ya existe en otro usuario');
+            }
+            
+            // Preparar datos para actualizar
+            $updateData = [
+                'username' => $username,
+                'email' => $email,
+                'full_name' => $full_name,
+                'role' => $role,
+                'active' => $active,
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+            
+            // Solo actualizar contraseña si se proporcionó una nueva
+            if (!empty($password)) {
+                if (strlen($password) < 6) {
+                    throw new Exception('La contraseña debe tener al menos 6 caracteres');
+                }
+                $updateData['password'] = password_hash($password, PASSWORD_DEFAULT);
+            }
+            
+            // Actualizar usuario
+            $updated = $this->db->update('users', $updateData, ['id' => $id]);
+            
+            if (!$updated) {
+                throw new Exception('Error al actualizar el usuario en la base de datos');
+            }
+            
+            return [
+                'success' => true,
+                'message' => 'Usuario actualizado correctamente'
+            ];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error al actualizar usuario: ' . $e->getMessage());
+        }
+    }
+    
+    private function toggleUser() {
+        try {
+            $id = (int)($_POST['id'] ?? 0);
+            if (!$id) {
+                throw new Exception('ID de usuario requerido');
+            }
+            
+            // No permitir desactivar al usuario con ID 1 (admin principal)
+            if ($id === 1) {
+                throw new Exception('No se puede desactivar el administrador principal');
+            }
+            
+            // Obtener usuario actual
+            $user = $this->db->fetch("SELECT id, username, active FROM users WHERE id = ?", [$id]);
+            if (!$user) {
+                throw new Exception('Usuario no encontrado');
+            }
+            
+            // Cambiar estado
+            $newStatus = $user['active'] ? 0 : 1;
+            $action = $newStatus ? 'activado' : 'desactivado';
+            
+            $updated = $this->db->update('users', 
+                ['active' => $newStatus, 'updated_at' => date('Y-m-d H:i:s')], 
+                ['id' => $id]
+            );
+            
+            if (!$updated) {
+                throw new Exception('Error al cambiar el estado del usuario');
+            }
+            
+            return [
+                'success' => true,
+                'message' => "Usuario '{$user['username']}' {$action} correctamente"
+            ];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error al cambiar estado del usuario: ' . $e->getMessage());
+        }
+    }
+    
+    private function deleteUser() {
+        try {
+            $id = (int)($_POST['id'] ?? 0);
+            if (!$id) {
+                throw new Exception('ID de usuario requerido');
+            }
+            
+            // No permitir eliminar al usuario con ID 1 (admin principal)
+            if ($id === 1) {
+                throw new Exception('No se puede eliminar el administrador principal');
+            }
+            
+            // Obtener usuario
+            $user = $this->db->fetch("SELECT id, username FROM users WHERE id = ?", [$id]);
+            if (!$user) {
+                throw new Exception('Usuario no encontrado');
+            }
+            
+            // Eliminar usuario
+            $deleted = $this->db->delete('users', ['id' => $id]);
+            
+            if (!$deleted) {
+                throw new Exception('Error al eliminar el usuario de la base de datos');
+            }
+            
+            return [
+                'success' => true,
+                'message' => "Usuario '{$user['username']}' eliminado correctamente"
+            ];
+            
+        } catch(Exception $e) {
+            throw new Exception('Error al eliminar usuario: ' . $e->getMessage());
+        }
+    }
+    
+    private function getUsers() {
+        try {
+            $users = $this->db->fetchAll(
+                "SELECT id, username, email, full_name, role, active, last_login, created_at 
+                 FROM users 
+                 ORDER BY created_at DESC"
+            );
+            
+            foreach($users as &$user) {
+                $user['active'] = (bool)$user['active'];
+                $user['last_login_formatted'] = $user['last_login'] ? 
+                    date('d/m/Y H:i', strtotime($user['last_login'])) : 'Nunca';
+                $user['created_at_formatted'] = date('d/m/Y', strtotime($user['created_at']));
+            }
+            
+            return ['success' => true, 'data' => $users];
+        } catch(Exception $e) {
+            throw new Exception('Error obteniendo usuarios: ' . $e->getMessage());
+        }
+    }
+    
+    private function getStatistics() {
+        try {
+            // Contar usuarios
+            $totalUsers = $this->db->fetch("SELECT COUNT(*) as count FROM users")['count'] ?? 0;
+            
+            // Contar programas (asumiendo tabla 'programs')
+            $totalPrograms = 0;
+            if ($this->tableExists('programs')) {
+                $totalPrograms = $this->db->fetch("SELECT COUNT(*) as count FROM programs")['count'] ?? 0;
+            }
+            
+            // Contar recursos de biblioteca (asumiendo tabla 'library_resources')
+            $totalResources = 0;
+            if ($this->tableExists('library_resources')) {
+                $totalResources = $this->db->fetch("SELECT COUNT(*) as count FROM library_resources")['count'] ?? 0;
+            }
+            
+            // Contar sesiones activas (últimas 24 horas)
+            $activeSessions = $this->db->fetch(
+                "SELECT COUNT(DISTINCT user_id) as count FROM users 
+                 WHERE last_login > DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+            )['count'] ?? 0;
+            
+            return [
+                'success' => true,
+                'data' => [
+                    'totalUsers' => (int)$totalUsers,
+                    'totalPrograms' => (int)$totalPrograms,
+                    'totalResources' => (int)$totalResources,
+                    'activeSessions' => (int)$activeSessions
+                ]
+            ];
+        } catch(Exception $e) {
+            throw new Exception('Error obteniendo estadísticas: ' . $e->getMessage());
+        }
+    }
+    
+    // ============================================
+    // MÉTODOS DE CONFIGURACIÓN (EXISTENTES)
+    // ============================================
     
     private function saveConfiguration() {
         try {
@@ -114,219 +423,15 @@ class AdminAPI {
         }
     }
     
-    private function ensureConfigTable() {
-        try {
-            // Verificar si existe
-            $exists = $this->db->fetch("SHOW TABLES LIKE 'company_settings'");
-            
-            if (!$exists) {
-                // Crear tabla
-                $sql = "CREATE TABLE `company_settings` (
-                    `id` INT AUTO_INCREMENT PRIMARY KEY,
-                    `company_name` VARCHAR(100) DEFAULT 'Travel Agency',
-                    `logo_url` VARCHAR(255) NULL,
-                    `background_image` VARCHAR(255) NULL,
-                    `admin_primary_color` VARCHAR(7) DEFAULT '#e53e3e',
-                    `admin_secondary_color` VARCHAR(7) DEFAULT '#fd746c',
-                    `agent_primary_color` VARCHAR(7) DEFAULT '#667eea',
-                    `agent_secondary_color` VARCHAR(7) DEFAULT '#764ba2',
-                    `login_bg_color` VARCHAR(7) DEFAULT '#667eea',
-                    `login_secondary_color` VARCHAR(7) DEFAULT '#764ba2',
-                    `default_language` VARCHAR(5) DEFAULT 'es',
-                    `session_timeout` INT DEFAULT 60,
-                    `max_file_size` INT DEFAULT 10,
-                    `backup_frequency` ENUM('daily','weekly','monthly','never') DEFAULT 'weekly',
-                    `maintenance_mode` TINYINT(1) DEFAULT 0,
-                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-                
-                $this->db->query($sql);
-            }
-            
-            // Verificar columnas necesarias
-            $this->ensureColumns();
-            
-        } catch(Exception $e) {
-            throw new Exception('Error preparando tabla de configuración: ' . $e->getMessage());
-        }
-    }
-    
-    private function ensureColumns() {
-        $requiredColumns = [
-            'admin_primary_color' => "VARCHAR(7) DEFAULT '#e53e3e'",
-            'admin_secondary_color' => "VARCHAR(7) DEFAULT '#fd746c'",
-            'agent_primary_color' => "VARCHAR(7) DEFAULT '#667eea'",
-            'agent_secondary_color' => "VARCHAR(7) DEFAULT '#764ba2'",
-            'login_bg_color' => "VARCHAR(7) DEFAULT '#667eea'",
-            'login_secondary_color' => "VARCHAR(7) DEFAULT '#764ba2'",
-            'default_language' => "VARCHAR(5) DEFAULT 'es'",
-            'session_timeout' => "INT DEFAULT 60"
-        ];
-        
-        $existingColumns = $this->db->fetchAll("SHOW COLUMNS FROM company_settings");
-        $columnNames = array_column($existingColumns, 'Field');
-        
-        foreach ($requiredColumns as $column => $definition) {
-            if (!in_array($column, $columnNames)) {
-                try {
-                    $this->db->query("ALTER TABLE company_settings ADD COLUMN `{$column}` {$definition}");
-                } catch(Exception $e) {
-                    error_log("Error adding column {$column}: " . $e->getMessage());
-                }
-            }
-        }
-    }
-    
-    private function updateConfig($id, $data) {
-        $setParts = [];
-        $params = [];
-        
-        foreach ($data as $key => $value) {
-            $setParts[] = "`{$key}` = ?";
-            $params[] = $value;
-        }
-        
-        $params[] = $id;
-        $sql = "UPDATE company_settings SET " . implode(', ', $setParts) . " WHERE id = ?";
-        
-        $this->db->query($sql, $params);
-    }
-    
-    private function createConfig($data) {
-        // Asegurar valores por defecto
-        $defaults = [
-            'company_name' => 'Travel Agency',
-            'admin_primary_color' => '#e53e3e',
-            'admin_secondary_color' => '#fd746c',
-            'agent_primary_color' => '#667eea',
-            'agent_secondary_color' => '#764ba2',
-            'login_bg_color' => '#667eea',
-            'login_secondary_color' => '#764ba2',
-            'default_language' => 'es',
-            'session_timeout' => 60,
-            'max_file_size' => 10,
-            'backup_frequency' => 'weekly',
-            'maintenance_mode' => 0
-        ];
-        
-        $finalData = array_merge($defaults, $data);
-        $this->db->insert('company_settings', $finalData);
-    }
-    
-    private function prepareConfigData($postData) {
-        $allowedFields = [
-            'company_name',
-            'logo_url',
-            'background_image',
-            'admin_primary_color',
-            'admin_secondary_color',
-            'agent_primary_color',
-            'agent_secondary_color',
-            'login_bg_color',
-            'login_secondary_color',
-            'default_language',
-            'session_timeout',
-            'max_file_size',
-            'backup_frequency',
-            'maintenance_mode'
-        ];
-        
-        $data = [];
-        
-        foreach ($allowedFields as $field) {
-            if (isset($postData[$field])) {
-                $value = trim((string)$postData[$field]);
-                
-                if ($value !== '') {
-                    switch ($field) {
-                        case 'session_timeout':
-                        case 'max_file_size':
-                            $data[$field] = max(1, (int)$value);
-                            break;
-                        case 'maintenance_mode':
-                            $data[$field] = ($value === '1' || $value === 'true') ? 1 : 0;
-                            break;
-                        default:
-                            $data[$field] = $value;
-                    }
-                }
-            }
-        }
-        
-        return $data;
-    }
-    
-    private function validateConfigData($data) {
-        // Validar colores
-        $colorFields = [
-            'admin_primary_color', 'admin_secondary_color',
-            'agent_primary_color', 'agent_secondary_color',
-            'login_bg_color', 'login_secondary_color'
-        ];
-        
-        foreach ($colorFields as $field) {
-            if (isset($data[$field])) {
-                if (!preg_match('/^#[a-f0-9]{6}$/i', $data[$field])) {
-                    throw new Exception("Color {$field} inválido. Use formato #rrggbb");
-                }
-            }
-        }
-        
-        // Validar idioma
-        if (isset($data['default_language'])) {
-            $validLangs = ['es', 'en', 'fr', 'pt'];
-            if (!in_array($data['default_language'], $validLangs)) {
-                throw new Exception('Idioma no válido');
-            }
-        }
-        
-        // Validar timeout
-        if (isset($data['session_timeout'])) {
-            $timeout = (int)$data['session_timeout'];
-            if ($timeout < 15 || $timeout > 480) {
-                throw new Exception('Tiempo de sesión debe estar entre 15 y 480 minutos');
-            }
-        }
-        
-        // Validar tamaño archivo
-        if (isset($data['max_file_size'])) {
-            $size = (int)$data['max_file_size'];
-            if ($size < 1 || $size > 100) {
-                throw new Exception('Tamaño de archivo debe estar entre 1 y 100 MB');
-            }
-        }
-    }
-    
     private function getConfiguration() {
         try {
-            $this->ensureConfigTable();
-            
-            $config = $this->db->fetch("SELECT * FROM company_settings ORDER BY id DESC LIMIT 1");
-            
-            if (!$config) {
-                // Crear configuración por defecto
-                $defaults = [
-                    'company_name' => 'Travel Agency',
-                    'admin_primary_color' => '#e53e3e',
-                    'admin_secondary_color' => '#fd746c',
-                    'agent_primary_color' => '#667eea',
-                    'agent_secondary_color' => '#764ba2',
-                    'login_bg_color' => '#667eea',
-                    'login_secondary_color' => '#764ba2',
-                    'default_language' => 'es',
-                    'session_timeout' => 60
-                ];
-                
-                $this->createConfig($defaults);
-                $config = $this->db->fetch("SELECT * FROM company_settings ORDER BY id DESC LIMIT 1");
-            }
+            ConfigManager::init();
+            $config = ConfigManager::get();
             
             return [
                 'success' => true,
-                'data' => $config
+                'data' => $config ?: []
             ];
-            
         } catch(Exception $e) {
             throw new Exception('Error obteniendo configuración: ' . $e->getMessage());
         }
@@ -386,77 +491,110 @@ class AdminAPI {
         }
     }
     
-    private function getUsers() {
+    // ============================================
+    // MÉTODOS AUXILIARES
+    // ============================================
+    
+    private function tableExists($tableName) {
         try {
-            $users = $this->db->fetchAll(
-                "SELECT id, username, email, full_name, role, active, last_login, created_at 
-                 FROM users 
-                 ORDER BY created_at DESC"
-            );
-            
-            foreach($users as &$user) {
-                $user['active'] = (bool)$user['active'];
-                $user['last_login_formatted'] = $user['last_login'] ? 
-                    date('d/m/Y H:i', strtotime($user['last_login'])) : 'Nunca';
-                $user['created_at_formatted'] = date('d/m/Y', strtotime($user['created_at']));
-            }
-            
-            return ['success' => true, 'data' => $users];
+            $result = $this->db->fetch("SHOW TABLES LIKE ?", [$tableName]);
+            return !empty($result);
         } catch(Exception $e) {
-            throw new Exception('Error obteniendo usuarios: ' . $e->getMessage());
+            return false;
         }
     }
     
-    private function getStatistics() {
-        try {
-            $totalUsers = $this->db->fetch("SELECT COUNT(*) as count FROM users WHERE active = 1")['count'] ?? 0;
-            
-            $totalPrograms = 0;
-            try {
-                $result = $this->db->fetch("SELECT COUNT(*) as count FROM programa_solicitudes");
-                $totalPrograms = $result['count'] ?? 0;
-            } catch(Exception $e) {
-                $totalPrograms = 0;
+    private function ensureConfigTable() {
+        $sql = "CREATE TABLE IF NOT EXISTS `company_settings` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `company_name` VARCHAR(100) DEFAULT 'Travel Agency',
+            `logo_url` VARCHAR(255) NULL,
+            `background_image` VARCHAR(255) NULL,
+            `admin_primary_color` VARCHAR(7) DEFAULT '#e53e3e',
+            `admin_secondary_color` VARCHAR(7) DEFAULT '#fd746c',
+            `agent_primary_color` VARCHAR(7) DEFAULT '#667eea',
+            `agent_secondary_color` VARCHAR(7) DEFAULT '#764ba2',
+            `login_bg_color` VARCHAR(7) DEFAULT '#667eea',
+            `login_secondary_color` VARCHAR(7) DEFAULT '#764ba2',
+            `default_language` VARCHAR(5) DEFAULT 'es',
+            `session_timeout` INT DEFAULT 60,
+            `max_file_size` INT DEFAULT 10,
+            `backup_frequency` ENUM('daily','weekly','monthly','never') DEFAULT 'weekly',
+            `maintenance_mode` TINYINT(1) DEFAULT 0,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        
+        $this->db->query($sql);
+    }
+    
+    private function prepareConfigData($data) {
+        $allowed = [
+            'company_name', 'logo_url', 'background_image',
+            'admin_primary_color', 'admin_secondary_color',
+            'agent_primary_color', 'agent_secondary_color',
+            'login_bg_color', 'login_secondary_color',
+            'default_language', 'session_timeout', 'max_file_size',
+            'backup_frequency', 'maintenance_mode'
+        ];
+        
+        $configData = [];
+        foreach ($allowed as $key) {
+            if (isset($data[$key])) {
+                $configData[$key] = $data[$key];
             }
-            
-            $totalResources = 0;
-            $tables = ['biblioteca_dias', 'biblioteca_alojamientos', 'biblioteca_actividades', 'biblioteca_transportes'];
-            
-            foreach($tables as $table) {
-                try {
-                    $result = $this->db->fetch("SELECT COUNT(*) as count FROM {$table} WHERE activo = 1");
-                    $totalResources += $result['count'] ?? 0;
-                } catch(Exception $e) {
-                    continue;
-                }
-            }
-            
-            $activeSessions = $this->db->fetch(
-                "SELECT COUNT(*) as count FROM users WHERE last_login > DATE_SUB(NOW(), INTERVAL 24 HOUR)"
-            )['count'] ?? 0;
-            
-            return [
-                'success' => true,
-                'data' => [
-                    'totalUsers' => (int)$totalUsers,
-                    'totalPrograms' => (int)$totalPrograms,
-                    'totalResources' => (int)$totalResources,
-                    'activeSessions' => (int)$activeSessions
-                ]
-            ];
-        } catch(Exception $e) {
-            throw new Exception('Error obteniendo estadísticas: ' . $e->getMessage());
         }
+        
+        return $configData;
+    }
+    
+    private function validateConfigData($data) {
+        // Validar colores hex
+        $colorFields = [
+            'admin_primary_color', 'admin_secondary_color',
+            'agent_primary_color', 'agent_secondary_color',
+            'login_bg_color', 'login_secondary_color'
+        ];
+        
+        foreach ($colorFields as $field) {
+            if (isset($data[$field]) && !preg_match('/^#[0-9A-Fa-f]{6}$/', $data[$field])) {
+                throw new Exception("Color {$field} no válido");
+            }
+        }
+        
+        // Validar números
+        if (isset($data['session_timeout']) && ((int)$data['session_timeout'] < 5 || (int)$data['session_timeout'] > 480)) {
+            throw new Exception('El tiempo de sesión debe estar entre 5 y 480 minutos');
+        }
+        
+        if (isset($data['max_file_size']) && ((int)$data['max_file_size'] < 1 || (int)$data['max_file_size'] > 100)) {
+            throw new Exception('El tamaño máximo de archivo debe estar entre 1 y 100 MB');
+        }
+    }
+    
+    private function updateConfig($id, $data) {
+        $data['updated_at'] = date('Y-m-d H:i:s');
+        return $this->db->update('company_settings', $data, ['id' => $id]);
+    }
+    
+    private function createConfig($data) {
+        $data['created_at'] = date('Y-m-d H:i:s');
+        return $this->db->insert('company_settings', $data);
     }
 }
 
-// Ejecutar API
+// ============================================
+// INICIALIZAR Y PROCESAR SOLICITUD
+// ============================================
+
 try {
     $api = new AdminAPI();
     $api->handleRequest();
 } catch(Exception $e) {
     ob_clean();
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['success' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Error interno del servidor: ' . $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE);
 }
-?>

@@ -1,12 +1,14 @@
 <?php 
 // =====================================
-// ARCHIVO: pages/biblioteca.php - Biblioteca con Colores Dinámicos
+// ARCHIVO: pages/biblioteca.php - Biblioteca con Componentes UI Integrados
 // =====================================
 
 App::requireLogin();
 
-// Incluir ConfigManager
+// Incluir ConfigManager y componentes UI
 require_once 'config/config_functions.php';
+require_once __DIR__ . '/../config/constants.php';
+require_once __DIR__ . '/../includes/ui_components.php';
 
 $user = App::getUser(); 
 
@@ -24,6 +26,10 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Biblioteca - <?= htmlspecialchars($companyName) ?></title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Incluir estilos de componentes -->
+    <?= UIComponents::getComponentStyles() ?>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -35,10 +41,12 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f7fa;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            color: #333;
+            min-height: 100vh;
         }
 
-        /* Header con colores dinámicos */
+        /* Header con componentes */
         .header {
             background: var(--primary-gradient);
             color: white;
@@ -46,7 +54,13 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
         }
 
         .header-left {
@@ -55,36 +69,124 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             gap: 15px;
         }
 
+        .menu-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .menu-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
         .back-btn {
             background: rgba(255, 255, 255, 0.2);
             color: white;
             border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
+            padding: 10px 20px;
+            border-radius: 25px;
             cursor: pointer;
             text-decoration: none;
-            transition: background 0.3s ease;
+            transition: all 0.3s ease;
+            font-weight: 500;
         }
 
         .back-btn:hover {
             background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
         }
 
-        /* Google Translate */
-        #google_translate_element {
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+
+        .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e2e8f0;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .search-input {
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: scale(1.02);
+        }
+
+        .filter-select:focus {
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .user-info:hover {
             background: rgba(255, 255, 255, 0.2);
-            padding: 5px 10px;
-            border-radius: 20px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Google Translate mejorado */
+        #google_translate_element {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 15px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
         }
 
         .goog-te-banner-frame.skiptranslate { display: none !important; }
         body { top: 0px !important; }
 
-        /* Main Content */
+        /* Main Content mejorado */
         .main-content {
-            padding: 30px;
-            max-width: 1400px;
-            margin: 0 auto;
+            margin-left: 0;
+            margin-top: 70px;
+            padding: 40px;
+            transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: calc(100vh - 70px);
+        }
+
+        .main-content.sidebar-open {
+            margin-left: 320px;
         }
 
         /* Tabs Container */
@@ -539,10 +641,38 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             100% { transform: translateY(-50%) rotate(360deg); }
         }
 
+        /* Overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
+            .header {
+                padding: 15px 20px;
+            }
+
             .main-content {
                 padding: 20px;
+            }
+
+            .main-content.sidebar-open {
+                margin-left: 0;
             }
 
             .tabs-nav {
@@ -576,73 +706,68 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             }
         }
       
-.image-count {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 500;
-}
+        .image-count {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
 
-.card-category,
-.card-type,
-.card-transport {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    margin-bottom: 4px;
-    font-size: 12px;
-    color: #4a5568;
-}
+        .card-category,
+        .card-type,
+        .card-transport {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #4a5568;
+        }
 
-.image-preview.existing {
-    border-color: #10b981 !important;
-}
+        .image-preview.existing {
+            border-color: #10b981 !important;
+        }
 
-.image-preview.new {
-    border-color: #3b82f6 !important;
-}
+        .image-preview.new {
+            border-color: #3b82f6 !important;
+        }
 
-.existing-image-indicator {
-    background: #10b981 !important;
-}
+        .existing-image-indicator {
+            background: #10b981 !important;
+        }
 
-.new-image-indicator {
-    background: #3b82f6 !important;
-}
+        .new-image-indicator {
+            background: #3b82f6 !important;
+        }
 
-/* Hover effect para cards con imágenes */
-.item-card:hover .card-image img {
-    transform: scale(1.05);
-    transition: transform 0.3s ease;
-}
+        /* Hover effect para cards con imágenes */
+        .item-card:hover .card-image img {
+            transform: scale(1.05);
+            transition: transform 0.3s ease;
+        }
 
-.card-image {
-    overflow: hidden;
-}
-
+        .card-image {
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div class="header-left">
-            <a href="<?= APP_URL ?>/dashboard" class="back-btn">← Volver</a>
-            <h2>📚 Biblioteca de Recursos</h2>
-        </div>
-        
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div id="google_translate_element"></div>
-            <span><?= htmlspecialchars($user['name']) ?></span>
-        </div>
-    </div>
+    <!-- Header con componentes -->
+    <?= UIComponents::renderHeader($user) ?>
+
+    <!-- Sidebar con componentes -->
+    <?= UIComponents::renderSidebar($user, '/biblioteca') ?>
+
+    <!-- Overlay -->
+    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
     <!-- Main Content -->
-    <div class="main-content">
+    <div class="main-content" id="mainContent">
         <div class="tabs-container">
             <!-- Tabs Navigation -->
             <div class="tabs-nav">
@@ -654,7 +779,7 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
 
             <!-- Filters Section -->
             <div class="filters-section">
-                <input type="text" class="search-input" placeholder="Buscar recursos..." id="searchInput">
+                <input type="text" class="search-input" placeholder="Buscar por título, descripción, ubicación..." id="searchInput">
                 <select class="filter-select" id="languageFilter">
                     <option value="">Todos los idiomas</option>
                     <option value="es">Español</option>
@@ -724,16 +849,18 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
         </div>
     </div>
 
+
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Configuración global - SIN API KEYS
         const APP_URL = '<?= APP_URL ?>';
         const DEFAULT_LANGUAGE = '<?= $defaultLanguage ?>';
-        
+
         let currentTab = 'dias';
         let map = null;
         let currentMarker = null;
+        let sidebarOpen = false;
         let resources = {
             dias: [],
             alojamientos: [],
@@ -748,6 +875,54 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             setupSearch();
             initializeGoogleTranslate();
         });
+        
+        // Funciones de sidebar CORREGIDAS
+        function toggleSidebar() {
+            // Buscar por clase, no por ID
+            const sidebar = document.querySelector('.enhanced-sidebar');
+            const overlay = document.getElementById('overlay');
+            const mainContent = document.getElementById('mainContent');
+            
+            // Debug para verificar elementos
+            console.log('🔍 Elementos sidebar:', {
+                sidebar: !!sidebar,
+                overlay: !!overlay,
+                mainContent: !!mainContent
+            });
+            
+            if (!sidebar) {
+                console.error('❌ Sidebar no encontrado con clase .enhanced-sidebar');
+                return;
+            }
+            
+            sidebarOpen = !sidebarOpen;
+            
+            if (sidebarOpen) {
+                sidebar.classList.add('open');
+                if (overlay) overlay.classList.add('show');
+                if (mainContent && window.innerWidth > 768) {
+                    mainContent.classList.add('sidebar-open');
+                }
+                console.log('✅ Sidebar abierto');
+            } else {
+                sidebar.classList.remove('open');
+                if (overlay) overlay.classList.remove('show');
+                if (mainContent) mainContent.classList.remove('sidebar-open');
+                console.log('✅ Sidebar cerrado');
+            }
+        }
+
+        function closeSidebar() {
+            if (sidebarOpen) {
+                toggleSidebar();
+            }
+        }
+
+        function toggleUserMenu() {
+            if (confirm('¿Desea cerrar sesión?')) {
+                window.location.href = '<?= APP_URL ?>/auth/logout';
+            }
+        }
 
         // ============================================= 
         // NUEVA FUNCIÓN DE MAPA CON OPENSTREETMAP
@@ -917,7 +1092,7 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                 });
         }
 
-        // ============================================= 
+       // ============================================= 
         // FUNCIONES AUXILIARES
         // ============================================= 
 
@@ -1076,16 +1251,22 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             });
         }
 
-        // Cargar recursos según el tab activo
+        // MODIFICAR la función loadResources existente
         async function loadResources() {
             const grid = document.getElementById('contentGrid');
             const emptyState = document.getElementById('emptyState');
             
             try {
-                // Mostrar loading
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><div style="font-size: 48px; margin-bottom: 20px;">⏳</div><p>Cargando recursos...</p></div>';
+                // Indicador de carga más sutil
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 20px;">
+                        <div style="display: inline-flex; align-items: center; gap: 10px; background: white; padding: 15px 25px; border-radius: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <div style="width: 16px; height: 16px; border: 2px solid #e2e8f0; border-top: 2px solid var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                            <span>Buscando recursos...</span>
+                        </div>
+                    </div>
+                `;
                 
-                // Llamar a la API real
                 const params = new URLSearchParams({
                     action: 'list',
                     type: currentTab
@@ -1116,26 +1297,36 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                 }
                 
                 resources[currentTab] = result.data || [];
-                renderResources();
+                
+                // Si hay filtros activos, mostrar resultados filtrados
+                if (search || language) {
+                    renderFilteredResults(resources[currentTab]);
+                } else {
+                    renderResources();
+                }
                 
             } catch (error) {
                 console.error('Error al cargar recursos:', error);
-                
-                // Mostrar mensaje de error
-                grid.innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; background: #fed7d7; border-radius: 15px; margin: 20px 0;">
-                        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
-                        <h3 style="color: #e53e3e; margin-bottom: 10px;">Error al cargar recursos</h3>
-                        <p style="color: #c53030;">${error.message}</p>
-                        <button onclick="loadResources()" style="background: #e53e3e; color: white; border: none; padding: 10px 20px; border-radius: 20px; margin-top: 15px; cursor: pointer;">
-                            🔄 Reintentar
-                        </button>
-                    </div>
-                `;
+                showSearchError(error.message);
             }
         }
 
-        // Función mejorada para renderizar recursos con mejor manejo de errores:
+        // AGREGAR esta función
+        function showSearchError(message) {
+            const grid = document.getElementById('contentGrid');
+            grid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 40px; background: #fef2f2; border-radius: 15px; border: 1px solid #fecaca;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                    <h3 style="color: #dc2626; margin-bottom: 10px;">Error en la búsqueda</h3>
+                    <p style="color: #b91c1c; margin-bottom: 20px;">${message}</p>
+                    <button onclick="loadResources()" style="background: #dc2626; color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; font-weight: 500;">
+                        🔄 Intentar de nuevo
+                    </button>
+                </div>
+            `;
+        }
+
+        // Modificar SOLO esta parte de renderResources()
         function renderResources() {
             const grid = document.getElementById('contentGrid');
             const emptyState = document.getElementById('emptyState');
@@ -1144,35 +1335,25 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                 if (!resources[currentTab] || resources[currentTab].length === 0) {
                     grid.style.display = 'none';
                     emptyState.style.display = 'block';
-                    
-                    // Personalizar mensaje según si hay filtros activos
-                    const search = document.getElementById('searchInput').value.trim();
-                    const language = document.getElementById('languageFilter').value;
-                    
-                    if (search || language) {
-                        emptyState.innerHTML = `
-                            <div class="empty-state-icon">🔍</div>
-                            <h3>No se encontraron resultados</h3>
-                            <p>No hay recursos que coincidan con los filtros aplicados</p>
-                            <button onclick="clearFilters()" style="background: var(--primary-gradient); color: white; border: none; padding: 10px 20px; border-radius: 20px; margin-top: 15px; cursor: pointer;">
-                                🗑️ Limpiar Filtros
-                            </button>
-                        `;
-                    } else {
-                        emptyState.innerHTML = `
-                            <div class="empty-state-icon">📂</div>
-                            <h3>No hay recursos disponibles</h3>
-                            <p>Comienza agregando tu primer recurso haciendo clic en "Agregar Nuevo"</p>
-                            <button onclick="openModal('create')" style="background: var(--primary-gradient); color: white; border: none; padding: 10px 20px; border-radius: 20px; margin-top: 15px; cursor: pointer;">
-                                ➕ Crear Primer Recurso
-                            </button>
-                        `;
-                    }
+                    emptyState.innerHTML = `
+                        <div class="empty-state-icon">📂</div>
+                        <h3>No hay recursos disponibles</h3>
+                        <p>Comienza agregando tu primer recurso haciendo clic en "Agregar Nuevo"</p>
+                    `;
                     return;
                 }
 
                 grid.style.display = 'grid';
                 emptyState.style.display = 'none';
+                
+                // AGREGAR ESTA LÍNEA - Aplicar filtros si hay alguno activo
+                const search = document.getElementById('searchInput').value.trim();
+                const language = document.getElementById('languageFilter').value;
+                
+                if (search || language) {
+                    filtrarRecursos();
+                    return;
+                }
                 
                 grid.innerHTML = resources[currentTab].map(item => {
                     return createResourceCard(item);
@@ -2056,20 +2237,154 @@ function removeSuggestions() {
             
             let searchTimeout;
             
-            // Función de búsqueda con delay
-            function performSearch() {
+            function buscarAhora() {
                 if (searchTimeout) {
                     clearTimeout(searchTimeout);
                 }
                 
                 searchTimeout = setTimeout(() => {
-                    loadResources(); // Recargar desde la API con los filtros
-                }, 500); // Esperar 500ms después de que el usuario deje de escribir
+                    filtrarRecursos();
+                }, 200);
             }
             
-            searchInput.addEventListener('input', performSearch);
-            languageFilter.addEventListener('change', performSearch);
+            searchInput.addEventListener('input', buscarAhora);
+            languageFilter.addEventListener('change', filtrarRecursos);
+            
+            // Limpiar con ESC
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    this.value = '';
+                    filtrarRecursos();
+                }
+            });
         }
+
+        function filtrarRecursos() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const languageFilter = document.getElementById('languageFilter').value;
+            const grid = document.getElementById('contentGrid');
+            const emptyState = document.getElementById('emptyState');
+            
+            // Si no hay datos, cargar desde API
+            if (!resources[currentTab] || resources[currentTab].length === 0) {
+                loadResources();
+                return;
+            }
+            
+            // Filtrar datos existentes
+            let filtered = resources[currentTab];
+            
+            // Filtrar por búsqueda
+            if (searchTerm) {
+                filtered = filtered.filter(item => {
+                    return (item.titulo && item.titulo.toLowerCase().includes(searchTerm)) ||
+                        (item.nombre && item.nombre.toLowerCase().includes(searchTerm)) ||
+                        (item.descripcion && item.descripcion.toLowerCase().includes(searchTerm)) ||
+                        (item.ubicacion && item.ubicacion.toLowerCase().includes(searchTerm)) ||
+                        (item.lugar_salida && item.lugar_salida.toLowerCase().includes(searchTerm)) ||
+                        (item.lugar_llegada && item.lugar_llegada.toLowerCase().includes(searchTerm)) ||
+                        (item.medio && item.medio.toLowerCase().includes(searchTerm));
+                });
+            }
+            
+            // Filtrar por idioma
+            if (languageFilter) {
+                filtered = filtered.filter(item => item.idioma === languageFilter);
+            }
+            
+            // Mostrar resultados
+            if (filtered.length === 0) {
+                grid.style.display = 'none';
+                emptyState.style.display = 'block';
+                emptyState.innerHTML = `
+                    <div class="empty-state-icon">🔍</div>
+                    <h3>No se encontraron resultados</h3>
+                    <p>Intenta con otros términos de búsqueda</p>
+                    <button onclick="limpiarFiltros()" style="background: var(--primary-gradient); color: white; border: none; padding: 10px 20px; border-radius: 20px; margin-top: 15px; cursor: pointer;">
+                        🗑️ Limpiar Filtros
+                    </button>
+                `;
+            } else {
+                grid.style.display = 'grid';
+                emptyState.style.display = 'none';
+                grid.innerHTML = filtered.map(item => createResourceCard(item)).join('');
+            }
+        }
+
+        // Función para limpiar filtros
+        function limpiarFiltros() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('languageFilter').value = '';
+            filtrarRecursos();
+        }
+
+// Función para renderizar resultados filtrados
+function renderFilteredResults(filtered) {
+    const grid = document.getElementById('contentGrid');
+    const emptyState = document.getElementById('emptyState');
+    
+    if (filtered.length === 0) {
+        grid.style.display = 'none';
+        emptyState.style.display = 'block';
+        
+        const search = document.getElementById('searchInput').value.trim();
+        const language = document.getElementById('languageFilter').value;
+        
+        if (search || language) {
+            emptyState.innerHTML = `
+                <div class="empty-state-icon">🔍</div>
+                <h3>No se encontraron resultados</h3>
+                <p>No hay recursos que coincidan con "<strong>${escapeHtml(search)}</strong>"</p>
+                <button onclick="clearAllFilters()" style="background: var(--primary-gradient); color: white; border: none; padding: 10px 20px; border-radius: 20px; margin-top: 15px; cursor: pointer;">
+                    🗑️ Limpiar Búsqueda
+                </button>
+            `;
+        }
+        return;
+    }
+
+    grid.style.display = 'grid';
+    emptyState.style.display = 'none';
+    
+    // Agregar indicador de resultados filtrados
+    const searchTerm = document.getElementById('searchInput').value.trim();
+    if (searchTerm) {
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; background: #e3f2fd; padding: 12px 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid var(--primary-color);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>🔍 <strong>${filtered.length}</strong> resultado(s) para "<em>${escapeHtml(searchTerm)}</em>"</span>
+                    <button onclick="clearAllFilters()" style="background: none; border: none; color: var(--primary-color); cursor: pointer; font-size: 14px;">✕ Limpiar</button>
+                </div>
+            </div>
+            ${filtered.map(item => createResourceCard(item)).join('')}
+        `;
+    } else {
+        grid.innerHTML = filtered.map(item => createResourceCard(item)).join('');
+    }
+}
+
+// Función para limpiar todos los filtros
+function clearAllFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('languageFilter').value = '';
+    renderResources();
+    document.getElementById('searchInput').focus();
+}
+        
+
+function showSearchError(message) {
+    const grid = document.getElementById('contentGrid');
+    grid.innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 40px; background: #fef2f2; border-radius: 15px; border: 1px solid #fecaca;">
+            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+            <h3 style="color: #dc2626; margin-bottom: 10px;">Error en la búsqueda</h3>
+            <p style="color: #b91c1c; margin-bottom: 20px;">${message}</p>
+            <button onclick="loadResources()" style="background: #dc2626; color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; font-weight: 500;">
+                🔄 Intentar de nuevo
+            </button>
+        </div>
+    `;
+}
 
         function filterResources() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
@@ -3414,7 +3729,15 @@ if (document.readyState === 'loading') {
 } else {
     initializeBibliotecaFixes();
 }
-
+const style = document.createElement('style');
+style.textContent = `
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+`;
+document.head.appendChild(style);
 </script>
+
 </body>
 </html>

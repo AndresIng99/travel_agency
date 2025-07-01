@@ -5,20 +5,22 @@
 
 require_once 'config/app.php';
 require_once 'config/config_functions.php';
+require_once __DIR__ . '/../config/constants.php';
+require_once __DIR__ . '/../includes/ui_components.php';
+
 
 App::init();
 App::requireLogin();
 
-try {
-    ConfigManager::init();
-    $config = ConfigManager::get();
-    $company_name = ConfigManager::getCompanyName();
-} catch(Exception $e) {
-    $config = [];
-    $company_name = 'Travel Agency';
-}
+$user = App::getUser(); // MOVER ANTES
 
-$user = App::getUser();
+ConfigManager::init();
+$userColors = ConfigManager::getColorsForRole($user['role']);
+$companyName = ConfigManager::getCompanyName();
+$logo = ConfigManager::getLogo();
+$defaultLanguage = ConfigManager::getDefaultLanguage();
+
+
 $is_editing = isset($_GET['id']) && !empty($_GET['id']);
 $programa_id = $is_editing ? intval($_GET['id']) : null;
 
@@ -79,11 +81,12 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
 ?>
 
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?= $defaultLanguage ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $page_title ?> - <?= $company_name ?></title>
+    <title>Programa - <?= htmlspecialchars($companyName) ?></title>
+    <?= UIComponents::getComponentStyles() ?>
     
     <!-- CSS Framework y estilos -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
@@ -91,6 +94,12 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
     <link href="<?= APP_URL ?>/assets/css/dashboard.css" rel="stylesheet">
     
     <style>
+
+        :root {
+    --primary-color: <?= $userColors['primary'] ?>;
+    --secondary-color: <?= $userColors['secondary'] ?>;
+    --primary-gradient: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+}
 
 /* ============================================================
    CSS PARA ALTERNATIVAS - AGREGAR AL <style> DE programa.php
@@ -750,11 +759,11 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
         
         .tab-navigation {
             background-color: white;
-            margin-top: 60px;
+            margin-top: 70px; /* Ajustado para el nuevo header */
             padding: 0;
             border-bottom: 1px solid #e0e0e0;
             position: sticky;
-            top: 60px;
+            top: 70px; /* Ajustado para el nuevo header */
             z-index: 999;
         }
         
@@ -790,13 +799,111 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
             max-width: 1600px;
             margin: 0 auto;
             padding: 40px 20px;
-            display: flex;
-            gap: 40px;
+            display: block; /* Cambiar de flex a block */
+            margin-left: 0;
+            transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .form-section {
+            width: 80%; /* Hacer que ocupe el 80% del ancho */
+            max-width: 1400px; /* Aumentar el ancho máximo */
+            margin: 0 auto; /* Centrar horizontalmente */
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 16px; /* Bordes más redondeados */
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08); /* Sombra más prominente */
+            margin-bottom: 40px; /* Más espacio entre tarjetas */
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .section-header {
+            padding: 40px 50px; /* Más padding */
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        .section-body {
+            padding: 50px; /* Más padding interno */
+        }
+
+        .section-title {
+            font-size: 24px; /* Título más grande */
+            font-weight: 700;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .section-title i {
+            color: var(--primary-color);
+            font-size: 26px;
+        }
+
+        /* Mejorar campos del formulario */
+        .form-group {
             flex: 1;
-            max-width: 1200px;
+            margin-bottom: 32px; /* Más espacio entre campos */
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 16px; /* Etiquetas más grandes */
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 16px 20px; /* Campos más grandes */
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        /* Centrar y mejorar botones de acción */
+        .form-actions {
+            text-align: center;
+            padding: 40px 0;
+            background: #f8fafc;
+            margin: 40px -50px -50px -50px; /* Extender al borde de la tarjeta */
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .btn {
+            padding: 16px 32px; /* Botones más grandes */
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            margin: 0 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
         
         /* Pestañas de contenido */
@@ -955,7 +1062,96 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
             display: flex;
             gap: 8px;
         }
-        
+        /* AGREGAR/REEMPLAZAR estos estilos para botones */
+.btn {
+    padding: 16px 32px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 16px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    margin: 0 10px;
+    min-width: 200px;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+}
+
+.btn-outline:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    text-decoration: none;
+}
+
+/* Contenedor de acciones mejorado */
+.form-actions {
+    text-align: center;
+    padding: 40px;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    margin: 40px -50px -50px -50px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* Responsive para botones */
+@media (max-width: 768px) {
+    .form-actions {
+        flex-direction: column;
+        gap: 15px;
+        margin: 20px -20px -20px -20px;
+        padding: 30px 20px;
+    }
+    
+    .btn {
+        width: 100%;
+        max-width: 300px;
+        margin: 0;
+    }
+}
+
         .day-content {
             padding: 25px;
         }
@@ -1429,26 +1625,42 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
             to { transform: rotate(360deg); }
         }
         
-        /* Alertas y notificaciones */
+        /* AGREGAR/ACTUALIZAR estilos para alertas */
         .alert {
             padding: 16px 20px;
-            border-radius: 8px;
+            border-radius: 12px;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            font-weight: 500;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
-        
+
         .alert-success {
-            background-color: #d1edff;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
         }
-        
+
         .alert-error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .alert-info {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        /* Animación para spinner */
+        .fa-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
         
         .expand-icon {
@@ -1527,7 +1739,25 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
             padding-bottom: 15px;
             border-bottom: 2px solid #e0e0e0;
         }
-        
+        .tab-item.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.tab-item:hover:not(.active) {
+    color: var(--primary-color);
+    background-color: #f8f9fa;
+}
+
+.add-day-btn {
+    background: var(--primary-color);
+    /* resto igual */
+}
+
+.day-sidebar-item.active {
+    background: var(--primary-gradient);
+    /* resto igual */
+}
         .preview-details {
             margin-bottom: 20px;
         }
@@ -1550,42 +1780,186 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
             padding: 8px 0;
             border-bottom: 1px solid #f0f0f0;
         }
+
+        .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s ease;
+    backdrop-filter: blur(5px);
+}
+
+.overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Ajustes para sidebar */
+.main-container.sidebar-open {
+    margin-left: 320px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .main-container.sidebar-open {
+        margin-left: 0;
+    }
+}
+.header {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1001;
+    backdrop-filter: blur(10px);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.menu-toggle {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.menu-toggle:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    padding: 8px 15px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.user-info:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Google Translate mejorado */
+#google_translate_element {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 8px 15px;
+    border-radius: 25px;
+    backdrop-filter: blur(10px);
+}
+
+.goog-te-banner-frame.skiptranslate { 
+    display: none !important; 
+}
+
+body { 
+    top: 0px !important; 
+}
+
+/* Overlay */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s ease;
+    backdrop-filter: blur(5px);
+}
+
+.overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Ajustes para main container */
+.main-container.sidebar-open {
+    margin-left: 320px;
+}
+
+/* Responsive para header */
+@media (max-width: 768px) {
+    .header {
+        padding: 15px 20px;
+    }
+    
+    .main-container.sidebar-open {
+        margin-left: 0;
+    }
+}
     </style>
 </head>
 
 <body>
-    <!-- Top Navigation -->
-    <div class="top-nav">
-        <div class="nav-brand">
-            <a href="<?= APP_URL ?>/dashboard" class="logo"><?= $company_name ?></a>
-        </div>
-        <div class="nav-links">
-            <a href="<?= APP_URL ?>/dashboard">Dashboard</a>
-            <a href="<?= APP_URL ?>/itinerarios">Itinerarios</a>
-            <a href="<?= APP_URL ?>/biblioteca">Biblioteca</a>
-            <div class="user-avatar">
-                <?= strtoupper(substr($user['name'] ?: 'U', 0, 1)) ?>
-            </div>
-        </div>
-    </div>
+    
 
-    <!-- Tab Navigation -->
-    <div class="tab-navigation">
-        <div class="tab-nav">
-            <a href="#" class="tab-item active" data-tab="mi-programa">Mi programa</a>
-            <a href="#" class="tab-item" data-tab="dia-a-dia">Día a día</a>
-            <a href="#" class="tab-item" data-tab="precio">Precio</a>
-            <a href="<?= APP_URL ?>/biblioteca" class="tab-item">
-                <i class="fas fa-book"></i> Biblioteca
-            </a>
-            <a href="#" class="tab-item" onclick="abrirVistaPrevia()">
-                <i class="fas fa-eye"></i> Ver Programa
-            </a>
-            <a href="#" class="tab-item">
-                <i class="fas fa-share"></i> Compartir
-            </a>
-        </div>
+    <!-- Header con componentes -->
+<?= UIComponents::renderHeader($user) ?>
+
+<!-- Sidebar con componentes -->
+<?= UIComponents::renderSidebar($user, '/programa') ?>
+
+<!-- Overlay -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+<br>
+
+<!-- Tab Navigation -->
+<div class="tab-navigation">
+    <div class="tab-nav">
+        <a href="#" class="tab-item active" data-tab="mi-programa">Mi programa</a>
+        <a href="#" class="tab-item" data-tab="dia-a-dia">Día a día</a>
+        <a href="#" class="tab-item" data-tab="precio">Precio</a>
+        <a href="#" class="tab-item" onclick="abrirVistaPrevia()">
+            <i class="fas fa-eye"></i> Vista previa
+        </a>
     </div>
+</div>
 
     <!-- Main Container -->
     <div class="main-container">
@@ -1705,20 +2079,20 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
                     </div>
 
                     <!-- Botones de acción -->
-                    <div class="form-actions" style="text-align: center; padding: 24px 0;">
+                    <div class="form-actions">
                         <button type="submit" class="btn btn-primary" id="submit-btn">
                             <i class="fas fa-save"></i>
                             <?= $is_editing ? 'Actualizar programa' : 'Crear programa' ?>
                         </button>
                         
                         <?php if ($is_editing): ?>
-                        <button type="button" class="btn btn-secondary" onclick="abrirVistaPrevia()" style="margin-left: 16px;">
+                        <button type="button" class="btn btn-secondary" onclick="abrirVistaPrevia()">
                             <i class="fas fa-eye"></i>
                             Ver Programa
                         </button>
                         <?php endif; ?>
                         
-                        <a href="<?= APP_URL ?>/itinerarios" class="btn btn-outline" style="margin-left: 16px;">
+                        <a href="<?= APP_URL ?>/itinerarios" class="btn btn-outline">
                             <i class="fas fa-arrow-left"></i>
                             Volver a itinerarios
                         </a>
@@ -1856,21 +2230,6 @@ $page_title = $is_editing ? 'Editar Programa' : 'Nuevo Programa';
                     </div>
                 </div>
             </div>
-
-          
-
-        <!-- Preview Panel (Solo visible en Mi programa) -->
-        <div class="preview-section" id="preview-panel">
-            <div class="preview-header">
-                <i class="fas fa-eye"></i>
-                Vista rápida
-            </div>
-            <div class="preview-body">
-                <div id="preview-summary">
-                    <!-- Resumen dinámico del programa -->
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Modal para agregar/editar días desde biblioteca -->
@@ -1992,12 +2351,7 @@ function setupTabNavigation() {
             
             currentTab = targetTab;
             
-            // Mostrar/ocultar panel de preview
-            if (targetTab === 'mi-programa') {
-                previewPanel.style.display = 'block';
-            } else {
-                previewPanel.style.display = 'none';
-            }
+            
             
             // Acciones específicas por pestaña
             switch(targetTab) {
@@ -2069,62 +2423,126 @@ async function guardarPrograma() {
     const submitBtn = document.getElementById('submit-btn');
     const originalText = submitBtn.innerHTML;
     
+    // Validaciones antes de enviar
+    const form = document.getElementById('programa-form');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
     try {
-        submitBtn.innerHTML = '<span class="spinner"></span> Guardando...';
+        // Estado de carga
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
         submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.7';
 
-        const formData = new FormData(document.getElementById('programa-form'));
+        const formData = new FormData(form);
         formData.append('action', 'save_programa');
+        
+        // Debug - verificar que programaId esté definido
+        console.log('🔍 Guardando programa. ID actual:', programaId, 'Is editing:', isEditing);
 
         const response = await fetch('<?= APP_URL ?>/modules/programa/api.php', {
             method: 'POST',
             body: formData
         });
 
+        // Verificar respuesta HTTP
+        if (!response.ok) {
+            throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
+        }
+
         const result = await response.json();
+        console.log('📋 Respuesta del servidor:', result);
 
         if (result.success) {
-            showAlert('Programa guardado exitosamente', 'success');
+            // ÉXITO
+            const isCreating = !isEditing;
+            const successMessage = isCreating ? 
+                '✅ Programa creado exitosamente' : 
+                '✅ Programa actualizado exitosamente';
             
-            if (!isEditing) {
-                // Redirigir a edición con el nuevo ID
-                programaId = result.id;
+            showAlert(successMessage, 'success');
+            
+            // Si es creación, actualizar variables y URL
+            if (isCreating) {
+                programaId = result.id || result.programa_id;
                 isEditing = true;
                 
-                // Actualizar URL sin recargar página
-                window.history.replaceState({}, '', `<?= APP_URL ?>/programa?id=${programaId}`);
+                console.log('📝 Programa creado con ID:', programaId);
                 
-                // Actualizar campo hidden
-                const hiddenInput = document.getElementById('programa-id-hidden');
-                if (!hiddenInput) {
-                    const form = document.getElementById('programa-form');
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.id = 'programa-id-hidden';
-                    input.name = 'programa_id';
-                    input.value = programaId;
-                    form.appendChild(input);
-                } else {
-                    hiddenInput.value = programaId;
+                // Actualizar URL sin recargar página
+                if (programaId) {
+                    const newUrl = `<?= APP_URL ?>/programa?id=${programaId}`;
+                    window.history.replaceState({}, '', newUrl);
+                    
+                    // Actualizar campo hidden
+                    updateHiddenField(programaId);
                 }
                 
                 // Actualizar ID de solicitud si se generó
                 if (result.request_id) {
-                    document.getElementById('request-id').value = result.request_id;
+                    const requestIdField = document.getElementById('request-id');
+                    if (requestIdField) {
+                        requestIdField.value = result.request_id;
+                    }
                 }
+                
+                // Cambiar texto del botón
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Actualizar programa';
             }
             
-            updatePreview();
         } else {
-            showAlert(result.message || 'Error al guardar el programa', 'error');
+            // ERROR DEL SERVIDOR
+            const errorMessage = result.message || result.error || 'Error desconocido al guardar';
+            console.error('❌ Error del servidor:', errorMessage);
+            showAlert(`❌ ${errorMessage}`, 'error');
         }
+        
     } catch (error) {
-        console.error('Error:', error);
-        showAlert('Error de conexión al guardar', 'error');
+        // ERROR DE CONEXIÓN O JAVASCRIPT
+        console.error('❌ Error crítico:', error);
+        
+        let errorMessage = 'Error de conexión';
+        if (error.message.includes('Failed to fetch')) {
+            errorMessage = 'Sin conexión al servidor. Verifica tu internet.';
+        } else if (error.message.includes('JSON')) {
+            errorMessage = 'Respuesta inválida del servidor';
+        } else if (error.message.includes('404')) {
+            errorMessage = 'Archivo de API no encontrado';
+        } else if (error.message.includes('500')) {
+            errorMessage = 'Error interno del servidor';
+        } else {
+            errorMessage = error.message;
+        }
+        
+        showAlert(`❌ ${errorMessage}`, 'error');
+        
     } finally {
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
+        // Restaurar botón siempre
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+        }, 1000); // Pequeño delay para que se vea el estado
     }
+}
+
+// Función auxiliar para actualizar campo hidden
+function updateHiddenField(programaId) {
+    let hiddenInput = document.getElementById('programa-id-hidden');
+    
+    if (!hiddenInput) {
+        // Crear campo hidden si no existe
+        hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.id = 'programa-id-hidden';
+        hiddenInput.name = 'programa_id';
+        document.getElementById('programa-form').appendChild(hiddenInput);
+    }
+    
+    hiddenInput.value = programaId;
+    console.log('📝 Campo hidden actualizado con ID:', programaId);
 }
 
 // ============================================================
@@ -3095,60 +3513,87 @@ async function guardarPrecios() {
     }
 }
 
-// ============================================================
-// FUNCIONES PARA VISTA PREVIA
-// ============================================================
-
-
-function updatePreview() {
-    const previewSummary = document.getElementById('preview-summary');
-    if (!previewSummary) return;
-
-    const form = document.getElementById('programa-form');
-    const formData = new FormData(form);
-
-    const summary = `
-        <div class="preview-item">
-            <strong>Programa:</strong> ${formData.get('program_title') || 'Sin título'}
-        </div>
-        <div class="preview-item">
-            <strong>Destino:</strong> ${formData.get('destination') || 'No especificado'}
-        </div>
-        <div class="preview-item">
-            <strong>Viajero:</strong> ${formData.get('traveler_name') || ''} ${formData.get('traveler_lastname') || ''}
-        </div>
-        <div class="preview-item">
-            <strong>Fechas:</strong> ${formData.get('arrival_date') || ''} - ${formData.get('departure_date') || ''}
-        </div>
-        <div class="preview-item">
-            <strong>Pasajeros:</strong> ${formData.get('passengers') || 1}
-        </div>
-    `;
-
-    previewSummary.innerHTML = summary;
-}
 
 // ============================================================
 // FUNCIONES AUXILIARES
 // ============================================================
 function showAlert(message, type) {
+    // Eliminar alertas existentes
+    document.querySelectorAll('.alert').forEach(alert => alert.remove());
+    
     const alert = document.createElement('div');
     alert.className = `alert alert-${type}`;
-    alert.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
-        ${message}
+    alert.style.cssText = `
+        position: fixed;
+        top: 90px;
+        right: 20px;
+        z-index: 10000;
+        max-width: 400px;
+        padding: 16px 20px;
+        border-radius: 12px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(10px);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border: none;
     `;
-
-    // Insertar al inicio del contenido activo
-    const activeTab = document.querySelector('.tab-content.active');
-    if (activeTab) {
-        activeTab.insertBefore(alert, activeTab.firstChild);
-        
-        // Remover después de 5 segundos
-        setTimeout(() => {
-            alert.remove();
-        }, 5000);
+    
+    // Estilos según el tipo
+    if (type === 'success') {
+        alert.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        alert.style.color = 'white';
+    } else if (type === 'error') {
+        alert.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+        alert.style.color = 'white';
+    } else {
+        alert.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+        alert.style.color = 'white';
     }
+    
+    const icon = type === 'success' ? 'fa-check-circle' : 
+                 type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle';
+    
+    alert.innerHTML = `
+        <i class="fas ${icon}"></i>
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()" style="
+            background: none;
+            border: none;
+            color: inherit;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            margin-left: auto;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">×</button>
+    `;
+    
+    document.body.appendChild(alert);
+    
+    // Mostrar alerta
+    setTimeout(() => {
+        alert.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Auto-remover después de tiempo variable según tipo
+    const duration = type === 'success' ? 4000 : 
+                     type === 'error' ? 8000 : 6000;
+    
+    setTimeout(() => {
+        if (alert.parentElement) {
+            alert.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                if (alert.parentElement) {
+                    alert.remove();
+                }
+            }, 300);
+        }
+    }, duration);
 }
 
 function toggleSection(header) {
@@ -3883,6 +4328,66 @@ async function eliminarServicio(servicioId) {
         showAlert('Error de conexión', 'error');
     }
 }
+// AGREGAR ESTAS FUNCIONES AL FINAL DEL JAVASCRIPT
+let sidebarOpen = false;
+
+function toggleSidebar() {
+    const sidebar = document.querySelector('.enhanced-sidebar');
+    const overlay = document.getElementById('overlay');
+    const mainContainer = document.querySelector('.main-container');
+    
+    if (!sidebar) return;
+    
+    sidebarOpen = !sidebarOpen;
+    
+    if (sidebarOpen) {
+        sidebar.classList.add('open');
+        if (overlay) overlay.classList.add('show');
+        if (mainContainer && window.innerWidth > 768) {
+            mainContainer.classList.add('sidebar-open');
+        }
+    } else {
+        sidebar.classList.remove('open');
+        if (overlay) overlay.classList.remove('show');
+        if (mainContainer) mainContainer.classList.remove('sidebar-open');
+    }
+}
+
+function closeSidebar() {
+    if (sidebarOpen) {
+        toggleSidebar();
+    }
+}
+
+function toggleUserMenu() {
+    if (confirm('¿Desea cerrar sesión?')) {
+        window.location.href = '<?= APP_URL ?>/auth/logout';
+    }
+}
+
+// Google Translate
+function initializeGoogleTranslate() {
+    function googleTranslateElementInit() {
+        new google.translate.TranslateElement({
+            pageLanguage: '<?= $defaultLanguage ?>',
+            includedLanguages: 'en,fr,pt,it,de,es',
+            layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+            autoDisplay: false
+        }, 'google_translate_element');
+    }
+
+    if (!window.googleTranslateElementInit) {
+        window.googleTranslateElementInit = googleTranslateElementInit;
+        const script = document.createElement('script');
+        script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+        document.head.appendChild(script);
+    }
+}
+
+// Inicializar al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    initializeGoogleTranslate();
+});
 
 // Función para expandir/contraer alternativas (opcional)
 function toggleAlternativas(servicioId) {

@@ -1,6 +1,6 @@
 <?php
 // ====================================================================
-// ARCHIVO: pages/itinerarios.php - COMPLETAMENTE MEJORADO
+// ARCHIVO: pages/itinerarios.php - CON COMPONENTES UI ESTÁNDAR
 // ====================================================================
 
 require_once dirname(__DIR__) . '/config/database.php';
@@ -9,137 +9,158 @@ require_once dirname(__DIR__) . '/config/app.php';
 App::init();
 App::requireLogin();
 
-$user = App::getUser();
-$company_name = defined('APP_NAME') ? APP_NAME : 'Travel Agency';
+// Incluir ConfigManager y componentes UI
+require_once 'config/config_functions.php';
+require_once __DIR__ . '/../config/constants.php';
+require_once __DIR__ . '/../includes/ui_components.php';
 
-try {
-    require_once dirname(__DIR__) . '/config/config_functions.php';
-    ConfigManager::init();
-    $company_name = ConfigManager::getCompanyName();
-} catch(Exception $e) {
-    // Usar valor por defecto si hay error
-}
+$user = App::getUser();
+
+// Obtener configuración de colores según el rol del usuario
+ConfigManager::init();
+$userColors = ConfigManager::getColorsForRole($user['role']);
+$companyName = ConfigManager::getCompanyName();
+$logo = ConfigManager::getLogo();
+$defaultLanguage = ConfigManager::getDefaultLanguage();
 ?>
 
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?= $defaultLanguage ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Programas - <?= $company_name ?></title>
+    <title>Mis Programas - <?= htmlspecialchars($companyName) ?></title>
     
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Incluir estilos de componentes -->
+    <?= UIComponents::getComponentStyles() ?>
     
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         :root {
-            --primary-color: #2d5a4a;
-            --secondary-color: #4a7c59;
-            --accent-color: #7db46c;
-            --background-color: #f8fffe;
-            --card-background: #ffffff;
-            --text-color: #1a202c;
-            --text-muted: #6b7280;
-            --border-color: #e5e7eb;
-            --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.1);
-            --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --shadow-large: 0 10px 25px rgba(0, 0, 0, 0.1);
-            --border-radius: 12px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --primary-color: <?= $userColors['primary'] ?>;
+            --secondary-color: <?= $userColors['secondary'] ?>;
+            --primary-gradient: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            line-height: 1.6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            color: #333;
+            min-height: 100vh;
         }
 
-        /* Navegación superior */
-        .top-nav {
-            background-color: var(--primary-color);
+        /* Header con componentes */
+        .header {
+            background: var(--primary-gradient);
             color: white;
-            padding: 12px 20px;
+            padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: var(--shadow-medium);
-            position: sticky;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            position: fixed;
             top: 0;
-            z-index: 1000;
+            left: 0;
+            right: 0;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
         }
 
-        .top-nav .logo {
-            font-size: 18px;
-            font-weight: 600;
-            text-decoration: none;
-            color: white;
-            border-bottom: 2px solid white;
-            padding-bottom: 2px;
-        }
-
-        .top-nav .nav-links {
+        .header-left {
             display: flex;
-            gap: 30px;
             align-items: center;
+            gap: 15px;
         }
 
-        .top-nav .nav-links a {
+        .menu-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
             color: white;
-            text-decoration: none;
-            font-size: 14px;
-            transition: var(--transition);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
         }
 
-        .top-nav .nav-links a:hover {
-            color: var(--accent-color);
+        .menu-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
         .user-info {
             display: flex;
             align-items: center;
             gap: 12px;
+            cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
             background: rgba(255, 255, 255, 0.1);
-            padding: 8px 16px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
+        }
+
+        .user-info:hover {
+            background: rgba(255, 255, 255, 0.2);
         }
 
         .user-avatar {
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 600;
-            font-size: 14px;
+            font-weight: bold;
+            border: 2px solid rgba(255, 255, 255, 0.3);
         }
 
-        /* Container principal */
-        .main-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 40px 20px;
+        /* Google Translate mejorado */
+        #google_translate_element {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 15px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+        }
+
+        .goog-te-banner-frame.skiptranslate { display: none !important; }
+        body { top: 0px !important; }
+
+        /* Main Content mejorado */
+        .main-content {
+            margin-left: 0;
+            margin-top: 70px;
+            padding: 40px;
+            transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: calc(100vh - 70px);
+        }
+
+        .main-content.sidebar-open {
+            margin-left: 320px;
         }
 
         /* Header de página */
         .page-header {
             text-align: center;
             margin-bottom: 40px;
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--primary-color);
         }
 
         .page-title {
             font-size: 3rem;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            background: var(--primary-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -148,7 +169,7 @@ try {
 
         .page-subtitle {
             font-size: 1.2rem;
-            color: var(--text-muted);
+            color: #718096;
             max-width: 600px;
             margin: 0 auto;
         }
@@ -166,18 +187,19 @@ try {
         }
 
         .stat-card {
-            background: var(--card-background);
+            background: white;
             padding: 24px;
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow-light);
-            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
             text-align: center;
-            transition: var(--transition);
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--primary-color);
         }
 
         .stat-card:hover {
             transform: translateY(-2px);
-            box-shadow: var(--shadow-medium);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
         }
 
         .stat-number {
@@ -189,7 +211,7 @@ try {
         }
 
         .stat-label {
-            color: var(--text-muted);
+            color: #718096;
             font-weight: 500;
             font-size: 0.9rem;
         }
@@ -214,21 +236,21 @@ try {
             align-items: center;
             gap: 8px;
             padding: 12px 24px;
-            background: var(--primary-color);
+            background: var(--primary-gradient);
             color: white;
             text-decoration: none;
-            border-radius: 50px;
+            border-radius: 25px;
             font-weight: 500;
-            transition: var(--transition);
+            transition: all 0.3s ease;
             border: none;
             cursor: pointer;
         }
 
         .action-btn:hover {
-            background: var(--secondary-color);
-            color: white;
             transform: translateY(-2px);
-            box-shadow: var(--shadow-medium);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            color: white;
+            text-decoration: none;
         }
 
         .action-btn.secondary {
@@ -244,11 +266,12 @@ try {
 
         /* Sección de programas */
         .programs-section {
-            background: var(--card-background);
-            border-radius: var(--border-radius);
+            background: white;
+            border-radius: 15px;
             padding: 32px;
-            box-shadow: var(--shadow-light);
-            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid var(--primary-color);
         }
 
         .section-header {
@@ -263,7 +286,7 @@ try {
         .section-title {
             font-size: 1.8rem;
             font-weight: 600;
-            color: var(--text-color);
+            color: #2d3748;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -286,36 +309,36 @@ try {
         }
 
         .search-input {
-            padding: 10px 16px 10px 40px;
-            border: 2px solid var(--border-color);
+            padding: 12px 20px 12px 45px;
+            border: 2px solid #e2e8f0;
             border-radius: 25px;
             font-size: 14px;
             width: 250px;
-            transition: var(--transition);
+            transition: all 0.3s ease;
         }
 
         .search-input:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(45, 90, 74, 0.1);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         .search-icon {
             position: absolute;
-            left: 12px;
+            left: 15px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--text-muted);
+            color: #718096;
         }
 
         .filter-select {
-            padding: 10px 16px;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 25px;
             font-size: 14px;
             background: white;
             cursor: pointer;
-            transition: var(--transition);
+            transition: all 0.3s ease;
         }
 
         .filter-select:focus {
@@ -334,23 +357,34 @@ try {
         /* Tarjeta de programa */
         .program-card {
             background: white;
-            border-radius: var(--border-radius);
-            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            border: 1px solid #e2e8f0;
             overflow: hidden;
-            transition: var(--transition);
+            transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .program-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-gradient);
         }
 
         .program-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-large);
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
             border-color: var(--primary-color);
         }
 
         .program-image {
             height: 160px;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            background: var(--primary-gradient);
             position: relative;
             overflow: hidden;
         }
@@ -374,8 +408,8 @@ try {
             position: absolute;
             top: 12px;
             right: 12px;
-            padding: 4px 12px;
-            border-radius: 12px;
+            padding: 6px 12px;
+            border-radius: 20px;
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
@@ -408,7 +442,7 @@ try {
         .program-title {
             font-size: 1.2rem;
             font-weight: 600;
-            color: var(--text-color);
+            color: #2d3748;
             margin-bottom: 8px;
             line-height: 1.3;
             display: -webkit-box;
@@ -421,7 +455,7 @@ try {
             display: flex;
             align-items: center;
             gap: 6px;
-            color: var(--text-muted);
+            color: #718096;
             font-size: 0.9rem;
             margin-bottom: 4px;
         }
@@ -430,7 +464,7 @@ try {
             display: flex;
             align-items: center;
             gap: 6px;
-            color: var(--text-muted);
+            color: #718096;
             font-size: 0.9rem;
         }
 
@@ -440,8 +474,8 @@ try {
             gap: 16px;
             margin: 16px 0;
             padding: 16px 0;
-            border-top: 1px solid var(--border-color);
-            border-bottom: 1px solid var(--border-color);
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
         }
 
         .detail-item {
@@ -450,7 +484,7 @@ try {
 
         .detail-label {
             font-size: 0.75rem;
-            color: var(--text-muted);
+            color: #718096;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 4px;
@@ -460,7 +494,7 @@ try {
         .detail-value {
             font-size: 0.9rem;
             font-weight: 600;
-            color: var(--text-color);
+            color: #2d3748;
         }
 
         .detail-value.highlight {
@@ -473,13 +507,13 @@ try {
         }
 
         .btn-sm {
-            padding: 6px 12px;
+            padding: 8px 15px;
             font-size: 0.8rem;
-            border-radius: 6px;
+            border-radius: 20px;
             border: none;
             cursor: pointer;
             font-weight: 500;
-            transition: var(--transition);
+            transition: all 0.3s ease;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
@@ -494,6 +528,7 @@ try {
         .btn-primary-sm:hover {
             background: var(--secondary-color);
             color: white;
+            transform: translateY(-2px);
         }
 
         .btn-outline-sm {
@@ -505,13 +540,14 @@ try {
         .btn-outline-sm:hover {
             background: var(--primary-color);
             color: white;
+            transform: translateY(-2px);
         }
 
         /* Estados de carga */
         .loading-state, .empty-state, .error-state {
             text-align: center;
             padding: 60px 20px;
-            color: var(--text-muted);
+            color: #718096;
         }
 
         .state-icon {
@@ -525,7 +561,7 @@ try {
         }
 
         .empty-state .state-icon {
-            color: var(--text-muted);
+            color: #718096;
         }
 
         .error-state .state-icon {
@@ -536,7 +572,7 @@ try {
             font-size: 1.5rem;
             font-weight: 600;
             margin-bottom: 16px;
-            color: var(--text-color);
+            color: #2d3748;
         }
 
         .state-description {
@@ -552,6 +588,26 @@ try {
             to { transform: rotate(360deg); }
         }
 
+        /* Overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .programs-grid {
@@ -560,8 +616,16 @@ try {
         }
 
         @media (max-width: 768px) {
-            .main-container {
-                padding: 20px 15px;
+            .header {
+                padding: 15px 20px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .main-content.sidebar-open {
+                margin-left: 0;
             }
 
             .page-title {
@@ -600,14 +664,6 @@ try {
                 max-width: 300px;
                 justify-content: center;
             }
-
-            .top-nav .nav-links {
-                gap: 15px;
-            }
-
-            .user-info span {
-                display: none;
-            }
         }
 
         @media (max-width: 480px) {
@@ -628,23 +684,17 @@ try {
 </head>
 
 <body>
-    <!-- Navegación Superior -->
-    <nav class="top-nav">
-        <a href="<?= APP_URL ?>/dashboard" class="logo">Trip Planner</a>
-        <div class="nav-links">
-            <a href="<?= APP_URL ?>/programa">Mi Programa</a>
-            <a href="<?= APP_URL ?>/biblioteca">Biblioteca</a>
-            <div class="user-info">
-                <div class="user-avatar">
-                    <?= strtoupper(substr($user['name'] ?? 'U', 0, 1)) ?>
-                </div>
-                <span><?= htmlspecialchars($user['name'] ?? 'Usuario') ?></span>
-            </div>
-        </div>
-    </nav>
+    <!-- Header con componentes -->
+    <?= UIComponents::renderHeader($user) ?>
 
-    <!-- Container Principal -->
-    <div class="main-container">
+    <!-- Sidebar con componentes -->
+    <?= UIComponents::renderSidebar($user, '/itinerarios') ?>
+
+    <!-- Overlay -->
+    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
         <!-- Header de Página -->
         <div class="page-header">
             <h1 class="page-title">
@@ -734,13 +784,12 @@ try {
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    
     <script>
-        // ====================================================================
-        // JAVASCRIPT MEJORADO PARA ITINERARIOS
-        // ====================================================================
-        
+        // Configuración global
+        const APP_URL = '<?= APP_URL ?>';
+        const DEFAULT_LANGUAGE = '<?= $defaultLanguage ?>';
+
+        let sidebarOpen = false;
         let allProgramas = [];
         let filteredProgramas = [];
         
@@ -748,7 +797,46 @@ try {
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 Iniciando página de itinerarios...');
             cargarProgramas();
+            initializeGoogleTranslate();
         });
+
+        // Funciones de sidebar CORREGIDAS
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.enhanced-sidebar');
+            const overlay = document.getElementById('overlay');
+            const mainContent = document.getElementById('mainContent');
+            
+            if (!sidebar) {
+                console.error('❌ Sidebar no encontrado con clase .enhanced-sidebar');
+                return;
+            }
+            
+            sidebarOpen = !sidebarOpen;
+            
+            if (sidebarOpen) {
+                sidebar.classList.add('open');
+                if (overlay) overlay.classList.add('show');
+                if (mainContent && window.innerWidth > 768) {
+                    mainContent.classList.add('sidebar-open');
+                }
+            } else {
+                sidebar.classList.remove('open');
+                if (overlay) overlay.classList.remove('show');
+                if (mainContent) mainContent.classList.remove('sidebar-open');
+            }
+        }
+
+        function closeSidebar() {
+            if (sidebarOpen) {
+                toggleSidebar();
+            }
+        }
+
+        function toggleUserMenu() {
+            if (confirm('¿Desea cerrar sesión?')) {
+                window.location.href = '<?= APP_URL ?>/auth/logout';
+            }
+        }
 
         // ============================================================
         // FUNCIONES DE CARGA DE DATOS
@@ -825,12 +913,12 @@ try {
                 duracion = dias > 0 ? `${dias} días` : '1 día';
             }
             
-            // Determinar estado - adaptado para tu base de datos
+            // Determinar estado
             let estado = 'borrador';
             if (programa.estado) {
                 estado = programa.estado;
             } else if (programa.id_solicitud) {
-                estado = 'activo'; // Si tiene ID de solicitud, considerarlo activo
+                estado = 'activo';
             }
             
             const estadoClass = {
@@ -845,7 +933,6 @@ try {
                 'completado': 'Completado'
             }[estado] || 'Borrador';
             
-            // Usar foto_portada del programa_personalizacion si existe
             const imagenPortada = programa.foto_portada || null;
             
             card.innerHTML = `
@@ -906,12 +993,10 @@ try {
         function actualizarEstadisticas() {
             const total = allProgramas.length;
             
-            // Contar borradores (sin id_solicitud o estado borrador)
             const borrador = allProgramas.filter(p => 
                 !p.id_solicitud || p.estado === 'borrador'
             ).length;
             
-            // Contar activos (con id_solicitud y no completados)
             const activos = allProgramas.filter(p => 
                 p.id_solicitud && p.estado !== 'completado'
             ).length;
@@ -920,7 +1005,6 @@ try {
                 sum + (parseInt(p.numero_pasajeros) || 0), 0
             );
             
-            // Animación de contadores
             animateCounter('totalProgramas', total);
             animateCounter('programasBorrador', borrador);
             animateCounter('programasActivos', activos);
@@ -953,7 +1037,6 @@ try {
             const statusFilter = document.getElementById('filterStatus').value;
             
             filteredProgramas = allProgramas.filter(programa => {
-                // Filtro de búsqueda
                 const matchesSearch = !searchTerm || 
                     programa.destino.toLowerCase().includes(searchTerm) ||
                     programa.nombre_viajero.toLowerCase().includes(searchTerm) ||
@@ -961,7 +1044,6 @@ try {
                     (programa.titulo_programa && programa.titulo_programa.toLowerCase().includes(searchTerm)) ||
                     (programa.id_solicitud && programa.id_solicitud.toLowerCase().includes(searchTerm));
                 
-                // Filtro de estado
                 let programaEstado = 'borrador';
                 if (programa.estado) {
                     programaEstado = programa.estado;
@@ -989,7 +1071,6 @@ try {
         
         function verDetalles(id) {
             console.log(`👁️ Viendo detalles del programa ${id}`);
-            // Abrir en nueva ventana para vista previa
             window.open(`<?= APP_URL ?>/programa?id=${id}&preview=1`, '_blank');
         }
         
@@ -1000,10 +1081,8 @@ try {
             
             console.log(`🗑️ Eliminando programa ${id}`);
             
-            // Mostrar estado de carga
             showNotification('Eliminando programa...', 'info');
             
-            // Implementar eliminación via API
             fetch('<?= APP_URL ?>/programa/api', {
                 method: 'POST',
                 headers: {
@@ -1018,7 +1097,7 @@ try {
             .then(result => {
                 if (result.success) {
                     showNotification('✅ Programa eliminado exitosamente', 'success');
-                    cargarProgramas(); // Recargar lista
+                    cargarProgramas();
                 } else {
                     showNotification('❌ Error al eliminar: ' + result.error, 'error');
                 }
@@ -1089,11 +1168,9 @@ try {
         }
         
         function showNotification(message, type = 'info') {
-            // Eliminar notificaciones existentes
             const existingNotifications = document.querySelectorAll('.custom-notification');
             existingNotifications.forEach(n => n.remove());
             
-            // Crear notificación
             const notification = document.createElement('div');
             notification.className = `custom-notification notification-${type}`;
             notification.style.cssText = `
@@ -1103,8 +1180,8 @@ try {
                 z-index: 9999;
                 max-width: 400px;
                 padding: 16px 20px;
-                border-radius: 8px;
-                box-shadow: var(--shadow-large);
+                border-radius: 12px;
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
                 backdrop-filter: blur(10px);
                 transform: translateX(100%);
                 transition: transform 0.3s ease;
@@ -1115,7 +1192,6 @@ try {
                 gap: 12px;
             `;
             
-            // Estilos según el tipo
             if (type === 'success') {
                 notification.style.background = 'rgba(34, 197, 94, 0.95)';
                 notification.style.color = 'white';
@@ -1147,12 +1223,10 @@ try {
             
             document.body.appendChild(notification);
             
-            // Mostrar notificación
             setTimeout(() => {
                 notification.style.transform = 'translateX(0)';
             }, 100);
             
-            // Auto-remover después de 5 segundos
             setTimeout(() => {
                 if (notification.parentElement) {
                     notification.style.transform = 'translateX(100%)';
@@ -1164,7 +1238,96 @@ try {
                 }
             }, 5000);
         }
+
+        // Google Translate con idioma por defecto del sistema
+        function initializeGoogleTranslate() {
+            function googleTranslateElementInit() {
+                new google.translate.TranslateElement({
+                    pageLanguage: DEFAULT_LANGUAGE,
+                    includedLanguages: 'en,fr,pt,it,de,es',
+                    layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                    autoDisplay: false
+                }, 'google_translate_element');
+
+                setTimeout(loadSavedLanguage, 1000);
+            }
+
+            function saveLanguage(lang) {
+                sessionStorage.setItem('language', lang);
+                localStorage.setItem('preferredLanguage', lang);
+            }
+
+            function loadSavedLanguage() {
+                const saved = sessionStorage.getItem('language') || 
+                             localStorage.getItem('preferredLanguage') || 
+                             DEFAULT_LANGUAGE;
+                
+                if (saved && saved !== DEFAULT_LANGUAGE) {
+                    const select = document.querySelector('.goog-te-combo');
+                    if (select) {
+                        select.value = saved;
+                        select.dispatchEvent(new Event('change'));
+                    }
+                }
+            }
+
+            if (!window.googleTranslateElementInit) {
+                window.googleTranslateElementInit = googleTranslateElementInit;
+                const script = document.createElement('script');
+                script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+                document.head.appendChild(script);
+            }
+
+            setTimeout(function() {
+                const select = document.querySelector('.goog-te-combo');
+                if (select) {
+                    select.addEventListener('change', function() {
+                        if (this.value) saveLanguage(this.value);
+                    });
+                }
+            }, 2000);
+        }
+
+        // ============================================================
+        // FUNCIONES DE EXPORTACIÓN Y UTILIDADES
+        // ============================================================
         
+        function exportarProgramas() {
+            console.log('📤 Exportando programas...');
+            
+            if (allProgramas.length === 0) {
+                showNotification('No hay programas para exportar', 'error');
+                return;
+            }
+            
+            const headers = ['ID', 'Título', 'Destino', 'Viajero', 'Fechas', 'Pasajeros', 'Estado'];
+            const csvData = allProgramas.map(programa => [
+                programa.id_solicitud || programa.id,
+                programa.titulo_programa || `Viaje a ${programa.destino}`,
+                programa.destino,
+                `${programa.nombre_viajero} ${programa.apellido_viajero}`,
+                formatDateRange(programa.fecha_llegada, programa.fecha_salida),
+                programa.numero_pasajeros,
+                programa.estado || 'borrador'
+            ]);
+            
+            const csvContent = [headers, ...csvData]
+                .map(row => row.map(cell => `"${cell}"`).join(','))
+                .join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `programas_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('✅ Programas exportados exitosamente', 'success');
+        }
+
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
             
@@ -1184,117 +1347,7 @@ try {
             
             return `${start} - ${end}`;
         }
-        
-        function calcularDuracion(fechaLlegada, fechaSalida) {
-            if (!fechaLlegada || !fechaSalida) return 'N/A';
-            
-            const llegada = new Date(fechaLlegada);
-            const salida = new Date(fechaSalida);
-            const diferencia = salida.getTime() - llegada.getTime();
-            const dias = Math.ceil(diferencia / (1000 * 3600 * 24));
-            
-            if (dias <= 0) return '1 día';
-            if (dias === 1) return '1 día';
-            if (dias < 7) return `${dias} días`;
-            if (dias < 30) {
-                const semanas = Math.floor(dias / 7);
-                const diasExtra = dias % 7;
-                if (diasExtra === 0) {
-                    return semanas === 1 ? '1 semana' : `${semanas} semanas`;
-                } else {
-                    return `${semanas}s ${diasExtra}d`;
-                }
-            }
-            
-            const meses = Math.floor(dias / 30);
-            return meses === 1 ? '1 mes' : `${meses} meses`;
-        }
 
-        // ============================================================
-        // FUNCIONES DE EXPORTACIÓN Y UTILIDADES
-        // ============================================================
-        
-        function exportarProgramas() {
-            console.log('📤 Exportando programas...');
-            
-            if (allProgramas.length === 0) {
-                showNotification('No hay programas para exportar', 'error');
-                return;
-            }
-            
-            // Crear CSV
-            const headers = ['ID', 'Título', 'Destino', 'Viajero', 'Fechas', 'Pasajeros', 'Estado'];
-            const csvData = allProgramas.map(programa => [
-                programa.id_solicitud || programa.id,
-                programa.titulo_programa || `Viaje a ${programa.destino}`,
-                programa.destino,
-                `${programa.nombre_viajero} ${programa.apellido_viajero}`,
-                formatDateRange(programa.fecha_llegada, programa.fecha_salida),
-                programa.numero_pasajeros,
-                programa.estado || 'borrador'
-            ]);
-            
-            const csvContent = [headers, ...csvData]
-                .map(row => row.map(cell => `"${cell}"`).join(','))
-                .join('\n');
-            
-            // Descargar archivo
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `programas_${new Date().toISOString().split('T')[0]}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            showNotification('✅ Programas exportados exitosamente', 'success');
-        }
-
-        // ============================================================
-        // FUNCIONES DE DEBUG
-        // ============================================================
-        
-        function debugProgramas() {
-            console.log('=== 🔍 DEBUG DE PROGRAMAS ===');
-            console.log('Total programas:', allProgramas.length);
-            console.log('Programas filtrados:', filteredProgramas.length);
-            console.log('Datos completos:', allProgramas);
-            console.log('=== ESTADÍSTICAS ===');
-            
-            const stats = {
-                total: allProgramas.length,
-                conId: allProgramas.filter(p => p.id_solicitud).length,
-                sinId: allProgramas.filter(p => !p.id_solicitud).length,
-                conTitulo: allProgramas.filter(p => p.titulo_programa).length,
-                conImagen: allProgramas.filter(p => p.foto_portada).length
-            };
-            
-            console.table(stats);
-            console.log('=== FIN DEBUG ===');
-            
-            return stats;
-        }
-        
-        function testAPI() {
-            console.log('🧪 Probando conectividad con la API...');
-            
-            fetch('<?= APP_URL ?>/programa/api?action=list')
-                .then(response => {
-                    console.log('Estado de respuesta:', response.status);
-                    console.log('Headers:', response.headers);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('✅ API funciona correctamente');
-                    console.log('Datos recibidos:', data);
-                })
-                .catch(error => {
-                    console.error('❌ Error en API:', error);
-                });
-        }
-        
         // Hacer funciones disponibles globalmente
         window.cargarProgramas = cargarProgramas;
         window.filtrarProgramas = filtrarProgramas;
@@ -1302,16 +1355,12 @@ try {
         window.verDetalles = verDetalles;
         window.eliminarPrograma = eliminarPrograma;
         window.limpiarFiltros = limpiarFiltros;
-        window.debugProgramas = debugProgramas;
-        window.testAPI = testAPI;
         window.exportarProgramas = exportarProgramas;
+        window.toggleSidebar = toggleSidebar;
+        window.closeSidebar = closeSidebar;
+        window.toggleUserMenu = toggleUserMenu;
         
         console.log('✅ Script de itinerarios cargado completamente');
-        console.log('💡 Funciones disponibles:');
-        console.log('   - debugProgramas() - Ver estadísticas detalladas');
-        console.log('   - testAPI() - Probar conectividad con la API');
-        console.log('   - exportarProgramas() - Exportar a CSV');
-        console.log('   - cargarProgramas() - Recargar datos manualmente');
         
     </script>
 </body>

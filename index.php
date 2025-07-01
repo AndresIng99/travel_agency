@@ -99,11 +99,7 @@ switch($path) {
         include 'modules/admin/api.php';
         break;
         
-    // ===== RUTAS FUTURAS (para próximas funcionalidades) =====
-    case '/reportes':
-        App::requireLogin();
-        include 'pages/reportes.php';
-        break;
+    
 
     case '/preview':  // ← NUEVA RUTA
         App::requireLogin();

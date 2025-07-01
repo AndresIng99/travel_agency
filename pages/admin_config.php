@@ -1,49 +1,69 @@
 <?php
 // =====================================
-// ARCHIVO: pages/admin_config.php - Configuración del Sistema Actualizada
+// ARCHIVO: pages/admin_config.php - Configuración del Sistema con Componentes UI
 // =====================================
 
 App::requireRole('admin');
+
+// Incluir ConfigManager y componentes UI
 require_once 'config/config_functions.php';
+require_once __DIR__ . '/../config/constants.php';
+require_once __DIR__ . '/../includes/ui_components.php';
 
 $user = App::getUser();
 
 // Inicializar ConfigManager
 ConfigManager::init();
 $config = ConfigManager::get();
-
-// Colores para el admin
 $adminColors = ConfigManager::getColorsForRole('admin');
+$companyName = ConfigManager::getCompanyName();
+$logo = ConfigManager::getLogo();
+$defaultLanguage = ConfigManager::getDefaultLanguage();
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?= $defaultLanguage ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configuración - <?= ConfigManager::getCompanyName() ?></title>
+    <title>Configuración - <?= htmlspecialchars($companyName) ?></title>
+    
+    <!-- Incluir estilos de componentes -->
+    <?= UIComponents::getComponentStyles() ?>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f7fa;
-        }
-
-        /* CSS Variables dinámicas */
         :root {
             --admin-primary: <?= $adminColors['primary'] ?>;
             --admin-secondary: <?= $adminColors['secondary'] ?>;
+            --admin-gradient: linear-gradient(135deg, var(--admin-primary) 0%, var(--admin-secondary) 100%);
+            --primary-color: var(--admin-primary);
+            --secondary-color: var(--admin-secondary);
+            --primary-gradient: var(--admin-gradient);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            color: #333;
+            min-height: 100vh;
         }
 
-        /* Header */
+        /* Header con componentes */
         .header {
-            background: linear-gradient(135deg, var(--admin-primary) 0%, var(--admin-secondary) 100%);
+            background: var(--admin-gradient);
             color: white;
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
         }
 
         .header-left {
@@ -52,36 +72,96 @@ $adminColors = ConfigManager::getColorsForRole('admin');
             gap: 15px;
         }
 
+        .menu-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .menu-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
         .back-btn {
             background: rgba(255, 255, 255, 0.2);
             color: white;
             border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
+            padding: 10px 20px;
+            border-radius: 25px;
             cursor: pointer;
             text-decoration: none;
-            transition: background 0.3s ease;
+            transition: all 0.3s ease;
+            font-weight: 500;
         }
 
         .back-btn:hover {
             background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
         }
 
-        /* Google Translate */
-        #google_translate_element {
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .user-info:hover {
             background: rgba(255, 255, 255, 0.2);
-            padding: 5px 10px;
-            border-radius: 20px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Google Translate mejorado */
+        #google_translate_element {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 15px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
         }
 
         .goog-te-banner-frame.skiptranslate { display: none !important; }
         body { top: 0px !important; }
 
-        /* Main Content */
+        /* Main Content mejorado */
         .main-content {
-            padding: 30px;
-            max-width: 1200px;
-            margin: 0 auto;
+            margin-left: 0;
+            margin-top: 70px;
+            padding: 40px;
+            transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: calc(100vh - 70px);
+        }
+
+        .main-content.sidebar-open {
+            margin-left: 320px;
         }
 
         /* Configuration Sections */
@@ -261,7 +341,7 @@ $adminColors = ConfigManager::getColorsForRole('admin');
         }
 
         .save-btn {
-            background: linear-gradient(135deg, var(--admin-primary) 0%, var(--admin-secondary) 100%);
+            background: var(--admin-gradient);
             color: white;
             border: none;
             padding: 15px 40px;
@@ -346,10 +426,38 @@ $adminColors = ConfigManager::getColorsForRole('admin');
             100% { transform: rotate(360deg); }
         }
 
+        /* Overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
+            .header {
+                padding: 15px 20px;
+            }
+
             .main-content {
                 padding: 20px;
+            }
+
+            .main-content.sidebar-open {
+                margin-left: 0;
             }
 
             .form-grid {
@@ -363,21 +471,17 @@ $adminColors = ConfigManager::getColorsForRole('admin');
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div class="header-left">
-            <a href="<?= APP_URL ?>/administrador" class="back-btn">← Usuarios</a>
-            <h2>⚙️ Configuración del Sistema</h2>
-        </div>
-        
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div id="google_translate_element"></div>
-            <span><?= htmlspecialchars($user['name']) ?></span>
-        </div>
-    </div>
+    <!-- Header con componentes -->
+    <?= UIComponents::renderHeader($user) ?>
+
+    <!-- Sidebar con componentes -->
+    <?= UIComponents::renderSidebar($user, '/administrador/configuracion') ?>
+
+    <!-- Overlay -->
+    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
     <!-- Main Content -->
-    <div class="main-content">
+    <div class="main-content" id="mainContent">
         <!-- Preview Section -->
         <div class="preview-section">
             <h2 class="section-title">
@@ -580,35 +684,17 @@ $adminColors = ConfigManager::getColorsForRole('admin');
                     
                     <div class="form-grid">
                         <div class="form-group">
-                            <label for="session_timeout">Tiempo de Sesión (minutos)</label>
+                            <label for="session_timeout">⏱️ Tiempo de Sesión (minutos)</label>
                             <input type="number" id="session_timeout" name="session_timeout" 
                                    value="<?= $config['session_timeout'] ?>" min="15" max="480" placeholder="60">
                             <small style="color: #718096;">Tiempo antes de cerrar sesión automáticamente (15-480 min)</small>
                         </div>
 
                         <div class="form-group">
-                            <label for="max_file_size">Tamaño Máximo de Archivo (MB)</label>
-                            <input type="number" id="max_file_size" name="max_file_size" 
-                                   value="<?= $config['max_file_size'] ?>" min="1" max="100" placeholder="10">
-                            <small style="color: #718096;">Límite para subida de imágenes y documentos</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="backup_frequency">Frecuencia de Respaldo</label>
-                            <select id="backup_frequency" name="backup_frequency">
-                                <option value="daily" <?= $config['backup_frequency'] === 'daily' ? 'selected' : '' ?>>Diario</option>
-                                <option value="weekly" <?= $config['backup_frequency'] === 'weekly' ? 'selected' : '' ?>>Semanal</option>
-                                <option value="monthly" <?= $config['backup_frequency'] === 'monthly' ? 'selected' : '' ?>>Mensual</option>
-                                <option value="never" <?= $config['backup_frequency'] === 'never' ? 'selected' : '' ?>>Nunca</option>
-                            </select>
-                            <small style="color: #718096;">Respaldo automático de la base de datos</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="maintenance_mode">Modo Mantenimiento</label>
+                            <label for="maintenance_mode">🚧 Modo Mantenimiento</label>
                             <select id="maintenance_mode" name="maintenance_mode">
-                                <option value="0" <?= !$config['maintenance_mode'] ? 'selected' : '' ?>>Desactivado</option>
-                                <option value="1" <?= $config['maintenance_mode'] ? 'selected' : '' ?>>Activado</option>
+                                <option value="0" <?= !$config['maintenance_mode'] ? 'selected' : '' ?>>✅ Desactivado</option>
+                                <option value="1" <?= $config['maintenance_mode'] ? 'selected' : '' ?>>🔒 Activado</option>
                             </select>
                             <small style="color: #718096;">Bloquea el acceso a usuarios no administradores</small>
                         </div>
@@ -631,6 +717,7 @@ $adminColors = ConfigManager::getColorsForRole('admin');
         const APP_URL = '<?= APP_URL ?>';
         let isLoading = false;
         let currentPreview = 'admin';
+        let sidebarOpen = false;
 
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
@@ -638,10 +725,41 @@ $adminColors = ConfigManager::getColorsForRole('admin');
             initializeImageUploads();
             initializeFormHandlers();
             initializeGoogleTranslate();
-            
-            // Aplicar idioma por defecto
             applyDefaultLanguage();
         });
+
+        // Funciones de sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const mainContent = document.getElementById('mainContent');
+            
+            sidebarOpen = !sidebarOpen;
+            
+            if (sidebarOpen) {
+                sidebar.classList.add('open');
+                overlay.classList.add('show');
+                if (window.innerWidth > 768) {
+                    mainContent.classList.add('sidebar-open');
+                }
+            } else {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+                mainContent.classList.remove('sidebar-open');
+            }
+        }
+
+        function closeSidebar() {
+            if (sidebarOpen) {
+                toggleSidebar();
+            }
+        }
+
+        function toggleUserMenu() {
+            if (confirm('¿Desea cerrar sesión?')) {
+                window.location.href = '<?= APP_URL ?>/auth/logout';
+            }
+        }
 
         // Aplicar idioma por defecto del sistema
         function applyDefaultLanguage() {
@@ -956,6 +1074,17 @@ $adminColors = ConfigManager::getColorsForRole('admin');
                 }
             }, 2000);
         }
+
+        // Event listeners responsive
+        document.addEventListener('DOMContentLoaded', function() {
+            window.addEventListener('resize', function() {
+                if (window.innerWidth <= 768 && sidebarOpen) {
+                    document.getElementById('mainContent').classList.remove('sidebar-open');
+                } else if (window.innerWidth > 768 && sidebarOpen) {
+                    document.getElementById('mainContent').classList.add('sidebar-open');
+                }
+            });
+        });
     </script>
     <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 </body>
