@@ -2308,6 +2308,8 @@ let selectedDiaId = null;
 let selectedServicioId = null;
 let currentDiaId = null;
 let currentTipoServicio = null;
+let isAddingAlternative = false;
+let alternativeParentId = null;
 let diasPrograma = [];
 
 // Inicialización
@@ -2980,31 +2982,36 @@ function editarDia(diaId) {
 // FUNCIONES PARA SERVICIOS
 // ============================================================
 function agregarServicio(diaId, tipoServicio) {
+    console.log(`➕ Agregando servicio normal: Día=${diaId}, Tipo=${tipoServicio}`);
+    
+    // Configurar para servicio normal
+    isAddingAlternative = false;
+    alternativeParentId = null;
     currentDiaId = diaId;
     currentTipoServicio = tipoServicio;
-    abrirModalServicios(tipoServicio);
+    
+    abrirModalServicios(tipoServicio, 'Agregar ' + tipoServicio);
 }
 
-async function abrirModalServicios(tipoServicio) {
+async function abrirModalServicios(tipoServicio, titulo = null) {
     const modal = document.getElementById('serviciosModal');
-    const title = document.getElementById('servicios-modal-title');
+    const titleElement = document.getElementById('servicios-modal-title');
     
-    // Actualizar título según el tipo
-    const icons = {
-        'actividad': 'fas fa-hiking',
-        'transporte': 'fas fa-car',
-        'alojamiento': 'fas fa-bed'
-    };
+    // Establecer título
+    const defaultTitle = isAddingAlternative ? `Agregar alternativa de ${tipoServicio}` : `Agregar ${tipoServicio}`;
+    const icons = { 'actividad': 'fas fa-hiking', 'transporte': 'fas fa-car', 'alojamiento': 'fas fa-bed' };
     
-    const titles = {
-        'actividad': 'Agregar Actividad',
-        'transporte': 'Agregar Transporte',
-        'alojamiento': 'Agregar Alojamiento'
-    };
+    titleElement.innerHTML = `<i class="${icons[tipoServicio]}"></i> ${titulo || defaultTitle}`;
     
-    title.innerHTML = `<i class="${icons[tipoServicio]}"></i> ${titles[tipoServicio]}`;
+    // Configurar botón
+    const btnAgregar = document.getElementById('btn-agregar-servicio');
+    if (btnAgregar) {
+        const btnText = isAddingAlternative ? 'Agregar alternativa' : 'Agregar servicio';
+        btnAgregar.innerHTML = `<i class="fas fa-plus"></i> ${btnText}`;
+        btnAgregar.disabled = true;
+    }
+    
     modal.style.display = 'block';
-    
     await cargarServiciosBiblioteca(tipoServicio);
 }
 
@@ -3213,50 +3220,98 @@ function seleccionarServicio(servicioId) {
 }
 
 async function agregarServicioSeleccionado() {
-    if (!selectedServicioId || !currentDiaId || !currentTipoServicio) return;
+    if (!selectedServicioId) {
+        showAlert('Selecciona un servicio primero', 'error');
+        return;
+    }
 
+    const btnAgregar = document.getElementById('btn-agregar-servicio');
+    const originalText = btnAgregar.innerHTML;
+    
     try {
-        const response = await fetch('<?= APP_URL ?>/modules/programa/servicios_api.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+        btnAgregar.disabled = true;
+        btnAgregar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Agregando...';
+
+        let requestData;
+        
+        if (isAddingAlternative) {
+            // Es alternativa
+            requestData = {
+                action: 'add_alternative',
+                servicio_principal_id: alternativeParentId,
+                biblioteca_item_id: selectedServicioId
+            };
+        } else {
+            // Es servicio principal
+            requestData = {
                 action: 'add_service',
                 dia_id: currentDiaId,
                 tipo_servicio: currentTipoServicio,
                 biblioteca_item_id: selectedServicioId
-            })
+            };
+        }
+
+        console.log('📝 Enviando:', requestData);
+
+        const response = await fetch('<?= APP_URL ?>/modules/programa/servicios_api.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
         });
 
         const result = await response.json();
 
         if (result.success) {
-            showAlert('Servicio agregado exitosamente', 'success');
+            const mensaje = isAddingAlternative ? 'Alternativa agregada' : 'Servicio agregado';
+            showAlert(`✅ ${mensaje} exitosamente`, 'success');
             cerrarModalServicios();
-            cargarServiciosDia(currentDiaId); // Recargar servicios del día
+            
+            // Recargar servicios
+            if (selectedDayId) {
+                await cargarServiciosDia(selectedDayId);
+                await cargarServiciosParaContador(selectedDayId);
+            }
         } else {
-            showAlert(result.message || 'Error al agregar servicio', 'error');
+            throw new Error(result.message || 'Error al agregar');
         }
+        
     } catch (error) {
-        console.error('Error:', error);
-        showAlert('Error de conexión', 'error');
+        console.error('❌ Error:', error);
+        showAlert('Error: ' + error.message, 'error');
+        
+    } finally {
+        btnAgregar.disabled = false;
+        btnAgregar.innerHTML = originalText;
     }
 }
 
 function cerrarModalServicios() {
     const modal = document.getElementById('serviciosModal');
     modal.style.display = 'none';
+    
+    // Limpiar TODO
     selectedServicioId = null;
     currentDiaId = null;
     currentTipoServicio = null;
-    document.getElementById('btn-agregar-servicio').disabled = true;
+    isAddingAlternative = false;
+    alternativeParentId = null;
     
-    // Limpiar búsqueda
-    const searchInput = document.getElementById('search-servicios');
-    if (searchInput) {
-        searchInput.value = '';
+    // Restaurar botón
+    const btnAgregar = document.getElementById('btn-agregar-servicio');
+    if (btnAgregar) {
+        btnAgregar.disabled = true;
+        btnAgregar.innerHTML = '<i class="fas fa-plus"></i> Agregar servicio';
     }
+    
+    // Limpiar búsqueda y selecciones
+    const searchInput = document.getElementById('search-servicios');
+    if (searchInput) searchInput.value = '';
+    
+    document.querySelectorAll('#servicios-grid .biblioteca-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    console.log('✅ Modal cerrado - Todo limpio');
 }
 
 // ============================================================
@@ -3381,7 +3436,18 @@ function getServiceSummary(servicio) {
 async function eliminarServicio(servicioId) {
     if (!confirm('¿Estás seguro de que quieres eliminar este servicio?')) return;
 
+    const btnEliminar = event.target.closest('.btn-remove-service');
+    const originalContent = btnEliminar ? btnEliminar.innerHTML : '';
+    
     try {
+        console.log('🗑️ Eliminando servicio ID:', servicioId);
+        
+        // Mostrar estado de carga en el botón
+        if (btnEliminar) {
+            btnEliminar.disabled = true;
+            btnEliminar.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+        
         const response = await fetch('<?= APP_URL ?>/modules/programa/servicios_api.php', {
             method: 'POST',
             headers: {
@@ -3393,22 +3459,50 @@ async function eliminarServicio(servicioId) {
             })
         });
 
+        console.log('📡 Status de respuesta:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Error del servidor:', errorText);
+            throw new Error(`Error del servidor (${response.status})`);
+        }
+
         const result = await response.json();
+        console.log('📋 Resultado de eliminación:', result);
 
         if (result.success) {
-            showAlert('Servicio eliminado exitosamente', 'success');
-            // Recargar servicios de todos los días visibles
-            diasPrograma.forEach(dia => {
-                cargarServiciosDia(dia.id);
-            });
+            showAlert('✅ Servicio eliminado exitosamente', 'success');
+            
+            // ACTUALIZAR INMEDIATAMENTE EL DÍA SELECCIONADO
+            if (selectedDayId) {
+                console.log(`🔄 Recargando servicios del día seleccionado: ${selectedDayId}`);
+                await cargarServiciosDia(selectedDayId);
+                await cargarServiciosParaContador(selectedDayId);
+            } else {
+                console.warn('⚠️ No hay día seleccionado, recargando todos los días visibles');
+                // Si no hay día seleccionado, recargar contadores de todos los días
+                diasPrograma.forEach(async (dia) => {
+                    await cargarServiciosParaContador(dia.id);
+                });
+            }
+            
         } else {
-            showAlert(result.message || 'Error al eliminar servicio', 'error');
+            throw new Error(result.message || 'Error al eliminar servicio');
         }
+
     } catch (error) {
-        console.error('Error:', error);
-        showAlert('Error de conexión', 'error');
+        console.error('❌ Error completo:', error);
+        showAlert(`Error: ${error.message}`, 'error');
+        
+    } finally {
+        // Restaurar botón siempre
+        if (btnEliminar) {
+            btnEliminar.disabled = false;
+            btnEliminar.innerHTML = originalContent || '<i class="fas fa-trash"></i>';
+        }
     }
 }
+
 
 function editarServicio(servicioId) {
     // TODO: Implementar edición de servicios
@@ -3954,39 +4048,7 @@ function renderizarServiciosDia(diaId, servicios) {
     console.log(`✅ Servicios renderizados para día ${diaId}`);
 }
 
-// Modificar función de eliminar servicio para actualizar contador
-async function eliminarServicio(servicioId) {
-    if (!confirm('¿Estás seguro de que quieres eliminar este servicio?')) return;
 
-    try {
-        const response = await fetch('<?= APP_URL ?>/modules/programa/servicios_api.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'delete',
-                servicio_id: servicioId
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            showAlert('Servicio eliminado exitosamente', 'success');
-            // Recargar servicios del día seleccionado
-            if (selectedDayId) {
-                cargarServiciosDia(selectedDayId);
-                cargarServiciosParaContador(selectedDayId);
-            }
-        } else {
-            showAlert(result.message || 'Error al eliminar servicio', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showAlert('Error de conexión', 'error');
-    }
-}
 
 console.log('✅ Script de sidebar de días cargado');
 
@@ -4112,40 +4174,15 @@ function renderizarAlternativa(alternativa) {
 }
 
 // Función para abrir modal de alternativas
-async function abrirModalAlternativa(servicioPrincipalId, tipoServicio) {
-    console.log(`🔄 Abriendo modal de alternativas para servicio ${servicioPrincipalId} tipo ${tipoServicio}`);
+function abrirModalAlternativa(servicioPrincipalId, tipoServicio) {
+    console.log(`🔄 Agregando alternativa para servicio ${servicioPrincipalId}`);
     
-    // Guardar referencias globales
-    currentServicioPrincipal = servicioPrincipalId;
+    // Configurar para alternativa
+    isAddingAlternative = true;
+    alternativeParentId = servicioPrincipalId;
     currentTipoServicio = tipoServicio;
     
-    const modal = document.getElementById('serviciosModal');
-    const title = document.getElementById('servicios-modal-title');
-    
-    // Actualizar título según el tipo
-    const icons = {
-        'actividad': 'fas fa-hiking',
-        'transporte': 'fas fa-car',
-        'alojamiento': 'fas fa-bed'
-    };
-    
-    const titles = {
-        'actividad': 'Agregar Alternativa de Actividad',
-        'transporte': 'Agregar Alternativa de Transporte',
-        'alojamiento': 'Agregar Alternativa de Alojamiento'
-    };
-    
-    title.innerHTML = `<i class="${icons[tipoServicio]}"></i> ${titles[tipoServicio]}`;
-    
-    // Cambiar texto del botón
-    const btnAgregar = document.getElementById('btn-agregar-servicio');
-    if (btnAgregar) {
-        btnAgregar.innerHTML = '<i class="fas fa-plus"></i> Agregar alternativa';
-    }
-    
-    modal.style.display = 'block';
-    
-    await cargarServiciosBiblioteca(tipoServicio);
+    abrirModalServicios(tipoServicio, 'Agregar alternativa de ' + tipoServicio);
 }
 
 // Función para agregar alternativa seleccionada
@@ -4193,7 +4230,18 @@ async function agregarAlternativaSeleccionada() {
 async function eliminarAlternativa(alternativaId) {
     if (!confirm('¿Estás seguro de que quieres eliminar esta alternativa?')) return;
 
+    const btnEliminar = event.target.closest('.btn-remove-service');
+    const originalContent = btnEliminar ? btnEliminar.innerHTML : '';
+
     try {
+        console.log('🗑️ Eliminando alternativa ID:', alternativaId);
+        
+        // Mostrar estado de carga
+        if (btnEliminar) {
+            btnEliminar.disabled = true;
+            btnEliminar.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+        
         const response = await fetch('<?= APP_URL ?>/modules/programa/servicios_api.php', {
             method: 'POST',
             headers: {
@@ -4208,19 +4256,35 @@ async function eliminarAlternativa(alternativaId) {
         const result = await response.json();
 
         if (result.success) {
-            showAlert('Alternativa eliminada exitosamente', 'success');
+            showAlert('✅ Alternativa eliminada exitosamente', 'success');
+            
             // Recargar servicios del día seleccionado
             if (selectedDayId) {
-                cargarServiciosDia(selectedDayId);
-                cargarServiciosParaContador(selectedDayId);
+                await cargarServiciosDia(selectedDayId);
+                await cargarServiciosParaContador(selectedDayId);
             }
         } else {
-            showAlert(result.message || 'Error al eliminar alternativa', 'error');
+            throw new Error(result.message || 'Error al eliminar alternativa');
         }
+        
     } catch (error) {
-        console.error('Error:', error);
-        showAlert('Error de conexión', 'error');
+        console.error('❌ Error:', error);
+        showAlert('Error: ' + error.message, 'error');
+        
+    } finally {
+        // Restaurar botón siempre
+        if (btnEliminar) {
+            btnEliminar.disabled = false;
+            btnEliminar.innerHTML = originalContent || '<i class="fas fa-trash"></i>';
+        }
     }
+}
+function debugEliminarServicio(servicioId) {
+    console.log('🔍 DEBUG - Estado antes de eliminar:');
+    console.log('- Servicio ID:', servicioId);
+    console.log('- Día seleccionado:', selectedDayId);
+    console.log('- Días programa:', diasPrograma.map(d => d.id));
+    console.log('- URL de API:', '<?= APP_URL ?>/modules/programa/servicios_api.php');
 }
 
 // Función para editar alternativa
@@ -4229,16 +4293,7 @@ function editarAlternativa(alternativaId) {
     showAlert('Función de edición de alternativas en desarrollo', 'info');
 }
 
-// Modificar función de agregar servicio seleccionado para detectar si es alternativa
-async function agregarServicioSeleccionado() {
-    // Si hay servicio principal seleccionado, es una alternativa
-    if (currentServicioPrincipal) {
-        await agregarAlternativaSeleccionada();
-    } else {
-        // Es un servicio principal normal
-        await agregarServicioPrincipalSeleccionado();
-    }
-}
+
 
 async function agregarServicioPrincipalSeleccionado() {
     if (!selectedServicioId || !currentDiaId || !currentTipoServicio) return;
@@ -4272,62 +4327,10 @@ async function agregarServicioPrincipalSeleccionado() {
     }
 }
 
-// Modificar función de cerrar modal para limpiar variables de alternativas
-function cerrarModalServicios() {
-    const modal = document.getElementById('serviciosModal');
-    modal.style.display = 'none';
-    selectedServicioId = null;
-    currentDiaId = null;
-    currentTipoServicio = null;
-    currentServicioPrincipal = null; // Limpiar referencia de alternativa
-    
-    const btnAgregar = document.getElementById('btn-agregar-servicio');
-    if (btnAgregar) {
-        btnAgregar.disabled = true;
-        // Restaurar texto del botón
-        btnAgregar.innerHTML = '<i class="fas fa-plus"></i> Agregar servicio';
-    }
-    
-    // Limpiar búsqueda
-    const searchInput = document.getElementById('search-servicios');
-    if (searchInput) {
-        searchInput.value = '';
-    }
-}
 
-// Función modificada para eliminar servicio (principal + alternativas)
-async function eliminarServicio(servicioId) {
-    if (!confirm('¿Estás seguro de que quieres eliminar este servicio y todas sus alternativas?')) return;
 
-    try {
-        const response = await fetch('<?= APP_URL ?>/modules/programa/servicios_api.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'delete',
-                servicio_id: servicioId
-            })
-        });
 
-        const result = await response.json();
 
-        if (result.success) {
-            showAlert('Servicio eliminado exitosamente', 'success');
-            // Recargar servicios del día seleccionado
-            if (selectedDayId) {
-                cargarServiciosDia(selectedDayId);
-                cargarServiciosParaContador(selectedDayId);
-            }
-        } else {
-            showAlert(result.message || 'Error al eliminar servicio', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showAlert('Error de conexión', 'error');
-    }
-}
 // AGREGAR ESTAS FUNCIONES AL FINAL DEL JAVASCRIPT
 let sidebarOpen = false;
 

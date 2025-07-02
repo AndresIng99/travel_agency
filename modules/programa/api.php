@@ -50,6 +50,15 @@ class ProgramaAPI {
                 case 'delete':
                     $result = $this->deletePrograma($_POST['id'] ?? null);
                     break;
+                case 'list_all':
+                    $result = $this->listAllPrograms();
+                    break;
+                case 'duplicate_programa':
+                    $result = $this->duplicatePrograma();
+                    break;
+                case 'delete_programa_admin':
+                    $result = $this->deleteProgramaAdmin();
+                    break;
                 default:
                     throw new Exception('Acción no válida: ' . $action);
             }
@@ -62,6 +71,423 @@ class ProgramaAPI {
             $this->sendError($e->getMessage());
         }
     }
+
+    private function listAllPrograms() {
+        try {
+            $programas = $this->db->fetchAll(
+                "SELECT ps.*, 
+                        u.full_name as created_by_name,
+                        pp.titulo_programa,
+                        pp.foto_portada,           -- ⭐ IMAGEN
+                        pp.idioma_predeterminado
+                FROM programa_solicitudes ps
+                LEFT JOIN users u ON ps.user_id = u.id
+                LEFT JOIN programa_personalizacion pp ON ps.id = pp.solicitud_id
+                ORDER BY ps.created_at DESC"
+            );
+            
+            return ['success' => true, 'data' => $programas];
+        } catch(Exception $e) {
+            return ['success' => false, 'error' => 'Error al obtener programas'];
+        }
+    }
+    
+    private function deleteProgramaAdmin() {
+    try {
+        $user_role = $_SESSION['user_role'] ?? null;
+        $programa_id = $_POST['programa_id'] ?? null;
+        
+        if ($user_role !== 'admin') {
+            throw new Exception('Solo administradores pueden eliminar programas');
+        }
+        
+        if (!$programa_id) {
+            throw new Exception('ID de programa requerido');
+        }
+        
+        // Verificar que el programa existe
+        $programa = $this->db->fetch(
+            "SELECT id FROM programa_solicitudes WHERE id = ?", 
+            [$programa_id]
+        );
+        
+        if (!$programa) {
+            throw new Exception('Programa no encontrado');
+        }
+        
+        // Eliminar en orden usando PDO directamente
+        $pdo = $this->db->getConnection(); // Asumiendo que tienes este método
+        
+        // Si no tienes getConnection(), usa $this->db->pdo o como accedas al PDO
+        
+        // 1. Eliminar servicios de días
+        $stmt = $pdo->prepare(
+            "DELETE pds FROM programa_dias_servicios pds 
+             INNER JOIN programa_dias pd ON pds.programa_dia_id = pd.id 
+             WHERE pd.solicitud_id = ?"
+        );
+        $stmt->execute([$programa_id]);
+        
+        // 2. Eliminar días
+        $stmt = $pdo->prepare("DELETE FROM programa_dias WHERE solicitud_id = ?");
+        $stmt->execute([$programa_id]);
+        
+        // 3. Eliminar precios
+        $stmt = $pdo->prepare("DELETE FROM programa_precios WHERE solicitud_id = ?");
+        $stmt->execute([$programa_id]);
+        
+        // 4. Eliminar personalización
+        $stmt = $pdo->prepare("DELETE FROM programa_personalizacion WHERE solicitud_id = ?");
+        $stmt->execute([$programa_id]);
+        
+        // 5. Eliminar programa principal
+        $stmt = $pdo->prepare("DELETE FROM programa_solicitudes WHERE id = ?");
+        $stmt->execute([$programa_id]);
+        
+        return [
+            'success' => true,
+            'message' => 'Programa eliminado exitosamente'
+        ];
+        
+    } catch(Exception $e) {
+        error_log("Error eliminando programa: " . $e->getMessage());
+        return [
+            'success' => false,
+            'error' => $e->getMessage()
+        ];
+    }
+}
+
+// Eliminar servicios de días (CORREGIDO)
+private function eliminarServiciosDias($programa_id) {
+    try {
+        // Primero obtener los IDs de días del programa
+        $dias = $this->db->fetchAll(
+            "SELECT id FROM programa_dias WHERE solicitud_id = ?",
+            [$programa_id]
+        );
+        
+        if (empty($dias)) {
+            error_log("No hay días para este programa");
+            return 0;
+        }
+        
+        $dia_ids = array_column($dias, 'id');
+        $total_eliminados = 0;
+        
+        // Eliminar servicios de cada día
+        foreach ($dia_ids as $dia_id) {
+            $stmt = $this->db->prepare(
+                "DELETE FROM programa_dias_servicios WHERE programa_dia_id = ?"
+            );
+            $stmt->execute([$dia_id]);
+            $eliminados = $stmt->rowCount();
+            $total_eliminados += $eliminados;
+            error_log("Eliminados $eliminados servicios del día $dia_id");
+        }
+        
+        return $total_eliminados;
+        
+    } catch(Exception $e) {
+        error_log("Error eliminando servicios de días: " . $e->getMessage());
+        return 0;
+    }
+}
+
+// Eliminar días (CORREGIDO)
+private function eliminarDias($programa_id) {
+    try {
+        $stmt = $this->db->prepare("DELETE FROM programa_dias WHERE solicitud_id = ?");
+        $stmt->execute([$programa_id]);
+        $eliminados = $stmt->rowCount();
+        error_log("Eliminados $eliminados días");
+        return $eliminados;
+        
+    } catch(Exception $e) {
+        error_log("Error eliminando días: " . $e->getMessage());
+        return 0;
+    }
+}
+
+// Eliminar precios (CORREGIDO)
+private function eliminarPrecios($programa_id) {
+    try {
+        $stmt = $this->db->prepare("DELETE FROM programa_precios WHERE solicitud_id = ?");
+        $stmt->execute([$programa_id]);
+        $eliminados = $stmt->rowCount();
+        error_log("Eliminados $eliminados registros de precios");
+        return $eliminados;
+        
+    } catch(Exception $e) {
+        error_log("Error eliminando precios: " . $e->getMessage());
+        return 0;
+    }
+}
+
+// Eliminar personalización (CORREGIDO)
+private function eliminarPersonalizacion($programa_id) {
+    try {
+        $stmt = $this->db->prepare("DELETE FROM programa_personalizacion WHERE solicitud_id = ?");
+        $stmt->execute([$programa_id]);
+        $eliminados = $stmt->rowCount();
+        error_log("Eliminados $eliminados registros de personalización");
+        return $eliminados;
+        
+    } catch(Exception $e) {
+        error_log("Error eliminando personalización: " . $e->getMessage());
+        return 0;
+    }
+}
+
+// Eliminar programa principal (CORREGIDO)
+private function eliminarProgramaPrincipal($programa_id) {
+    try {
+        $stmt = $this->db->prepare("DELETE FROM programa_solicitudes WHERE id = ?");
+        $stmt->execute([$programa_id]);
+        $eliminados = $stmt->rowCount();
+        error_log("Eliminados $eliminados programas principales");
+        return $eliminados;
+        
+    } catch(Exception $e) {
+        error_log("Error eliminando programa principal: " . $e->getMessage());
+        return 0;
+    }
+}
+
+    private function duplicatePrograma() {
+    try {
+        $user_id = $_SESSION['user_id'];
+        $programa_id = $_POST['programa_id'] ?? null;
+        
+        if (!$programa_id) {
+            throw new Exception('ID de programa requerido');
+        }
+        
+        error_log("=== DUPLICANDO PROGRAMA ID: $programa_id ===");
+        
+        // Obtener programa original
+        $original = $this->db->fetch(
+            "SELECT ps.*, pp.titulo_programa 
+             FROM programa_solicitudes ps 
+             LEFT JOIN programa_personalizacion pp ON ps.id = pp.solicitud_id 
+             WHERE ps.id = ?", 
+            [$programa_id]
+        );
+        
+        if (!$original) {
+            throw new Exception('Programa no encontrado');
+        }
+        
+        error_log("Programa original encontrado: " . $original['id_solicitud']);
+        
+        // Crear título con "Copia de"
+        $titulo_original = $original['titulo_programa'] ?: "Viaje a {$original['destino']}";
+        $nuevo_titulo = "Copia de " . $titulo_original;
+        
+        // Crear nuevo programa
+        $nuevo_programa_data = [
+            'nombre_viajero' => $original['nombre_viajero'],
+            'apellido_viajero' => $original['apellido_viajero'],
+            'destino' => $original['destino'],
+            'fecha_llegada' => $original['fecha_llegada'],
+            'fecha_salida' => $original['fecha_salida'],
+            'numero_pasajeros' => $original['numero_pasajeros'],
+            'acompanamiento' => $original['acompanamiento'],
+            'user_id' => $user_id
+        ];
+        
+        $nuevo_programa_id = $this->db->insert('programa_solicitudes', $nuevo_programa_data);
+        error_log("Nuevo programa creado con ID: $nuevo_programa_id");
+        
+        // Generar ID de solicitud único
+        $nuevo_request_id = $this->generateUniqueRequestId($nuevo_programa_id);
+        $this->db->update('programa_solicitudes', ['id_solicitud' => $nuevo_request_id], 'id = ?', [$nuevo_programa_id]);
+        error_log("ID de solicitud generado: $nuevo_request_id");
+        
+        // Crear personalización con nuevo título
+        $this->db->insert('programa_personalizacion', [
+            'solicitud_id' => $nuevo_programa_id,
+            'titulo_programa' => $nuevo_titulo,
+            'idioma_predeterminado' => 'es'
+        ]);
+        error_log("Personalización creada");
+        
+        // DUPLICAR DÍAS
+        $this->duplicarDias($programa_id, $nuevo_programa_id);
+        
+        // DUPLICAR PRECIOS
+        $this->duplicarPrecios($programa_id, $nuevo_programa_id);
+        
+        error_log("=== DUPLICACIÓN COMPLETADA ===");
+        
+        return [
+            'success' => true,
+            'message' => 'Programa duplicado exitosamente',
+            'new_programa_id' => $nuevo_programa_id,
+            'new_title' => $nuevo_titulo
+        ];
+        
+    } catch(Exception $e) {
+        error_log("ERROR en duplicatePrograma: " . $e->getMessage());
+        return [
+            'success' => false,
+            'error' => $e->getMessage()
+        ];
+    }
+}
+
+// Función para duplicar días (CORREGIDA con estructura exacta de BD)
+private function duplicarDias($programa_original_id, $nuevo_programa_id) {
+    try {
+        error_log("=== DUPLICANDO DÍAS ===");
+        
+        // Obtener días originales
+        $dias_originales = $this->db->fetchAll(
+            "SELECT * FROM programa_dias WHERE solicitud_id = ? ORDER BY dia_numero",
+            [$programa_original_id]
+        );
+        
+        error_log("Días encontrados: " . count($dias_originales));
+        
+        if (empty($dias_originales)) {
+            error_log("No hay días para duplicar");
+            return;
+        }
+        
+        foreach ($dias_originales as $dia_original) {
+            error_log("Duplicando día {$dia_original['dia_numero']}: {$dia_original['titulo']}");
+            
+            // Crear nuevo día con TODOS los campos de la BD
+            $nuevo_dia_data = [
+                'solicitud_id' => $nuevo_programa_id,
+                'dia_numero' => $dia_original['dia_numero'],
+                'titulo' => $dia_original['titulo'],
+                'descripcion' => $dia_original['descripcion'],
+                'ubicacion' => $dia_original['ubicacion'],
+                'fecha_dia' => $dia_original['fecha_dia'],
+                'imagen1' => $dia_original['imagen1'],
+                'imagen2' => $dia_original['imagen2'],
+                'imagen3' => $dia_original['imagen3']
+            ];
+            
+            $nuevo_dia_id = $this->db->insert('programa_dias', $nuevo_dia_data);
+            
+            if ($nuevo_dia_id) {
+                error_log("✅ Nuevo día creado con ID: $nuevo_dia_id");
+                
+                // Duplicar servicios de este día
+                $this->duplicarServiciosDia($dia_original['id'], $nuevo_dia_id);
+            } else {
+                error_log("❌ Error creando día");
+            }
+        }
+        
+        error_log("=== DÍAS DUPLICADOS ===");
+        
+    } catch(Exception $e) {
+        error_log("❌ Error duplicando días: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+    }
+}
+
+// Función para duplicar servicios de un día (CORREGIDA)
+private function duplicarServiciosDia($dia_original_id, $nuevo_dia_id) {
+    try {
+        error_log("=== DUPLICANDO SERVICIOS DEL DÍA ===");
+        
+        // Obtener servicios del día original
+        $servicios_originales = $this->db->fetchAll(
+            "SELECT * FROM programa_dias_servicios WHERE programa_dia_id = ?",
+            [$dia_original_id]
+        );
+        
+        error_log("Servicios encontrados: " . count($servicios_originales));
+        
+        if (empty($servicios_originales)) {
+            error_log("No hay servicios para duplicar en este día");
+            return;
+        }
+        
+        foreach ($servicios_originales as $servicio_original) {
+            error_log("Duplicando servicio: {$servicio_original['tipo_servicio']} - ID biblioteca: {$servicio_original['biblioteca_item_id']}");
+            
+            // Crear nuevo servicio con TODOS los campos de la BD
+            $nuevo_servicio_data = [
+                'programa_dia_id' => $nuevo_dia_id,
+                'tipo_servicio' => $servicio_original['tipo_servicio'],
+                'biblioteca_item_id' => $servicio_original['biblioteca_item_id'],
+                'orden' => $servicio_original['orden'],
+                'servicio_principal_id' => null, // Se reinicia como servicio principal
+                'es_alternativa' => 0, // Se reinicia como principal
+                'orden_alternativa' => 0,
+                'notas_alternativa' => $servicio_original['notas_alternativa']
+            ];
+            
+            $nuevo_servicio_id = $this->db->insert('programa_dias_servicios', $nuevo_servicio_data);
+            
+            if ($nuevo_servicio_id) {
+                error_log("✅ Nuevo servicio creado con ID: $nuevo_servicio_id");
+            } else {
+                error_log("❌ Error creando servicio");
+            }
+        }
+        
+        error_log("=== SERVICIOS DUPLICADOS ===");
+        
+    } catch(Exception $e) {
+        error_log("❌ Error duplicando servicios del día: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+    }
+}
+
+// Función para duplicar precios (CORREGIDA con estructura exacta de BD)
+private function duplicarPrecios($programa_original_id, $nuevo_programa_id) {
+    try {
+        error_log("=== DUPLICANDO PRECIOS ===");
+        
+        // Obtener precios originales
+        $precios_original = $this->db->fetch(
+            "SELECT * FROM programa_precios WHERE solicitud_id = ?",
+            [$programa_original_id]
+        );
+        
+        if (!$precios_original) {
+            error_log("No hay precios para duplicar");
+            return;
+        }
+        
+        error_log("Precios encontrados para duplicar");
+        
+        // Crear nuevos precios con TODOS los campos de la BD
+        $nuevo_precio_data = [
+            'solicitud_id' => $nuevo_programa_id,
+            'moneda' => $precios_original['moneda'],
+            'precio_por_persona' => $precios_original['precio_por_persona'],
+            'precio_total' => $precios_original['precio_total'],
+            'noches_incluidas' => $precios_original['noches_incluidas'],
+            'precio_incluye' => $precios_original['precio_incluye'],
+            'precio_no_incluye' => $precios_original['precio_no_incluye'],
+            'condiciones_generales' => $precios_original['condiciones_generales'],
+            'movilidad_reducida' => $precios_original['movilidad_reducida'],
+            'info_pasaporte' => $precios_original['info_pasaporte'],
+            'info_seguros' => $precios_original['info_seguros']
+        ];
+        
+        $nuevo_precio_id = $this->db->insert('programa_precios', $nuevo_precio_data);
+        
+        if ($nuevo_precio_id) {
+            error_log("✅ Precios duplicados con ID: $nuevo_precio_id");
+        } else {
+            error_log("❌ Error creando precios");
+        }
+        
+        error_log("=== PRECIOS DUPLICADOS ===");
+        
+    } catch(Exception $e) {
+        error_log("❌ Error duplicando precios: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+    }
+}
     
     private function savePrograma() {
         try {
@@ -504,21 +930,19 @@ class ProgramaAPI {
             $user_id = $_SESSION['user_id'];
             
             $programas = $this->db->fetchAll(
-                "SELECT ps.*, pp.titulo_programa, pp.foto_portada 
-                 FROM programa_solicitudes ps 
-                 LEFT JOIN programa_personalizacion pp ON ps.id = pp.solicitud_id 
-                 WHERE ps.user_id = ? 
-                 ORDER BY ps.created_at DESC",
+                "SELECT ps.*, 
+                        pp.titulo_programa, 
+                        pp.foto_portada,           -- ⭐ IMAGEN
+                        pp.idioma_predeterminado
+                FROM programa_solicitudes ps 
+                LEFT JOIN programa_personalizacion pp ON ps.id = pp.solicitud_id 
+                WHERE ps.user_id = ? 
+                ORDER BY ps.created_at DESC",
                 [$user_id]
             );
             
-            return [
-                'success' => true,
-                'data' => $programas
-            ];
-            
+            return ['success' => true, 'data' => $programas];
         } catch(Exception $e) {
-            error_log("Error en listProgramas: " . $e->getMessage());
             throw $e;
         }
     }
@@ -560,6 +984,7 @@ class ProgramaAPI {
         exit;
     }
 }
+
 
 // =====================================================
 // EJECUTAR API

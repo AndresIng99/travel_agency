@@ -1,8 +1,7 @@
 <?php
 // ====================================================================
-// ARCHIVO: modules/programa/servicios_api.php - CON ALTERNATIVAS
+// ARCHIVO: modules/programa/servicios_api.php - VERSIÓN CORREGIDA
 // ====================================================================
-// REEMPLAZAR COMPLETAMENTE el archivo existente
 
 ob_start();
 ini_set('display_errors', 0);
@@ -39,7 +38,7 @@ class ProgramaServiciosAPI {
         }
         
         try {
-            error_log("=== PROGRAMA SERVICIOS API (CON ALTERNATIVAS) ===");
+            error_log("=== PROGRAMA SERVICIOS API (CORREGIDO) ===");
             error_log("Action: " . $action);
             error_log("GET: " . print_r($_GET, true));
             error_log("POST: " . print_r($_POST, true));
@@ -62,13 +61,16 @@ class ProgramaServiciosAPI {
                     $result = $this->listServices($_GET['dia_id'] ?? null);
                     break;
                 case 'delete':
-                    $result = $this->deleteService($_POST['servicio_id'] ?? null);
+                    $result = $this->deleteService($_POST['servicio_id'] ?? $_GET['servicio_id'] ?? null);
                     break;
                 case 'update':
                     $result = $this->updateService($_POST['servicio_id'] ?? null, $_POST);
                     break;
                 case 'reorder':
                     $result = $this->reorderServices($_POST['dia_id'] ?? null, $_POST['orden'] ?? []);
+                    break;
+                case 'test':
+                    $result = ['success' => true, 'message' => 'API funcionando correctamente'];
                     break;
                 default:
                     throw new Exception('Acción no válida: ' . $action);
@@ -80,6 +82,79 @@ class ProgramaServiciosAPI {
             error_log("Error en Servicios API: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());
             $this->sendError($e->getMessage());
+        }
+    }
+    
+    private function deleteService($servicioId) {
+        if (!$servicioId) {
+            throw new Exception('ID de servicio requerido');
+        }
+        
+        try {
+            $user_id = $_SESSION['user_id'];
+            
+            error_log("🗑️ Eliminando servicio $servicioId por usuario $user_id");
+            
+            // Verificar permisos
+            $servicio = $this->db->fetch(
+                "SELECT pds.*, ps.user_id 
+                 FROM programa_dias_servicios pds
+                 JOIN programa_dias pd ON pds.programa_dia_id = pd.id
+                 JOIN programa_solicitudes ps ON pd.solicitud_id = ps.id 
+                 WHERE pds.id = ? AND ps.user_id = ?", 
+                [$servicioId, $user_id]
+            );
+            
+            if (!$servicio) {
+                throw new Exception('Servicio no encontrado o sin permisos');
+            }
+            
+            error_log("✅ Servicio encontrado: " . print_r($servicio, true));
+            
+            // Si es servicio principal, eliminar también sus alternativas
+            if ($servicio['es_alternativa'] == 0) {
+                error_log("🗑️ Eliminando servicio PRINCIPAL y sus alternativas");
+                
+                // ⭐ CORRECCIÓN: Usar query() en lugar de execute()
+                $stmt = $this->db->query(
+                    "DELETE FROM programa_dias_servicios WHERE servicio_principal_id = ?", 
+                    [$servicioId]
+                );
+                $alternativasEliminadas = $stmt->rowCount();
+                error_log("🗑️ Alternativas eliminadas: $alternativasEliminadas");
+            }
+            
+            // Eliminar el servicio principal
+            $deleted = $this->db->delete('programa_dias_servicios', 'id = ?', [$servicioId]);
+            
+            if (!$deleted) {
+                throw new Exception('Error al eliminar servicio de la base de datos');
+            }
+            
+            error_log("✅ Servicio eliminado exitosamente");
+            
+            // Reordenar si era principal (no crítico si falla)
+            try {
+                if ($servicio['es_alternativa'] == 0) {
+                    $this->reorderServicesAfterDelete($servicio['programa_dia_id'], $servicio['orden']);
+                }
+            } catch(Exception $e) {
+                error_log("⚠️ Error reordenando servicios (no crítico): " . $e->getMessage());
+            }
+            
+            return [
+                'success' => true,
+                'message' => $servicio['es_alternativa'] == 0 ? 
+                    'Servicio principal y sus alternativas eliminados' : 
+                    'Alternativa eliminada exitosamente',
+                'servicio_id' => $servicioId,
+                'alternatives_deleted' => $servicio['es_alternativa'] == 0 ? $alternativasEliminadas ?? 0 : 0
+            ];
+            
+        } catch(Exception $e) {
+            error_log("❌ Error detallado en deleteService: " . $e->getMessage());
+            error_log("❌ Stack trace: " . $e->getTraceAsString());
+            throw $e;
         }
     }
     
@@ -127,9 +202,9 @@ class ProgramaServiciosAPI {
                 'tipo_servicio' => $tipoServicio,
                 'biblioteca_item_id' => $bibliotecaItemId,
                 'orden' => $nextOrder,
-                'servicio_principal_id' => null, // Es principal
-                'es_alternativa' => 0, // No es alternativa
-                'orden_alternativa' => 0 // Principal siempre 0
+                'servicio_principal_id' => null,
+                'es_alternativa' => 0,
+                'orden_alternativa' => 0
             ];
             
             error_log("📝 Datos del servicio PRINCIPAL: " . print_r($servicioData, true));
@@ -200,9 +275,9 @@ class ProgramaServiciosAPI {
                 'programa_dia_id' => $servicioPrincipal['programa_dia_id'],
                 'tipo_servicio' => $servicioPrincipal['tipo_servicio'],
                 'biblioteca_item_id' => $bibliotecaItemId,
-                'orden' => $servicioPrincipal['orden'], // Mismo orden que el principal
+                'orden' => $servicioPrincipal['orden'],
                 'servicio_principal_id' => $servicioPrincipalId,
-                'es_alternativa' => 1, // Es alternativa
+                'es_alternativa' => 1,
                 'orden_alternativa' => $nextAlternativeOrder
             ];
             
@@ -261,21 +336,25 @@ class ProgramaServiciosAPI {
                         WHEN pds.tipo_servicio = 'actividad' THEN ba.nombre
                         WHEN pds.tipo_servicio = 'transporte' THEN bt.titulo
                         WHEN pds.tipo_servicio = 'alojamiento' THEN bal.nombre
+                        ELSE 'Desconocido'
                     END as titulo,
                     CASE 
                         WHEN pds.tipo_servicio = 'actividad' THEN ba.nombre
                         WHEN pds.tipo_servicio = 'transporte' THEN bt.titulo
                         WHEN pds.tipo_servicio = 'alojamiento' THEN bal.nombre
+                        ELSE 'Desconocido'
                     END as nombre,
                     CASE 
                         WHEN pds.tipo_servicio = 'actividad' THEN ba.descripcion
                         WHEN pds.tipo_servicio = 'transporte' THEN bt.descripcion
                         WHEN pds.tipo_servicio = 'alojamiento' THEN bal.descripcion
+                        ELSE 'Sin descripción'
                     END as descripcion,
                     CASE 
                         WHEN pds.tipo_servicio = 'actividad' THEN ba.ubicacion
                         WHEN pds.tipo_servicio = 'transporte' THEN CONCAT(COALESCE(bt.lugar_salida, ''), ' → ', COALESCE(bt.lugar_llegada, ''))
                         WHEN pds.tipo_servicio = 'alojamiento' THEN bal.ubicacion
+                        ELSE 'Sin ubicación'
                     END as ubicacion,
                     CASE 
                         WHEN pds.tipo_servicio = 'transporte' THEN bt.medio
@@ -288,16 +367,7 @@ class ProgramaServiciosAPI {
                     CASE 
                         WHEN pds.tipo_servicio = 'transporte' THEN bt.lugar_llegada
                         ELSE NULL
-                    END as lugar_llegada,
-                    CASE 
-                        WHEN pds.tipo_servicio = 'transporte' THEN bt.duracion
-                        ELSE NULL
-                    END as duracion,
-                    CASE 
-                        WHEN pds.tipo_servicio = 'actividad' THEN ba.imagen1
-                        WHEN pds.tipo_servicio = 'alojamiento' THEN bal.imagen
-                        ELSE NULL
-                    END as imagen
+                    END as lugar_llegada
                 FROM programa_dias_servicios pds
                 LEFT JOIN biblioteca_actividades ba ON pds.tipo_servicio = 'actividad' AND pds.biblioteca_item_id = ba.id
                 LEFT JOIN biblioteca_transportes bt ON pds.tipo_servicio = 'transporte' AND pds.biblioteca_item_id = bt.id
@@ -308,7 +378,6 @@ class ProgramaServiciosAPI {
             );
             
             error_log("📋 Servicios encontrados (con alternativas): " . count($servicios));
-            error_log("📋 Datos detallados: " . print_r($servicios, true));
             
             // Organizar servicios en estructura jerárquica
             $serviciosOrganizados = $this->organizarServiciosConAlternativas($servicios);
@@ -354,71 +423,6 @@ class ProgramaServiciosAPI {
         // Convertir a array indexado
         return array_values($principales);
     }
-    
-    private function deleteService($servicioId) {
-        if (!$servicioId) {
-            throw new Exception('ID de servicio requerido');
-        }
-        
-        try {
-            $user_id = $_SESSION['user_id'];
-            
-            error_log("🗑️ Eliminando servicio $servicioId");
-            
-            // Verificar permisos
-            $servicio = $this->db->fetch(
-                "SELECT pds.*, ps.user_id 
-                 FROM programa_dias_servicios pds
-                 JOIN programa_dias pd ON pds.programa_dia_id = pd.id
-                 JOIN programa_solicitudes ps ON pd.solicitud_id = ps.id 
-                 WHERE pds.id = ? AND ps.user_id = ?", 
-                [$servicioId, $user_id]
-            );
-            
-            if (!$servicio) {
-                throw new Exception('Servicio no encontrado o sin permisos');
-            }
-            
-            // Si es servicio principal, eliminar también sus alternativas
-            if ($servicio['es_alternativa'] == 0) {
-                error_log("🗑️ Eliminando servicio PRINCIPAL y sus alternativas");
-                
-                // Eliminar alternativas primero
-                $alternativasEliminadas = $this->db->execute(
-                    "DELETE FROM programa_dias_servicios WHERE servicio_principal_id = ?", 
-                    [$servicioId]
-                );
-                error_log("🗑️ Alternativas eliminadas: $alternativasEliminadas");
-            }
-            
-            // Eliminar el servicio
-            $deleted = $this->db->delete('programa_dias_servicios', 'id = ?', [$servicioId]);
-            
-            if (!$deleted) {
-                throw new Exception('Error al eliminar servicio');
-            }
-            
-            error_log("✅ Servicio eliminado");
-            
-            // Reordenar si era principal
-            if ($servicio['es_alternativa'] == 0) {
-                $this->reorderServicesAfterDelete($servicio['programa_dia_id'], $servicio['orden']);
-            }
-            
-            return [
-                'success' => true,
-                'message' => $servicio['es_alternativa'] == 0 ? 
-                    'Servicio principal y sus alternativas eliminados' : 
-                    'Alternativa eliminada exitosamente'
-            ];
-            
-        } catch(Exception $e) {
-            error_log("Error en deleteService: " . $e->getMessage());
-            throw $e;
-        }
-    }
-    
-    // ... (resto de métodos sin cambios: updateService, reorderServices, getBibliotecaItem, etc.)
     
     private function updateService($servicioId, $data) {
         if (!$servicioId) {
@@ -545,13 +549,15 @@ class ProgramaServiciosAPI {
     
     private function reorderServicesAfterDelete($diaId, $deletedOrder) {
         try {
-            // Solo reordenar servicios principales
-            $this->db->execute(
+            // ⭐ CORRECCIÓN: Usar query() en lugar de execute()
+            $stmt = $this->db->query(
                 "UPDATE programa_dias_servicios 
                  SET orden = orden - 1 
                  WHERE programa_dia_id = ? AND orden > ? AND es_alternativa = 0", 
                 [$diaId, $deletedOrder]
             );
+            $affected = $stmt->rowCount();
+            error_log("✅ Servicios reordenados: $affected");
             
         } catch(Exception $e) {
             error_log("Error reordenando servicios: " . $e->getMessage());

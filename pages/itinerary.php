@@ -1,6 +1,6 @@
 <?php
 // ====================================================================
-// ARCHIVO: pages/itinerary.php - ITINERARIO COMPLETO ESTÉTICO
+// ARCHIVO: pages/itinerary.php - ITINERARIO COMPLETO CON ALTERNATIVAS
 // ====================================================================
 
 require_once 'config/app.php';
@@ -44,9 +44,9 @@ try {
         [$programa_id]
     );
     
-    // Obtener servicios para cada día con toda la información
+    // Obtener servicios para cada día con TODAS las alternativas
     foreach ($dias as &$dia) {
-        $servicios = $db->fetchAll(
+        $servicios_raw = $db->fetchAll(
             "SELECT 
                 pds.*,
                 CASE 
@@ -107,12 +107,32 @@ try {
             LEFT JOIN biblioteca_actividades ba ON pds.tipo_servicio = 'actividad' AND pds.biblioteca_item_id = ba.id
             LEFT JOIN biblioteca_transportes bt ON pds.tipo_servicio = 'transporte' AND pds.biblioteca_item_id = bt.id
             LEFT JOIN biblioteca_alojamientos bal ON pds.tipo_servicio = 'alojamiento' AND pds.biblioteca_item_id = bal.id
-            WHERE pds.programa_dia_id = ? AND pds.es_alternativa = 0
-            ORDER BY pds.orden ASC", 
+            WHERE pds.programa_dia_id = ?
+            ORDER BY pds.orden ASC, pds.es_alternativa ASC, pds.orden_alternativa ASC", 
             [$dia['id']]
         );
         
-        $dia['servicios'] = $servicios;
+        // Organizar servicios principales con sus alternativas
+        $principales = [];
+        $alternativas = [];
+        
+        foreach ($servicios_raw as $servicio) {
+            if ($servicio['es_alternativa'] == 0) {
+                $principales[$servicio['id']] = $servicio;
+                $principales[$servicio['id']]['alternativas'] = [];
+            } else {
+                $alternativas[] = $servicio;
+            }
+        }
+        
+        foreach ($alternativas as $alternativa) {
+            $principalId = $alternativa['servicio_principal_id'];
+            if (isset($principales[$principalId])) {
+                $principales[$principalId]['alternativas'][] = $alternativa;
+            }
+        }
+        
+        $dia['servicios'] = array_values($principales);
     }
     
     // Obtener precios
@@ -121,7 +141,7 @@ try {
         [$programa_id]
     );
     
-    // Obtener todas las ubicaciones para el mapa
+    // Obtener todas las ubicaciones para el mapa (solo principales para no saturar)
     $ubicaciones = [];
     foreach ($dias as $dia) {
         foreach ($dia['servicios'] as $servicio) {
@@ -193,7 +213,7 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         }
         
         /* ========================================
-           HEADER HERO SECTION
+           HERO SECTION
            ======================================== */
         .hero-section {
             height: 100vh;
@@ -608,17 +628,51 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             gap: 20px;
         }
         
+        /* ========================================
+           SERVICIOS CON ALTERNATIVAS
+           ======================================== */
+        .service-group {
+            margin-bottom: 25px;
+            border: 1px solid #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            background: white;
+            transition: all 0.3s ease;
+        }
+        
+        .service-group:hover {
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border-color: #3498db;
+        }
+        
         .service-item {
             display: flex;
             gap: 20px;
             padding: 20px;
-            background: #f8f9fa;
-            border-radius: 15px;
             transition: all 0.3s ease;
         }
         
+        .service-item.principal {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-left: 4px solid #3498db;
+            position: relative;
+        }
+        
+        .service-item.principal::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
+            background: #ffc107;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
         .service-item:hover {
-            background: #e9ecef;
             transform: translateX(5px);
         }
         
@@ -646,11 +700,18 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             background: linear-gradient(135deg, #f39c12, #e67e22);
         }
         
+        .service-details {
+            flex: 1;
+        }
+        
         .service-details h4 {
             font-weight: 600;
             color: #2c3e50;
             margin-bottom: 8px;
             font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .service-details p {
@@ -663,6 +724,7 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             display: flex;
             gap: 15px;
             margin-top: 10px;
+            flex-wrap: wrap;
         }
         
         .service-meta span {
@@ -673,8 +735,92 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             gap: 5px;
         }
         
+        /* Alternativas */
+        .alternatives-header {
+            padding: 12px 20px;
+            background: #f1f3f4;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            color: #5a6c7d;
+            font-size: 0.9rem;
+            border-top: 1px solid #e9ecef;
+            transition: background-color 0.3s ease;
+        }
+        
+        .alternatives-header:hover {
+            background: #e8eaed;
+        }
+        
+        .alternatives-header i {
+            color: #17a2b8;
+        }
+        
+        .alternatives-toggle {
+            margin-left: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        .alternatives-toggle.rotated {
+            transform: rotate(180deg);
+        }
+        
+        .alternatives-list {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .alternatives-list.expanded {
+            max-height: 1000px;
+        }
+        
+        .service-item.alternativa {
+            background: #fafbfc;
+            border-bottom: 1px solid #e9ecef;
+            border-left: 3px solid #17a2b8;
+            position: relative;
+        }
+        
+        .service-item.alternativa:last-child {
+            border-bottom: none;
+        }
+        
+        .service-item.alternativa .service-icon {
+            background: linear-gradient(135deg, #17a2b8, #20c997) !important;
+            width: 50px;
+            height: 50px;
+            font-size: 1.1rem;
+        }
+        
+        .alternative-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #17a2b8;
+            color: white;
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .alternative-notes {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(23, 162, 184, 0.1);
+            border-left: 3px solid #17a2b8;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #0c5460;
+            font-style: italic;
+        }
+        
         /* ========================================
-           PRICING SECTION - NUEVA Y MEJORADA
+           PRICING SECTION
            ======================================== */
         .pricing-section {
             background: #f8f9fa;
@@ -706,7 +852,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             color: #7f8c8d;
         }
 
-        /* Precio Principal */
         .price-main-card {
             background: white;
             border-radius: 20px;
@@ -760,7 +905,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             font-weight: 600;
         }
 
-        /* Acordeones */
         .pricing-accordions {
             display: flex;
             flex-direction: column;
@@ -834,7 +978,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             padding: 0 25px 25px 25px;
         }
 
-        /* Listas de precios */
         .pricing-list {
             list-style: none;
             padding: 0;
@@ -868,7 +1011,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             line-height: 1.5;
         }
 
-        /* Texto de condiciones */
         .conditions-text,
         .passport-info,
         .insurance-info,
@@ -882,7 +1024,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             border-left: 4px solid #3498db;
         }
 
-        /* Información de accesibilidad */
         .accessibility-info {
             margin-top: 15px;
         }
@@ -924,7 +1065,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             line-height: 1.6;
         }
 
-        /* Botones de acción */
         .pricing-actions {
             display: flex;
             gap: 20px;
@@ -1104,7 +1244,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                 display: none;
             }
             
-            /* Responsive para precios */
             .pricing-content {
                 padding: 0 15px;
             }
@@ -1143,6 +1282,22 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             .footer-actions {
                 flex-direction: column;
                 align-items: center;
+            }
+            
+            .service-item {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .service-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.1rem;
+            }
+            
+            .service-meta {
+                flex-direction: column;
+                gap: 8px;
             }
         }
     </style>
@@ -1402,43 +1557,106 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                             
                             <div class="services-grid">
                                 <?php foreach ($dia['servicios'] as $servicio): ?>
-                                <div class="service-item">
-                                    <div class="service-icon <?= $servicio['tipo_servicio'] ?>">
-                                        <i class="fas fa-<?= $servicio['tipo_servicio'] == 'actividad' ? 'hiking' : ($servicio['tipo_servicio'] == 'alojamiento' ? 'bed' : 'car') ?>"></i>
+                                <div class="service-group">
+                                    <!-- Servicio Principal -->
+                                    <div class="service-item principal">
+                                        <div class="service-icon <?= $servicio['tipo_servicio'] ?>">
+                                            <i class="fas fa-<?= $servicio['tipo_servicio'] == 'actividad' ? 'hiking' : ($servicio['tipo_servicio'] == 'alojamiento' ? 'bed' : 'car') ?>"></i>
+                                        </div>
+                                        
+                                        <div class="service-details">
+                                            <h4>
+                                                <i class="fas fa-star" style="color: #ffc107; font-size: 12px; margin-right: 4px;"></i>
+                                                <?= htmlspecialchars($servicio['nombre']) ?>
+                                                <?php if (!empty($servicio['alternativas'])): ?>
+                                                <span class="alternative-badge"><?= count($servicio['alternativas']) ?> ALT</span>
+                                                <?php endif; ?>
+                                            </h4>
+                                            
+                                            <?php if ($servicio['descripcion']): ?>
+                                            <p><?= htmlspecialchars($servicio['descripcion']) ?></p>
+                                            <?php endif; ?>
+                                            
+                                            <div class="service-meta">
+                                                <?php if ($servicio['ubicacion']): ?>
+                                                <span>
+                                                    <i class="fas fa-map-marker-alt"></i>
+                                                    <?= htmlspecialchars($servicio['ubicacion']) ?>
+                                                </span>
+                                                <?php endif; ?>
+                                                
+                                                <?php if ($servicio['tipo_servicio'] == 'transporte' && $servicio['duracion']): ?>
+                                                <span>
+                                                    <i class="fas fa-clock"></i>
+                                                    <?= htmlspecialchars($servicio['duracion']) ?>
+                                                </span>
+                                                <?php endif; ?>
+                                                
+                                                <?php if ($servicio['tipo_servicio'] == 'alojamiento' && $servicio['categoria']): ?>
+                                                <span>
+                                                    <i class="fas fa-star"></i>
+                                                    <?= $servicio['categoria'] ?> estrellas
+                                                </span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        
+                                        <?php if ($servicio['imagen']): ?>
+                                        <div style="width: 80px; height: 80px; border-radius: 10px; background-image: url('<?= htmlspecialchars($servicio['imagen']) ?>'); background-size: cover; background-position: center; flex-shrink: 0;"></div>
+                                        <?php endif; ?>
                                     </div>
                                     
-                                    <div class="service-details">
-                                        <h4><?= htmlspecialchars($servicio['nombre']) ?></h4>
-                                        <?php if ($servicio['descripcion']): ?>
-                                        <p><?= htmlspecialchars($servicio['descripcion']) ?></p>
-                                        <?php endif; ?>
-                                        
-                                        <div class="service-meta">
-                                            <?php if ($servicio['ubicacion']): ?>
-                                            <span>
-                                                <i class="fas fa-map-marker-alt"></i>
-                                                <?= htmlspecialchars($servicio['ubicacion']) ?>
-                                            </span>
-                                            <?php endif; ?>
+                                    <!-- Alternativas -->
+                                    <?php if (!empty($servicio['alternativas'])): ?>
+                                    <div class="alternatives-header" onclick="toggleAlternatives(<?= $servicio['id'] ?>)">
+                                        <i class="fas fa-sync-alt"></i>
+                                        <span><?= count($servicio['alternativas']) ?> alternativa<?= count($servicio['alternativas']) > 1 ? 's' : '' ?> disponible<?= count($servicio['alternativas']) > 1 ? 's' : '' ?></span>
+                                        <i class="fas fa-chevron-down alternatives-toggle" id="toggle-<?= $servicio['id'] ?>"></i>
+                                    </div>
+                                    
+                                    <div class="alternatives-list" id="alternatives-<?= $servicio['id'] ?>">
+                                        <?php foreach ($servicio['alternativas'] as $alternativa): ?>
+                                        <div class="service-item alternativa">
+                                            <div class="alternative-badge">Alt <?= $alternativa['orden_alternativa'] ?></div>
                                             
-                                            <?php if ($servicio['tipo_servicio'] == 'transporte' && $servicio['duracion']): ?>
-                                            <span>
-                                                <i class="fas fa-clock"></i>
-                                                <?= htmlspecialchars($servicio['duracion']) ?>
-                                            </span>
-                                            <?php endif; ?>
+                                            <div class="service-icon alternativa">
+                                                <i class="fas fa-<?= $alternativa['tipo_servicio'] == 'actividad' ? 'hiking' : ($alternativa['tipo_servicio'] == 'alojamiento' ? 'bed' : 'car') ?>"></i>
+                                            </div>
                                             
-                                            <?php if ($servicio['tipo_servicio'] == 'alojamiento' && $servicio['categoria']): ?>
-                                            <span>
-                                                <i class="fas fa-star"></i>
-                                                <?= $servicio['categoria'] ?> estrellas
-                                            </span>
+                                            <div class="service-details">
+                                                <h5 style="color: #0c5460; margin-bottom: 5px;">
+                                                    Alternativa <?= $alternativa['orden_alternativa'] ?>: <?= htmlspecialchars($alternativa['nombre']) ?>
+                                                </h5>
+                                                
+                                                <?php if ($alternativa['descripcion']): ?>
+                                                <p style="font-size: 0.9rem; color: #5a6c7d;">
+                                                    <?= htmlspecialchars($alternativa['descripcion']) ?>
+                                                </p>
+                                                <?php endif; ?>
+                                                
+                                                <?php if ($alternativa['notas_alternativa']): ?>
+                                                <div class="alternative-notes">
+                                                    <i class="fas fa-sticky-note"></i>
+                                                    <?= htmlspecialchars($alternativa['notas_alternativa']) ?>
+                                                </div>
+                                                <?php endif; ?>
+                                                
+                                                <div class="service-meta" style="margin-top: 8px;">
+                                                    <?php if ($alternativa['ubicacion']): ?>
+                                                    <span style="font-size: 0.8rem;">
+                                                        <i class="fas fa-map-marker-alt"></i>
+                                                        <?= htmlspecialchars($alternativa['ubicacion']) ?>
+                                                    </span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            
+                                            <?php if ($alternativa['imagen']): ?>
+                                            <div style="width: 60px; height: 60px; border-radius: 8px; background-image: url('<?= htmlspecialchars($alternativa['imagen']) ?>'); background-size: cover; background-position: center; flex-shrink: 0;"></div>
                                             <?php endif; ?>
                                         </div>
+                                        <?php endforeach; ?>
                                     </div>
-                                    
-                                    <?php if ($servicio['imagen']): ?>
-                                    <div style="width: 80px; height: 80px; border-radius: 10px; background-image: url('<?= htmlspecialchars($servicio['imagen']) ?>'); background-size: cover; background-position: center; flex-shrink: 0;"></div>
                                     <?php endif; ?>
                                 </div>
                                 <?php endforeach; ?>
@@ -1456,7 +1674,7 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             </div>
         </section>
 
-        <!-- Pricing Section - NUEVA Y MEJORADA -->
+        <!-- Pricing Section -->
         <?php if ($precios): ?>
         <section id="pricing" class="pricing-section">
             <div class="pricing-content">
@@ -1567,8 +1785,8 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                     <div class="pricing-accordion">
                         <div class="accordion-header" onclick="toggleAccordion('pasaporte')">
                             <div class="accordion-title">
-                                <i class="fas fa-passport" style="color: #9b59b6;"></i>
-                                <span>Información de Documentación</span>
+                                <i class="fas fa-passport" style="color: #8e44ad;"></i>
+                                <span>Requisitos de Pasaporte y Documentación</span>
                             </div>
                             <i class="fas fa-chevron-down accordion-arrow" id="arrow-pasaporte"></i>
                         </div>
@@ -1585,7 +1803,7 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                     <div class="pricing-accordion">
                         <div class="accordion-header" onclick="toggleAccordion('seguros')">
                             <div class="accordion-title">
-                                <i class="fas fa-shield-alt" style="color: #f39c12;"></i>
+                                <i class="fas fa-shield-alt" style="color: #16a085;"></i>
                                 <span>Información de Seguros</span>
                             </div>
                             <i class="fas fa-chevron-down accordion-arrow" id="arrow-seguros"></i>
@@ -1598,69 +1816,52 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                     </div>
                     <?php endif; ?>
                     
-                    <!-- Movilidad Reducida -->
-                    <?php if ($precios['movilidad_reducida']): ?>
+                    <!-- Accesibilidad -->
                     <div class="pricing-accordion">
-                        <div class="accordion-header" onclick="toggleAccordion('movilidad')">
+                        <div class="accordion-header" onclick="toggleAccordion('accesibilidad')">
                             <div class="accordion-title">
-                                <i class="fas fa-wheelchair" style="color: #16a085;"></i>
-                                <span>Accesibilidad</span>
+                                <i class="fas fa-universal-access" style="color: #f39c12;"></i>
+                                <span>Accesibilidad para Personas con Movilidad Reducida</span>
                             </div>
-                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-movilidad"></i>
+                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-accesibilidad"></i>
                         </div>
-                        <div class="accordion-content" id="content-movilidad">
+                        <div class="accordion-content" id="content-accesibilidad">
                             <div class="accessibility-info">
                                 <div class="accessibility-status">
-                                    <?php
-                                    $status = strtolower($precios['movilidad_reducida']);
-                                    $statusClass = '';
-                                    $statusIcon = '';
-                                    $statusText = '';
-                                    
-                                    if (strpos($status, 'totalmente') !== false || strpos($status, 'sí') !== false) {
-                                        $statusClass = 'fully-accessible';
-                                        $statusIcon = 'fas fa-check-circle';
-                                        $statusText = 'Totalmente Accesible';
-                                    } elseif (strpos($status, 'parcialmente') !== false) {
-                                        $statusClass = 'partially-accessible';
-                                        $statusIcon = 'fas fa-exclamation-circle';
-                                        $statusText = 'Parcialmente Accesible';
-                                    } else {
-                                        $statusClass = 'not-accessible';
-                                        $statusIcon = 'fas fa-times-circle';
-                                        $statusText = 'Consultar Disponibilidad';
-                                    }
-                                    ?>
-                                    <div class="status-badge <?= $statusClass ?>">
-                                        <i class="<?= $statusIcon ?>"></i>
-                                        <span><?= $statusText ?></span>
+                                    <div class="status-badge <?= $precios['movilidad_reducida'] ? 'fully-accessible' : 'not-accessible' ?>">
+                                        <i class="fas fa-<?= $precios['movilidad_reducida'] ? 'check' : 'times' ?>"></i>
+                                        <span>
+                                            <?= $precios['movilidad_reducida'] 
+                                                ? 'Viaje adaptado para movilidad reducida' 
+                                                : 'Este viaje no está adaptado para movilidad reducida' ?>
+                                        </span>
                                     </div>
                                 </div>
+                                
                                 <div class="accessibility-details">
-                                    <?= nl2br(htmlspecialchars($precios['movilidad_reducida'])) ?>
+                                    <?php if ($precios['movilidad_reducida']): ?>
+                                    <p><strong>Servicios incluidos para movilidad reducida:</strong></p>
+                                    <ul>
+                                        <li>Alojamientos con acceso para sillas de ruedas</li>
+                                        <li>Transporte adaptado cuando sea necesario</li>
+                                        <li>Actividades modificadas según necesidades</li>
+                                        <li>Acompañamiento especializado si se requiere</li>
+                                    </ul>
+                                    <p><em>Recomendamos contactar con nuestro equipo para personalizar los servicios según necesidades específicas.</em></p>
+                                    <?php else: ?>
+                                    <p>Este itinerario incluye actividades y ubicaciones que pueden no ser accesibles para personas con movilidad reducida:</p>
+                                    <ul>
+                                        <li>Caminatas en terrenos irregulares</li>
+                                        <li>Escalones y accesos sin rampa</li>
+                                        <li>Transportes no adaptados</li>
+                                        <li>Sitios históricos con limitaciones arquitectónicas</li>
+                                    </ul>
+                                    <p><em>Si necesitas adaptaciones, contacta con nuestro equipo para evaluar alternativas viables.</em></p>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <?php endif; ?>
-                    
-                    <!-- Información Adicional -->
-                    <?php if ($precios['informacion_adicional']): ?>
-                    <div class="pricing-accordion">
-                        <div class="accordion-header" onclick="toggleAccordion('adicional')">
-                            <div class="accordion-title">
-                                <i class="fas fa-info-circle" style="color: #34495e;"></i>
-                                <span>Información Adicional</span>
-                            </div>
-                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-adicional"></i>
-                        </div>
-                        <div class="accordion-content" id="content-adicional">
-                            <div class="additional-info">
-                                <?= nl2br(htmlspecialchars($precios['informacion_adicional'])) ?>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
                     
                 </div>
                 
@@ -1668,11 +1869,11 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                 <div class="pricing-actions">
                     <button class="btn btn-primary" onclick="requestQuote()">
                         <i class="fas fa-calculator"></i>
-                        Solicitar Cotización
+                        Solicitar Cotización Personalizada
                     </button>
-                    <button class="btn btn-outline" onclick="downloadPricing()">
+                    <button class="btn btn-outline" onclick="downloadItinerary()">
                         <i class="fas fa-download"></i>
-                        Descargar Precios
+                        Descargar Itinerario PDF
                     </button>
                 </div>
             </div>
@@ -1695,268 +1896,301 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                     Personalizar más
                 </a>
                 <a href="#" class="btn btn-outline" onclick="window.print()">
-                    <i class="fas fa-download"></i>
-                    Descargar PDF
+                    <i class="fas fa-print"></i>
+                    Imprimir Itinerario
                 </a>
             </div>
             
             <div class="footer-bottom">
-                <p>&copy; <?= date('Y') ?> <?= htmlspecialchars($company_name) ?>. Creando experiencias inolvidables.</p>
+                <p>&copy; <?= date('Y') ?> <?= htmlspecialchars($company_name) ?>. Todos los derechos reservados.</p>
             </div>
         </div>
     </footer>
 
-    <!-- Scripts -->
+    <!-- JavaScript para funcionalidad -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
     <script>
-        // ========================================
-        // JAVASCRIPT PARA ITINERARIO COMPLETO
-        // ========================================
-        
-        // Variables globales
-        let map = null;
-        const ubicaciones = <?= json_encode($ubicaciones) ?>;
-        
-        // Inicialización
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Iniciando itinerario completo...');
-            
-            initNavbar();
-            initSmoothScroll();
-            initMap();
-            initAnimations();
-            
-            console.log('✅ Itinerario completo inicializado');
-        });
-        
-        // ========================================
-        // NAVEGACIÓN
-        // ========================================
-        function initNavbar() {
+        // =====================================================
+        // NAVBAR SCROLL FUNCTIONALITY
+        // =====================================================
+        window.addEventListener('scroll', function() {
             const navbar = document.getElementById('navbar');
-            
-            window.addEventListener('scroll', () => {
-                if (window.scrollY > window.innerHeight * 0.5) {
-                    navbar.classList.add('visible');
-                } else {
-                    navbar.classList.remove('visible');
+            if (window.scrollY > 100) {
+                navbar.classList.add('visible');
+            } else {
+                navbar.classList.remove('visible');
+            }
+        });
+
+        // =====================================================
+        // SMOOTH SCROLLING FOR NAVIGATION
+        // =====================================================
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
                 }
             });
+        });
+
+        // =====================================================
+        // MAP INITIALIZATION
+        // =====================================================
+        <?php if (!empty($ubicaciones)): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Calcular centro del mapa
+            const ubicaciones = <?= json_encode($ubicaciones) ?>;
+            
+            if (ubicaciones.length > 0) {
+                let centerLat = ubicaciones.reduce((sum, loc) => sum + loc.lat, 0) / ubicaciones.length;
+                let centerLng = ubicaciones.reduce((sum, loc) => sum + loc.lng, 0) / ubicaciones.length;
+                
+                // Inicializar mapa
+                const map = L.map('map').setView([centerLat, centerLng], 10);
+                
+                // Agregar tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+                
+                // Colores para diferentes tipos de servicios
+                const iconColors = {
+                    'actividad': '#e74c3c',
+                    'alojamiento': '#f39c12',
+                    'transporte': '#3498db'
+                };
+                
+                // Agregar marcadores
+                ubicaciones.forEach(function(ubicacion, index) {
+                    const color = iconColors[ubicacion.tipo] || '#95a5a6';
+                    
+                    const customIcon = L.divIcon({
+                        html: `
+                            <div style="
+                                background-color: ${color};
+                                width: 30px;
+                                height: 30px;
+                                border-radius: 50%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                color: white;
+                                font-weight: bold;
+                                font-size: 14px;
+                                border: 3px solid white;
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                            ">${ubicacion.dia}</div>
+                        `,
+                        className: 'custom-div-icon',
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    });
+                    
+                    const marker = L.marker([ubicacion.lat, ubicacion.lng], {
+                        icon: customIcon
+                    }).addTo(map);
+                    
+                    // Popup con información
+                    const popupContent = `
+                        <div style="text-align: center; min-width: 200px;">
+                            <h4 style="margin: 0 0 10px 0; color: ${color};">
+                                Día ${ubicacion.dia}: ${ubicacion.nombre}
+                            </h4>
+                            <p style="margin: 0; color: #666; text-transform: capitalize;">
+                                <i class="fas fa-${ubicacion.tipo === 'actividad' ? 'hiking' : (ubicacion.tipo === 'alojamiento' ? 'bed' : 'car')}"></i>
+                                ${ubicacion.tipo}
+                            </p>
+                            ${ubicacion.imagen ? `
+                                <img src="${ubicacion.imagen}" 
+                                     style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 10px;"
+                                     alt="${ubicacion.nombre}">
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    marker.bindPopup(popupContent);
+                });
+                
+                // Ajustar vista para mostrar todos los marcadores
+                if (ubicaciones.length > 1) {
+                    const group = new L.featureGroup(map._layers);
+                    map.fitBounds(group.getBounds().pad(0.1));
+                }
+            }
+        });
+        <?php endif; ?>
+
+        // =====================================================
+        // ACCORDION FUNCTIONALITY FOR PRICING SECTION
+        // =====================================================
+        function toggleAccordion(sectionId) {
+            const content = document.getElementById(`content-${sectionId}`);
+            const arrow = document.getElementById(`arrow-${sectionId}`);
+            const header = arrow.closest('.accordion-header');
+            
+            // Cerrar otros acordeones abiertos
+            document.querySelectorAll('.accordion-content.active').forEach(function(otherContent) {
+                if (otherContent.id !== `content-${sectionId}`) {
+                    otherContent.classList.remove('active');
+                    const otherId = otherContent.id.replace('content-', '');
+                    const otherArrow = document.getElementById(`arrow-${otherId}`);
+                    const otherHeader = otherArrow.closest('.accordion-header');
+                    otherArrow.classList.remove('rotated');
+                    otherHeader.classList.remove('active');
+                }
+            });
+            
+            // Toggle el acordeón actual
+            content.classList.toggle('active');
+            arrow.classList.toggle('rotated');
+            header.classList.toggle('active');
         }
-        
-        function initSmoothScroll() {
-            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-                anchor.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const target = document.querySelector(this.getAttribute('href'));
-                    if (target) {
-                        target.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'start'
-                        });
+
+        // =====================================================
+        // ALTERNATIVES FUNCTIONALITY
+        // =====================================================
+        function toggleAlternatives(servicioId) {
+            const alternativesList = document.getElementById(`alternatives-${servicioId}`);
+            const toggle = document.getElementById(`toggle-${servicioId}`);
+            
+            alternativesList.classList.toggle('expanded');
+            toggle.classList.toggle('rotated');
+        }
+
+        // =====================================================
+        // ACTION BUTTONS FUNCTIONALITY
+        // =====================================================
+        function requestQuote() {
+            // Implementar funcionalidad de solicitud de cotización
+            alert('Funcionalidad de cotización - Por implementar');
+            // window.location.href = '<?= APP_URL ?>/solicitar-cotizacion?programa=<?= $programa_id ?>';
+        }
+
+        function downloadItinerary() {
+            // Funcionalidad de descarga de PDF
+            window.print();
+        }
+
+        // =====================================================
+        // LAZY LOADING FOR IMAGES
+        // =====================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            const images = document.querySelectorAll('img[data-src]');
+            const imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src;
+                        img.classList.remove('lazy');
+                        imageObserver.unobserve(img);
                     }
                 });
             });
-        }
-        
-        // ========================================
-        // MAPA INTERACTIVO
-        // ========================================
-        function initMap() {
-            if (!ubicaciones || ubicaciones.length === 0) {
-                console.log('❌ No hay ubicaciones para mostrar en el mapa');
-                return;
-            }
-            
-            console.log('🗺️ Inicializando mapa con', ubicaciones.length, 'ubicaciones');
-            
-            // Crear mapa centrado en la primera ubicación
-            const centerLat = ubicaciones.reduce((sum, loc) => sum + loc.lat, 0) / ubicaciones.length;
-            const centerLng = ubicaciones.reduce((sum, loc) => sum + loc.lng, 0) / ubicaciones.length;
-            
-            map = L.map('map').setView([centerLat, centerLng], 10);
-            
-            // Agregar tiles del mapa
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
-            
-            // Configurar iconos personalizados
-            const iconos = {
-                actividad: L.divIcon({
-                    className: 'custom-marker',
-                    html: '<div style="background: #e74c3c; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"><i class="fas fa-hiking" style="font-size: 12px;"></i></div>',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15]
-                }),
-                alojamiento: L.divIcon({
-                    className: 'custom-marker',
-                    html: '<div style="background: #f39c12; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"><i class="fas fa-bed" style="font-size: 12px;"></i></div>',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15]
-                }),
-                transporte: L.divIcon({
-                    className: 'custom-marker',
-                    html: '<div style="background: #3498db; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"><i class="fas fa-car" style="font-size: 12px;"></i></div>',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15]
-                })
-            };
-            
-            // Agregar marcadores
-            ubicaciones.forEach((ubicacion, index) => {
-                const marker = L.marker([ubicacion.lat, ubicacion.lng], {
-                    icon: iconos[ubicacion.tipo] || iconos.actividad
-                }).addTo(map);
-                
-                // Popup con información
-                const popupContent = `
-                    <div style="text-align: center; min-width: 200px;">
-                        ${ubicacion.imagen ? `<img src="${ubicacion.imagen}" style="width: 100%; height: 100px; object-fit: cover; border-radius: 8px; margin-bottom: 10px;">` : ''}
-                        <h4 style="margin: 0 0 5px 0; color: #2c3e50;">${ubicacion.nombre}</h4>
-                        <p style="margin: 0; color: #7f8c8d; font-size: 0.9rem;">Día ${ubicacion.dia} - ${ubicacion.tipo}</p>
-                    </div>
-                `;
-                
-                marker.bindPopup(popupContent);
-            });
-            
-            // Ajustar vista para mostrar todos los marcadores
-            if (ubicaciones.length > 1) {
-                const group = new L.featureGroup(map._layers);
-                map.fitBounds(group.getBounds().pad(0.1));
-            }
-            
-            console.log('✅ Mapa inicializado correctamente');
-        }
-        
-        // ========================================
-        // ANIMACIONES
-        // ========================================
-        function initAnimations() {
-            // Intersection Observer para animaciones de entrada
+
+            images.forEach(img => imageObserver.observe(img));
+        });
+
+        // =====================================================
+        // ANIMATION ON SCROLL
+        // =====================================================
+        document.addEventListener('DOMContentLoaded', function() {
             const observerOptions = {
                 threshold: 0.1,
                 rootMargin: '0px 0px -50px 0px'
             };
-            
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
+
+            const observer = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
                     if (entry.isIntersecting) {
-                        entry.target.style.opacity = '1';
-                        entry.target.style.transform = 'translateY(0)';
+                        entry.target.style.animationDelay = '0s';
+                        entry.target.classList.add('animate');
                     }
                 });
             }, observerOptions);
-            
-            // Observar elementos animables
-            document.querySelectorAll('.day-card, .service-item, .detail-item').forEach(el => {
-                el.style.opacity = '0';
-                el.style.transform = 'translateY(30px)';
-                el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+
+            // Observar elementos para animación
+            document.querySelectorAll('.day-card, .service-group, .detail-item').forEach(function(el) {
                 observer.observe(el);
             });
-        }
-        
-        // ========================================
-        // FUNCIONES PARA ACORDEONES DE PRECIOS
-        // ========================================
-        function toggleAccordion(id) {
-            const content = document.getElementById(`content-${id}`);
-            const arrow = document.getElementById(`arrow-${id}`);
-            const header = arrow.closest('.accordion-header');
-            
-            // Cerrar otros acordeones (opcional - comenta estas líneas si quieres múltiples abiertos)
-            document.querySelectorAll('.accordion-content.active').forEach(item => {
-                if (item.id !== `content-${id}`) {
-                    item.classList.remove('active');
-                    const otherArrow = document.querySelector(`#arrow-${item.id.replace('content-', '')}`);
-                    const otherHeader = otherArrow?.closest('.accordion-header');
-                    if (otherArrow) otherArrow.classList.remove('rotated');
-                    if (otherHeader) otherHeader.classList.remove('active');
-                }
+        });
+
+        // =====================================================
+        // PRINT STYLES
+        // =====================================================
+        window.addEventListener('beforeprint', function() {
+            // Expandir todos los acordeones para la impresión
+            document.querySelectorAll('.accordion-content').forEach(function(content) {
+                content.style.maxHeight = 'none';
+                content.style.display = 'block';
             });
             
-            // Toggle del acordeón actual
-            content.classList.toggle('active');
-            arrow.classList.toggle('rotated');
-            header.classList.toggle('active');
-            
-            // Log para debugging
-            console.log(`🔽 Acordeón "${id}" ${content.classList.contains('active') ? 'abierto' : 'cerrado'}`);
-        }
-
-        // Funciones para los botones de precios
-        function requestQuote() {
-            // Aquí puedes agregar lógica para solicitar cotización
-            alert('Funcionalidad de cotización - Por implementar');
-            console.log('💰 Solicitud de cotización iniciada');
-        }
-
-        function downloadPricing() {
-            // Aquí puedes agregar lógica para descargar PDF de precios
-            window.print();
-            console.log('📄 Descarga de precios iniciada');
-        }
-        
-        // ========================================
-        // FUNCIONES AUXILIARES
-        // ========================================
-        function formatPrice(price, currency = 'USD') {
-            return new Intl.NumberFormat('es-ES', {
-                style: 'currency',
-                currency: currency
-            }).format(price);
-        }
-        
-        function shareItinerary() {
-            if (navigator.share) {
-                navigator.share({
-                    title: '<?= addslashes($titulo_programa) ?>',
-                    text: 'Mira este increíble itinerario de viaje',
-                    url: window.location.href
-                });
-            } else {
-                // Fallback: copiar URL
-                navigator.clipboard.writeText(window.location.href).then(() => {
-                    alert('Enlace copiado al portapapeles');
-                });
-            }
-        }
-        
-        // ========================================
-        // EVENTOS GLOBALES
-        // ========================================
-        
-        // Manejo de imágenes con error
-        document.addEventListener('error', function(e) {
-            if (e.target.tagName === 'IMG') {
-                e.target.style.display = 'none';
-                console.log('❌ Error cargando imagen:', e.target.src);
-            }
-        }, true);
-        
-        // Precargar imágenes críticas
-        window.addEventListener('load', function() {
-            const images = document.querySelectorAll('img[data-src]');
-            images.forEach(img => {
-                img.src = img.dataset.src;
-                img.removeAttribute('data-src');
+            // Expandir todas las alternativas
+            document.querySelectorAll('.alternatives-list').forEach(function(list) {
+                list.style.maxHeight = 'none';
+                list.style.display = 'block';
             });
         });
-        
-        // Log para debugging
-        console.log('📊 Estadísticas del itinerario:');
-        console.log('- Días programados:', <?= count($dias) ?>);
-        console.log('- Ubicaciones en mapa:', ubicaciones.length);
-        console.log('- Datos del programa:', <?= json_encode([
-            'id' => $programa_id,
-            'titulo' => $titulo_programa,
-            'destino' => $programa['destino'],
-            'duracion' => $duracion_dias
-        ]) ?>);
-        
+
+        window.addEventListener('afterprint', function() {
+            // Restaurar estado original después de imprimir
+            document.querySelectorAll('.accordion-content:not(.active)').forEach(function(content) {
+                content.style.maxHeight = '0';
+                content.style.display = 'none';
+            });
+            
+            document.querySelectorAll('.alternatives-list:not(.expanded)').forEach(function(list) {
+                list.style.maxHeight = '0';
+                list.style.display = 'none';
+            });
+        });
     </script>
+
+    <!-- Estilos adicionales para impresión -->
+    <style media="print">
+        .navbar, .scroll-indicator, .map-container, .pricing-actions, .footer-actions {
+            display: none !important;
+        }
+        
+        .hero-section {
+            height: 300px !important;
+            background-attachment: scroll !important;
+        }
+        
+        .day-card {
+            page-break-inside: avoid;
+            margin-bottom: 30px !important;
+        }
+        
+        .pricing-section {
+            page-break-before: always;
+        }
+        
+        .accordion-content {
+            max-height: none !important;
+            padding: 0 25px 25px 25px !important;
+        }
+        
+        .alternatives-list {
+            max-height: none !important;
+        }
+        
+        body {
+            font-size: 12px !important;
+        }
+        
+        .section-title {
+            font-size: 1.8rem !important;
+        }
+        
+        .day-title {
+            font-size: 1.5rem !important;
+        }
+    </style>
+
 </body>
 </html>

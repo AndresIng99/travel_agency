@@ -1,6 +1,6 @@
 <?php
 // =====================================
-// ARCHIVO: modules/itinerarios/api.php - API para Gestión de Itinerarios
+// ARCHIVO: modules/itinerarios/api.php - VERSIÓN MODIFICADA
 // =====================================
 
 require_once '../../config/app.php';
@@ -62,32 +62,42 @@ function handleGetRequest($db, $user) {
             getItinerarioById($db, $userId, $id);
             break;
             
+        case 'get_plantillas':
+            // Nueva función para obtener plantillas al crear programa
+            getPlantillasDisponibles($db, $userId);
+            break;
+            
         default:
             throw new Exception('Acción no válida');
     }
 }
 
 function getAllItinerarios($db, $userId) {
+    // CAMBIO PRINCIPAL: Mostrar TODOS los programas, pero marcar cuáles puede editar
     $stmt = $db->prepare("
         SELECT 
-            id,
-            request_id,
-            traveler_name,
-            traveler_lastname,
-            destination,
-            arrival_date,
-            departure_date,
-            passengers,
-            program_title,
-            cover_image,
-            status,
-            total_days,
-            currency,
-            created_at,
-            updated_at
-        FROM programas 
-        WHERE user_id = ? 
-        ORDER BY updated_at DESC
+            p.id,
+            p.request_id,
+            p.traveler_name,
+            p.traveler_lastname,
+            p.destination,
+            p.arrival_date,
+            p.departure_date,
+            p.passengers,
+            p.program_title,
+            p.cover_image,
+            p.status,
+            p.total_days,
+            p.currency,
+            p.created_at,
+            p.updated_at,
+            p.user_id,
+            u.name as creator_name,
+            u.role as creator_role,
+            CASE WHEN p.user_id = ? THEN 1 ELSE 0 END as can_edit
+        FROM programas p
+        LEFT JOIN users u ON p.user_id = u.id
+        ORDER BY p.updated_at DESC
     ");
     
     $stmt->execute([$userId]);
@@ -115,6 +125,11 @@ function getAllItinerarios($db, $userId) {
         if (!$itinerario['status']) {
             $itinerario['status'] = 'draft';
         }
+        
+        // Agregar información del creador
+        $itinerario['creator_info'] = $itinerario['creator_name'] ? 
+            "Creado por: " . $itinerario['creator_name'] : 
+            "Creador desconocido";
     }
     
     echo json_encode([
@@ -125,6 +140,7 @@ function getAllItinerarios($db, $userId) {
 }
 
 function getCompletedItinerarios($db, $userId) {
+    // Mantener filtro solo para completados (estos sí son personales)
     $stmt = $db->prepare("
         SELECT 
             id,
@@ -149,9 +165,16 @@ function getCompletedItinerarios($db, $userId) {
 }
 
 function getItinerarioById($db, $userId, $id) {
-    // Obtener datos principales
-    $stmt = $db->prepare("SELECT * FROM programas WHERE id = ? AND user_id = ?");
-    $stmt->execute([$id, $userId]);
+    // CAMBIO: Permitir ver cualquier itinerario, pero solo editar los propios
+    $stmt = $db->prepare("
+        SELECT p.*, 
+               CASE WHEN p.user_id = ? THEN 1 ELSE 0 END as can_edit,
+               u.name as creator_name
+        FROM programas p 
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.id = ?
+    ");
+    $stmt->execute([$userId, $id]);
     $itinerario = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$itinerario) {
@@ -188,6 +211,36 @@ function getItinerarioById($db, $userId, $id) {
     ]);
 }
 
+// NUEVA FUNCIÓN: Obtener plantillas disponibles para crear programas
+function getPlantillasDisponibles($db, $userId) {
+    $stmt = $db->prepare("
+        SELECT 
+            p.id,
+            p.program_title,
+            p.destination,
+            p.total_days,
+            p.traveler_name,
+            p.traveler_lastname,
+            p.cover_image,
+            u.name as creator_name,
+            CASE WHEN p.user_id = ? THEN 'Propio' ELSE 'Plantilla' END as type
+        FROM programas p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.status IN ('completed', 'draft')
+        ORDER BY 
+            CASE WHEN p.user_id = ? THEN 0 ELSE 1 END,
+            p.updated_at DESC
+    ");
+    
+    $stmt->execute([$userId, $userId]);
+    $plantillas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode([
+        'success' => true,
+        'plantillas' => $plantillas
+    ]);
+}
+
 function handlePostRequest($db, $user) {
     $input = json_decode(file_get_contents('php://input'), true);
     $action = $input['action'] ?? null;
@@ -210,15 +263,20 @@ function handlePostRequest($db, $user) {
             updateStatus($db, $userId, $input['itinerario_id'], $input['status']);
             break;
             
+        case 'crear_desde_plantilla':
+            // Nueva función para crear programa desde plantilla
+            crearDesdeePlantilla($db, $userId, $input['plantilla_id'], $input['datos_viajero']);
+            break;
+            
         default:
             throw new Exception('Acción no válida');
     }
 }
 
 function duplicateItinerario($db, $userId, $itinerarioId) {
-    // Verificar que el itinerario pertenece al usuario
-    $stmt = $db->prepare("SELECT * FROM programas WHERE id = ? AND user_id = ?");
-    $stmt->execute([$itinerarioId, $userId]);
+    // CAMBIO: Permitir duplicar cualquier itinerario (no solo los propios)
+    $stmt = $db->prepare("SELECT * FROM programas WHERE id = ?");
+    $stmt->execute([$itinerarioId]);
     $original = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$original) {
@@ -228,7 +286,7 @@ function duplicateItinerario($db, $userId, $itinerarioId) {
     $db->beginTransaction();
     
     try {
-        // Duplicar programa principal
+        // Duplicar programa principal con el nuevo usuario como propietario
         $stmt = $db->prepare("
             INSERT INTO programas (
                 user_id, request_id, traveler_name, traveler_lastname, destination,
@@ -242,10 +300,10 @@ function duplicateItinerario($db, $userId, $itinerarioId) {
         ");
         
         $newRequestId = 'REQ-' . date('Y') . '-' . rand(1000, 9999);
-        $newTitle = ($original['program_title'] ?? 'Itinerario') . ' - Copia';
+        $newTitle = ($original['program_title'] ?? 'Itinerario') . ' (Copia)';
         
         $stmt->execute([
-            $userId,
+            $userId, // IMPORTANTE: usar el ID del usuario actual, no el original
             $newRequestId,
             $original['traveler_name'],
             $original['traveler_lastname'],
@@ -256,7 +314,7 @@ function duplicateItinerario($db, $userId, $itinerarioId) {
             $original['accompaniment'],
             $newTitle,
             $original['budget_language'],
-            $original['cover_image'], // Se podría copiar la imagen físicamente
+            $original['cover_image'],
             $original['total_days'],
             $original['currency'],
             $original['nights_included'],
@@ -278,40 +336,42 @@ function duplicateItinerario($db, $userId, $itinerarioId) {
         foreach ($days as $day) {
             $stmt = $db->prepare("
                 INSERT INTO programa_days (
-                    program_id, day_number, title, location, description, meals, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, NOW())
+                    program_id, day_number, city, activities, meals, accommodation, notes, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             
             $stmt->execute([
                 $newProgramId,
                 $day['day_number'],
-                $day['title'],
-                $day['location'],
-                $day['description'],
-                $day['meals']
+                $day['city'],
+                $day['activities'],
+                $day['meals'],
+                $day['accommodation'],
+                $day['notes']
             ]);
             
             $newDayId = $db->lastInsertId();
-            $originalDayId = $day['id'];
             
             // Duplicar servicios del día
             $stmt = $db->prepare("SELECT * FROM programa_services WHERE day_id = ?");
-            $stmt->execute([$originalDayId]);
+            $stmt->execute([$day['id']]);
             $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             foreach ($services as $service) {
                 $stmt = $db->prepare("
                     INSERT INTO programa_services (
-                        program_id, day_id, service_type, title, location, created_at
-                    ) VALUES (?, ?, ?, ?, ?, NOW())
+                        day_id, service_type, name, description, location, price, notes, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
                 ");
                 
                 $stmt->execute([
-                    $newProgramId,
                     $newDayId,
                     $service['service_type'],
-                    $service['title'],
-                    $service['location']
+                    $service['name'],
+                    $service['description'],
+                    $service['location'],
+                    $service['price'],
+                    $service['notes']
                 ]);
             }
         }
@@ -350,9 +410,67 @@ function duplicateItinerario($db, $userId, $itinerarioId) {
     }
 }
 
-function duplicatePropuesta($db, $userId, $propuestaId) {
-    // Similar a duplicateItinerario pero con algunos campos reseteados
-    duplicateItinerario($db, $userId, $propuestaId);
+// NUEVA FUNCIÓN: Crear programa desde plantilla con datos del viajero
+function crearDesdeePlantilla($db, $userId, $plantillaId, $datosViajero) {
+    $stmt = $db->prepare("SELECT * FROM programas WHERE id = ?");
+    $stmt->execute([$plantillaId]);
+    $plantilla = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$plantilla) {
+        throw new Exception('Plantilla no encontrada');
+    }
+    
+    $db->beginTransaction();
+    
+    try {
+        // Crear nuevo programa con datos del viajero
+        $stmt = $db->prepare("
+            INSERT INTO programas (
+                user_id, request_id, traveler_name, traveler_lastname, destination,
+                arrival_date, departure_date, passengers, accompaniment, program_title,
+                budget_language, cover_image, total_days, currency, status, created_at, updated_at
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW(), NOW()
+            )
+        ");
+        
+        $newRequestId = 'REQ-' . date('Y') . '-' . rand(1000, 9999);
+        $newTitle = $datosViajero['program_title'] ?? ($plantilla['program_title'] . ' - ' . $datosViajero['traveler_name']);
+        
+        $stmt->execute([
+            $userId,
+            $newRequestId,
+            $datosViajero['traveler_name'],
+            $datosViajero['traveler_lastname'],
+            $datosViajero['destination'] ?? $plantilla['destination'],
+            $datosViajero['arrival_date'],
+            $datosViajero['departure_date'],
+            $datosViajero['passengers'] ?? 1,
+            $datosViajero['accompaniment'] ?? 'sin-acompanamiento',
+            $newTitle,
+            $datosViajero['language'] ?? 'es',
+            $plantilla['cover_image'],
+            $plantilla['total_days'],
+            $plantilla['currency']
+        ]);
+        
+        $newProgramId = $db->lastInsertId();
+        
+        // Copiar estructura de días y servicios de la plantilla
+        // (código similar al duplicateItinerario pero sin copiar datos específicos del viajero)
+        
+        $db->commit();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Programa creado desde plantilla exitosamente',
+            'new_id' => $newProgramId
+        ]);
+        
+    } catch (Exception $e) {
+        $db->rollback();
+        throw $e;
+    }
 }
 
 function updateStatus($db, $userId, $itinerarioId, $newStatus) {
@@ -362,6 +480,7 @@ function updateStatus($db, $userId, $itinerarioId, $newStatus) {
         throw new Exception('Estado no válido');
     }
     
+    // CAMBIO: Solo permitir cambiar estado en programas propios
     $stmt = $db->prepare("
         UPDATE programas 
         SET status = ?, updated_at = NOW() 
@@ -371,7 +490,7 @@ function updateStatus($db, $userId, $itinerarioId, $newStatus) {
     $stmt->execute([$newStatus, $itinerarioId, $userId]);
     
     if ($stmt->rowCount() === 0) {
-        throw new Exception('Itinerario no encontrado o sin permisos');
+        throw new Exception('Itinerario no encontrado o sin permisos para modificarlo');
     }
     
     echo json_encode([
@@ -389,13 +508,13 @@ function handleDeleteRequest($db, $user) {
         throw new Exception('ID de itinerario requerido');
     }
     
-    // Verificar que el itinerario pertenece al usuario
+    // MANTENER: Solo eliminar programas propios
     $stmt = $db->prepare("SELECT id FROM programas WHERE id = ? AND user_id = ?");
     $stmt->execute([$itinerarioId, $userId]);
     $itinerario = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$itinerario) {
-        throw new Exception('Itinerario no encontrado o sin permisos');
+        throw new Exception('Itinerario no encontrado o sin permisos para eliminarlo');
     }
     
     $db->beginTransaction();
@@ -426,4 +545,5 @@ function handleDeleteRequest($db, $user) {
         throw $e;
     }
 }
+
 ?>

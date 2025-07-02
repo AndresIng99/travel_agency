@@ -50,6 +50,7 @@ try {
             min-height: 100vh;
         }
 
+        
         /* Header mejorado */
         .header {
             background: var(--primary-gradient);
@@ -868,6 +869,7 @@ try {
             setTimeout(checkSystemStatus, 2000);
         });
     </script>
+    
     <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 </body>
 </html>

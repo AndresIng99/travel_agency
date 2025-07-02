@@ -1,6 +1,6 @@
 <?php
 // ====================================================================
-// ARCHIVO: pages/itinerarios.php - CON COMPONENTES UI ESTÁNDAR
+// ARCHIVO: pages/itinerarios.php - CON COMPONENTES UI ESTÁNDAR MEJORADO
 // ====================================================================
 
 require_once dirname(__DIR__) . '/config/database.php';
@@ -272,6 +272,7 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             border: 1px solid #e2e8f0;
             border-left: 4px solid var(--primary-color);
+            margin-bottom: 30px;
         }
 
         .section-header {
@@ -294,6 +295,15 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
 
         .section-title i {
             color: var(--primary-color);
+        }
+
+        .section-title .badge {
+            background: var(--primary-color);
+            color: white;
+            font-size: 0.8rem;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 500;
         }
 
         /* Filtros y búsqueda */
@@ -382,6 +392,15 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             border-color: var(--primary-color);
         }
 
+        .program-card.readonly {
+            border-color: #94a3b8;
+            opacity: 0.9;
+        }
+
+        .program-card.readonly::before {
+            background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+        }
+
         .program-image {
             height: 160px;
             background: var(--primary-gradient);
@@ -389,10 +408,19 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             overflow: hidden;
         }
 
+       
+
+
         .program-image img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            border-radius: 0;
+            transition: transform 0.3s ease;
+        }
+
+        .program-card:hover .program-image img {
+            transform: scale(1.05);
         }
 
         .program-image .placeholder {
@@ -402,6 +430,27 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             height: 100%;
             color: white;
             font-size: 2rem;
+            background: var(--primary-gradient);
+        }
+
+        /* Fallback para imágenes que no cargan */
+        .program-image img[src=""], 
+        .program-image img:not([src]) {
+            display: none;
+        }
+
+        .program-image img[src=""]:after, 
+        .program-image img:not([src]):after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--primary-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .program-status {
@@ -414,6 +463,19 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             font-weight: 600;
             text-transform: uppercase;
             backdrop-filter: blur(10px);
+        }
+
+        .program-owner {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.9);
+            color: #374151;
         }
 
         .status-draft {
@@ -524,6 +586,16 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             background: var(--primary-color);
             color: white;
         }
+        .btn-danger-sm {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-danger-sm:hover {
+    background: #dc2626;
+    color: white;
+    transform: translateY(-2px);
+}
 
         .btn-primary-sm:hover {
             background: var(--secondary-color);
@@ -541,6 +613,202 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             background: var(--primary-color);
             color: white;
             transform: translateY(-2px);
+        }
+
+        .btn-readonly {
+            background: #94a3b8;
+            color: white;
+            cursor: default;
+        }
+
+        .btn-readonly:hover {
+            background: #94a3b8;
+            transform: none;
+        }
+
+        /* Modal de creación */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.show .modal {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .modal-subtitle {
+            color: #718096;
+            font-size: 1rem;
+        }
+
+        .modal-options {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-option {
+            border: 2px solid #e2e8f0;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .modal-option:hover {
+            border-color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .modal-option.selected {
+            border-color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .option-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            background: var(--primary-gradient);
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .option-content {
+            flex: 1;
+        }
+
+        .option-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+
+        .option-description {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .modal-form {
+            margin-top: 24px;
+            display: none;
+        }
+
+        .modal-form.show {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 32px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn.primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .modal-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .modal-btn.secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .modal-btn.secondary:hover {
+            background: #e5e7eb;
         }
 
         /* Estados de carga */
@@ -715,28 +983,28 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                     <div class="stat-label">Total Programas</div>
                 </div>
                 <div class="stat-card">
-                    <i class="fas fa-clock stat-icon"></i>
-                    <span class="stat-number" id="programasBorrador">0</span>
-                    <div class="stat-label">En Borrador</div>
+                    <i class="fas fa-user-edit stat-icon"></i>
+                    <span class="stat-number" id="misProgramas">0</span>
+                    <div class="stat-label">Mis Programas</div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-users stat-icon"></i>
+                    <span class="stat-number" id="otrosProgramas">0</span>
+                    <div class="stat-label">Otros Programas</div>
                 </div>
                 <div class="stat-card">
                     <i class="fas fa-check-circle stat-icon"></i>
                     <span class="stat-number" id="programasActivos">0</span>
                     <div class="stat-label">Activos</div>
                 </div>
-                <div class="stat-card">
-                    <i class="fas fa-users stat-icon"></i>
-                    <span class="stat-number" id="totalViajeros">0</span>
-                    <div class="stat-label">Total Viajeros</div>
-                </div>
             </div>
 
             <!-- Acciones Rápidas -->
             <div class="quick-actions">
-                <a href="<?= APP_URL ?>/programa" class="action-btn">
+                <button onclick="mostrarModalCreacion()" class="action-btn">
                     <i class="fas fa-plus"></i>
                     Crear Nuevo Programa
-                </a>
+                </button>
                 <button onclick="cargarProgramas()" class="action-btn secondary">
                     <i class="fas fa-sync"></i>
                     Actualizar Lista
@@ -744,12 +1012,13 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             </div>
         </div>
 
-        <!-- Sección de Programas -->
+        <!-- Sección MIS PROGRAMAS -->
         <div class="programs-section">
             <div class="section-header">
                 <h2 class="section-title">
-                    <i class="fas fa-list"></i>
+                    <i class="fas fa-user-edit"></i>
                     Mis Programas
+                    <span class="badge" id="misProgramasBadge">0</span>
                 </h2>
                 
                 <div class="filters-container">
@@ -757,13 +1026,13 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                         <i class="fas fa-search search-icon"></i>
                         <input 
                             type="text" 
-                            id="searchInput" 
+                            id="searchInputMios" 
                             class="search-input" 
-                            placeholder="Buscar programas..."
-                            oninput="filtrarProgramas()"
+                            placeholder="Buscar mis programas..."
+                            oninput="filtrarProgramas('mios')"
                         >
                     </div>
-                    <select id="filterStatus" class="filter-select" onchange="filtrarProgramas()">
+                    <select id="filterStatusMios" class="filter-select" onchange="filtrarProgramas('mios')">
                         <option value="">Todos los estados</option>
                         <option value="borrador">Borrador</option>
                         <option value="activo">Activo</option>
@@ -772,13 +1041,108 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                 </div>
             </div>
 
-            <!-- Container de Programas -->
-            <div id="programsContainer">
+            <!-- Container de MIS Programas -->
+            <div id="misProgramasContainer">
                 <div class="loading-state">
                     <i class="fas fa-spinner state-icon"></i>
-                    <h3 class="state-title">Cargando programas...</h3>
+                    <h3 class="state-title">Cargando mis programas...</h3>
                     <p class="state-description">Por favor espera mientras obtenemos tus programas</p>
                 </div>
+            </div>
+        </div>
+
+        <!-- Sección OTROS PROGRAMAS -->
+        <div class="programs-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="fas fa-users"></i>
+                    Otros Programas
+                    <span class="badge" id="otrosProgramasBadge">0</span>
+                </h2>
+                
+                <div class="filters-container">
+                    <div class="search-box">
+                        <i class="fas fa-search search-icon"></i>
+                        <input 
+                            type="text" 
+                            id="searchInputOtros" 
+                            class="search-input" 
+                            placeholder="Buscar otros programas..."
+                            oninput="filtrarProgramas('otros')"
+                        >
+                    </div>
+                    <select id="filterStatusOtros" class="filter-select" onchange="filtrarProgramas('otros')">
+                        <option value="">Todos los estados</option>
+                        <option value="borrador">Borrador</option>
+                        <option value="activo">Activo</option>
+                        <option value="completado">Completado</option>
+                    </select>
+                    <select id="filterAuthor" class="filter-select" onchange="filtrarProgramas('otros')">
+                        <option value="">Todos los autores</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Container de OTROS Programas -->
+            <div id="otrosProgramasContainer">
+                <div class="loading-state">
+                    <i class="fas fa-spinner state-icon"></i>
+                    <h3 class="state-title">Cargando otros programas...</h3>
+                    <p class="state-description">Por favor espera mientras obtenemos los programas de otros usuarios</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Creación -->
+    <div class="modal-overlay" id="modalCreacion">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Crear Nuevo Programa</h2>
+                <p class="modal-subtitle">Elige cómo quieres crear tu programa de viaje</p>
+            </div>
+
+            <div class="modal-options">
+                <div class="modal-option" onclick="seleccionarOpcion('desde-cero')" id="opcion-desde-cero">
+                    <div class="option-icon">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <div class="option-content">
+                        <div class="option-title">Crear desde cero</div>
+                        <div class="option-description">Comienza un programa completamente nuevo con información básica</div>
+                    </div>
+                </div>
+
+                <div class="modal-option" onclick="seleccionarOpcion('desde-existente')" id="opcion-desde-existente">
+                    <div class="option-icon">
+                        <i class="fas fa-copy"></i>
+                    </div>
+                    <div class="option-content">
+                        <div class="option-title">Crear desde programa existente</div>
+                        <div class="option-description">Usa un programa existente como base y personalízalo</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario para selección de programa base -->
+            <div class="modal-form" id="formSeleccionPrograma">
+                <div class="form-group">
+                    <label class="form-label">Seleccionar programa base:</label>
+                    <select class="form-select" id="programaBase">
+                        <option value="">Cargando programas...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Vista previa:</label>
+                    <div id="previstaPrograma" style="padding: 12px; background: #f8fafc; border-radius: 8px; color: #718096; font-size: 0.9rem;">
+                        Selecciona un programa para ver la vista previa
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="cerrarModalCreacion()">Cancelar</button>
+                <button class="modal-btn primary" onclick="procederCreacion()" id="btnProceder">Proceder</button>
             </div>
         </div>
     </div>
@@ -788,14 +1152,17 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
         // Configuración global
         const APP_URL = '<?= APP_URL ?>';
         const DEFAULT_LANGUAGE = '<?= $defaultLanguage ?>';
+        const CURRENT_USER_ID = <?= $user['id'] ?>;
 
         let sidebarOpen = false;
         let allProgramas = [];
-        let filteredProgramas = [];
+        let misProgramasFiltrados = [];
+        let otrosProgramasFiltrados = [];
+        let opcionSeleccionada = null;
         
         // Inicializar al cargar la página
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Iniciando página de itinerarios...');
+            console.log('🚀 Iniciando página de itinerarios mejorada...');
             cargarProgramas();
             initializeGoogleTranslate();
         });
@@ -843,12 +1210,14 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
         // ============================================================
         
         async function cargarProgramas() {
-            console.log('📥 Cargando programas...');
+            console.log('📥 Cargando programas (míos y otros) con imágenes...');
             
-            showLoadingState();
+            showLoadingState('mios');
+            showLoadingState('otros');
             
             try {
-                const response = await fetch('<?= APP_URL ?>/programa/api?action=list');
+                // Cargar todos los programas (incluye user_id, full_name del creador E IMÁGENES)
+                const response = await fetch('<?= APP_URL ?>/programa/api?action=list_all');
                 
                 if (!response.ok) {
                     throw new Error(`Error HTTP: ${response.status}`);
@@ -859,20 +1228,58 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                 
                 if (result.success) {
                     allProgramas = result.data || [];
-                    filteredProgramas = [...allProgramas];
                     
+                    // Debug de imágenes
+                    allProgramas.forEach(programa => {
+                        if (programa.foto_portada) {
+                            console.log(`🖼️ Programa ${programa.id} tiene imagen: ${programa.foto_portada}`);
+                        } else {
+                            console.log(`📷 Programa ${programa.id} SIN imagen de portada`);
+                        }
+                    });
+                    
+                    // Separar programas por propietario
+                    separarProgramas();
                     actualizarEstadisticas();
                     mostrarProgramas();
+                    cargarAutoresEnFiltro();
                     
-                    console.log(`✅ ${allProgramas.length} programas cargados`);
+                    console.log(`✅ ${allProgramas.length} programas cargados (${misProgramasFiltrados.length} míos, ${otrosProgramasFiltrados.length} otros)`);
                 } else {
                     throw new Error(result.error || 'Error al cargar programas');
                 }
                 
             } catch (error) {
                 console.error('❌ Error cargando programas:', error);
-                showErrorState(error.message);
+                showErrorState('mios', error.message);
+                showErrorState('otros', error.message);
             }
+        }
+
+        function separarProgramas() {
+            const misProgramas = allProgramas.filter(p => p.user_id == CURRENT_USER_ID);
+            const otrosProgramas = allProgramas.filter(p => p.user_id != CURRENT_USER_ID);
+            
+            misProgramasFiltrados = [...misProgramas];
+            otrosProgramasFiltrados = [...otrosProgramas];
+            
+            console.log(`📊 Separación: ${misProgramas.length} míos, ${otrosProgramas.length} otros`);
+        }
+
+        function cargarAutoresEnFiltro() {
+            const autores = [...new Set(otrosProgramasFiltrados.map(p => p.created_by_name))]
+                .filter(name => name)
+                .sort();
+            
+            const filterAuthor = document.getElementById('filterAuthor');
+            filterAuthor.innerHTML = '<option value="">Todos los autores</option>';
+            
+            autores.forEach(autor => {
+                const option = document.createElement('option');
+                option.value = autor;
+                option.textContent = autor;
+                filterAuthor.appendChild(option);
+            });
         }
 
         // ============================================================
@@ -880,18 +1287,24 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
         // ============================================================
         
         function mostrarProgramas() {
-            const container = document.getElementById('programsContainer');
+            mostrarProgramasSeccion('mios', misProgramasFiltrados);
+            mostrarProgramasSeccion('otros', otrosProgramasFiltrados);
+        }
+        
+        function mostrarProgramasSeccion(tipo, programas) {
+            const containerId = tipo === 'mios' ? 'misProgramasContainer' : 'otrosProgramasContainer';
+            const container = document.getElementById(containerId);
             
-            if (!filteredProgramas || filteredProgramas.length === 0) {
-                showEmptyState();
+            if (!programas || programas.length === 0) {
+                showEmptyState(tipo);
                 return;
             }
             
             const programsGrid = document.createElement('div');
             programsGrid.className = 'programs-grid';
             
-            filteredProgramas.forEach(programa => {
-                const card = crearTarjetaPrograma(programa);
+            programas.forEach(programa => {
+                const card = crearTarjetaPrograma(programa, tipo === 'otros');
                 programsGrid.appendChild(card);
             });
             
@@ -899,10 +1312,13 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             container.appendChild(programsGrid);
         }
         
-        function crearTarjetaPrograma(programa) {
+        function crearTarjetaPrograma(programa, esReadonly = false) {
             const card = document.createElement('div');
-            card.className = 'program-card';
-            card.onclick = () => editarPrograma(programa.id);
+            card.className = `program-card ${esReadonly ? 'readonly' : ''}`;
+            
+            if (!esReadonly) {
+                card.onclick = () => editarPrograma(programa.id);
+            }
             
             // Calcular duración
             let duracion = 'N/A';
@@ -933,14 +1349,26 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                 'completado': 'Completado'
             }[estado] || 'Borrador';
             
+            // OBTENER IMAGEN DE PORTADA DESDE LA BASE DE DATOS
             const imagenPortada = programa.foto_portada || null;
+            const autorPrograma = programa.created_by_name || 'Usuario';
+            
+            // Validar que la imagen existe y es una URL válida
+            const tieneImagen = imagenPortada && 
+                               (imagenPortada.startsWith('http://') || 
+                                imagenPortada.startsWith('https://') || 
+                                imagenPortada.startsWith('/'));
+            
+            console.log(`🖼️ Programa ${programa.id}: imagen = ${imagenPortada}, válida = ${tieneImagen}`);
+            const esAdmin = <?= json_encode($user['role'] === 'admin') ?>;
             
             card.innerHTML = `
                 <div class="program-image">
-                    ${imagenPortada ? 
-                        `<img src="${imagenPortada}" alt="Portada del programa">` : 
+                    ${tieneImagen ? 
+                        `<img src="${imagenPortada}" alt="Portada del programa" onerror="this.parentElement.innerHTML='<div class=&quot;placeholder&quot;><i class=&quot;fas fa-map-marked-alt&quot;></i></div>';">` : 
                         `<div class="placeholder"><i class="fas fa-map-marked-alt"></i></div>`
                     }
+                    ${esReadonly ? `<div class="program-owner">${autorPrograma}</div>` : ''}
                     <div class="program-status ${estadoClass}">${estadoText}</div>
                 </div>
                 
@@ -971,19 +1399,74 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                     </div>
                     
                     <div class="program-actions">
-                        <a href="<?= APP_URL ?>/programa?id=${programa.id}" class="btn-sm btn-primary-sm">
-                            <i class="fas fa-edit"></i>
-                            Editar
-                        </a>
-                        <button onclick="event.stopPropagation(); verDetalles(${programa.id})" class="btn-sm btn-outline-sm">
-                            <i class="fas fa-eye"></i>
-                            Ver
-                        </button>
+                        ${esReadonly ? `
+                            <button onclick="event.stopPropagation(); verDetalles(${programa.id})" class="btn-sm btn-outline-sm">
+                                <i class="fas fa-eye"></i>
+                                Ver
+                            </button>
+                            <button onclick="event.stopPropagation(); copiarPrograma(${programa.id})" class="btn-sm btn-primary-sm">
+                                <i class="fas fa-copy"></i>
+                                Copiar
+                            </button>
+                            ${esAdmin ? `
+                                <button onclick="event.stopPropagation(); confirmarEliminacion(${programa.id}, '${(programa.titulo_programa || `Viaje a ${programa.destino}`).replace(/'/g, "\\\'")}')" class="btn-sm btn-danger-sm" title="Eliminar programa">
+                                    <i class="fas fa-trash"></i>
+                                    Eliminar
+                                </button>
+                            ` : ''}
+                        ` : `
+                            <a href="<?= APP_URL ?>/programa?id=${programa.id}" class="btn-sm btn-primary-sm">
+                                <i class="fas fa-edit"></i>
+                                Editar
+                            </a>
+                            <button onclick="event.stopPropagation(); verDetalles(${programa.id})" class="btn-sm btn-outline-sm">
+                                <i class="fas fa-eye"></i>
+                                Ver
+                            </button>
+                            ${esAdmin ? `
+                                <button onclick="event.stopPropagation(); confirmarEliminacion(${programa.id}, '${(programa.titulo_programa || `Viaje a ${programa.destino}`).replace(/'/g, "\\\'")}')" class="btn-sm btn-danger-sm" title="Eliminar programa">
+                                    <i class="fas fa-trash"></i>
+                                    Eliminar
+                                </button>
+                            ` : ''}
+                        `}
                     </div>
                 </div>
             `;
             
             return card;
+        }
+
+        // FUNCIONES DE ELIMINACIÓN
+        function confirmarEliminacion(programaId, programaTitulo) {
+            if (confirm(`¿Estás seguro de eliminar el programa "${programaTitulo}"?\n\nEsta acción eliminará TODA la información:\n- Días del itinerario\n- Servicios\n- Precios\n- Todo el programa\n\nEsto NO se puede deshacer.`)) {
+                eliminarPrograma(programaId);
+            }
+        }
+
+        async function eliminarPrograma(programaId) {
+            try {
+                const formData = new FormData();
+                formData.append('action', 'delete_programa_admin');
+                formData.append('programa_id', programaId);
+                
+                const response = await fetch('<?= APP_URL ?>/programa/api', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Programa eliminado exitosamente', 'success');
+                    cargarProgramas();
+                } else {
+                    showNotification('Error: ' + result.error, 'error');
+                }
+                
+            } catch (error) {
+                showNotification('Error eliminando programa: ' + error.message, 'error');
+            }
         }
 
         // ============================================================
@@ -992,23 +1475,21 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
         
         function actualizarEstadisticas() {
             const total = allProgramas.length;
-            
-            const borrador = allProgramas.filter(p => 
-                !p.id_solicitud || p.estado === 'borrador'
-            ).length;
+            const mios = misProgramasFiltrados.length;
+            const otros = otrosProgramasFiltrados.length;
             
             const activos = allProgramas.filter(p => 
                 p.id_solicitud && p.estado !== 'completado'
             ).length;
             
-            const totalViajeros = allProgramas.reduce((sum, p) => 
-                sum + (parseInt(p.numero_pasajeros) || 0), 0
-            );
-            
             animateCounter('totalProgramas', total);
-            animateCounter('programasBorrador', borrador);
+            animateCounter('misProgramas', mios);
+            animateCounter('otrosProgramas', otros);
             animateCounter('programasActivos', activos);
-            animateCounter('totalViajeros', totalViajeros);
+            
+            // Actualizar badges
+            document.getElementById('misProgramasBadge').textContent = mios;
+            document.getElementById('otrosProgramasBadge').textContent = otros;
         }
         
         function animateCounter(elementId, targetValue) {
@@ -1032,33 +1513,204 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
         // FUNCIONES DE FILTRADO Y BÚSQUEDA
         // ============================================================
         
-        function filtrarProgramas() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const statusFilter = document.getElementById('filterStatus').value;
+        function filtrarProgramas(tipo) {
+            if (tipo === 'mios') {
+                const searchTerm = document.getElementById('searchInputMios').value.toLowerCase();
+                const statusFilter = document.getElementById('filterStatusMios').value;
+                
+                const programasBase = allProgramas.filter(p => p.user_id == CURRENT_USER_ID);
+                
+                misProgramasFiltrados = programasBase.filter(programa => {
+                    const matchesSearch = !searchTerm || 
+                        programa.destino.toLowerCase().includes(searchTerm) ||
+                        programa.nombre_viajero.toLowerCase().includes(searchTerm) ||
+                        programa.apellido_viajero.toLowerCase().includes(searchTerm) ||
+                        (programa.titulo_programa && programa.titulo_programa.toLowerCase().includes(searchTerm)) ||
+                        (programa.id_solicitud && programa.id_solicitud.toLowerCase().includes(searchTerm));
+                    
+                    let programaEstado = 'borrador';
+                    if (programa.estado) {
+                        programaEstado = programa.estado;
+                    } else if (programa.id_solicitud) {
+                        programaEstado = 'activo';
+                    }
+                    
+                    const matchesStatus = !statusFilter || programaEstado === statusFilter;
+                    
+                    return matchesSearch && matchesStatus;
+                });
+                
+                mostrarProgramasSeccion('mios', misProgramasFiltrados);
+                
+            } else if (tipo === 'otros') {
+                const searchTerm = document.getElementById('searchInputOtros').value.toLowerCase();
+                const statusFilter = document.getElementById('filterStatusOtros').value;
+                const authorFilter = document.getElementById('filterAuthor').value;
+                
+                const programasBase = allProgramas.filter(p => p.user_id != CURRENT_USER_ID);
+                
+                otrosProgramasFiltrados = programasBase.filter(programa => {
+                    const matchesSearch = !searchTerm || 
+                        programa.destino.toLowerCase().includes(searchTerm) ||
+                        programa.nombre_viajero.toLowerCase().includes(searchTerm) ||
+                        programa.apellido_viajero.toLowerCase().includes(searchTerm) ||
+                        (programa.titulo_programa && programa.titulo_programa.toLowerCase().includes(searchTerm)) ||
+                        (programa.created_by_name && programa.created_by_name.toLowerCase().includes(searchTerm));
+                    
+                    let programaEstado = 'borrador';
+                    if (programa.estado) {
+                        programaEstado = programa.estado;
+                    } else if (programa.id_solicitud) {
+                        programaEstado = 'activo';
+                    }
+                    
+                    const matchesStatus = !statusFilter || programaEstado === statusFilter;
+                    const matchesAuthor = !authorFilter || programa.created_by_name === authorFilter;
+                    
+                    return matchesSearch && matchesStatus && matchesAuthor;
+                });
+                
+                mostrarProgramasSeccion('otros', otrosProgramasFiltrados);
+            }
             
-            filteredProgramas = allProgramas.filter(programa => {
-                const matchesSearch = !searchTerm || 
-                    programa.destino.toLowerCase().includes(searchTerm) ||
-                    programa.nombre_viajero.toLowerCase().includes(searchTerm) ||
-                    programa.apellido_viajero.toLowerCase().includes(searchTerm) ||
-                    (programa.titulo_programa && programa.titulo_programa.toLowerCase().includes(searchTerm)) ||
-                    (programa.id_solicitud && programa.id_solicitud.toLowerCase().includes(searchTerm));
-                
-                let programaEstado = 'borrador';
-                if (programa.estado) {
-                    programaEstado = programa.estado;
-                } else if (programa.id_solicitud) {
-                    programaEstado = 'activo';
-                }
-                
-                const matchesStatus = !statusFilter || programaEstado === statusFilter;
-                
-                return matchesSearch && matchesStatus;
+            actualizarEstadisticas();
+            console.log(`🔍 Filtrado ${tipo}: ${tipo === 'mios' ? misProgramasFiltrados.length : otrosProgramasFiltrados.length} programas`);
+        }
+
+        // ============================================================
+        // FUNCIONES DEL MODAL DE CREACIÓN
+        // ============================================================
+        
+        function mostrarModalCreacion() {
+            const modal = document.getElementById('modalCreacion');
+            modal.classList.add('show');
+            
+            // Reset estado
+            opcionSeleccionada = null;
+            document.getElementById('opcion-desde-cero').classList.remove('selected');
+            document.getElementById('opcion-desde-existente').classList.remove('selected');
+            document.getElementById('formSeleccionPrograma').classList.remove('show');
+            document.getElementById('btnProceder').disabled = true;
+            
+            console.log('📝 Modal de creación mostrado');
+        }
+        
+        function cerrarModalCreacion() {
+            const modal = document.getElementById('modalCreacion');
+            modal.classList.remove('show');
+        }
+        
+        function seleccionarOpcion(opcion) {
+            opcionSeleccionada = opcion;
+            
+            // Reset visual
+            document.getElementById('opcion-desde-cero').classList.remove('selected');
+            document.getElementById('opcion-desde-existente').classList.remove('selected');
+            document.getElementById('formSeleccionPrograma').classList.remove('show');
+            
+            // Marcar seleccionado
+            document.getElementById(`opcion-${opcion}`).classList.add('selected');
+            
+            if (opcion === 'desde-existente') {
+                cargarProgramasParaSeleccion();
+                document.getElementById('formSeleccionPrograma').classList.add('show');
+                document.getElementById('btnProceder').disabled = true;
+            } else {
+                document.getElementById('btnProceder').disabled = false;
+            }
+            
+            console.log(`📋 Opción seleccionada: ${opcion}`);
+        }
+
+        async function procederCreacion() {
+    if (!opcionSeleccionada) {
+        showNotification('Por favor selecciona una opción', 'error');
+        return;
+    }
+    
+    if (opcionSeleccionada === 'desde-cero') {
+        window.location.href = '<?= APP_URL ?>/programa';
+    } else if (opcionSeleccionada === 'desde-existente') {
+        const programaBaseId = document.getElementById('programaBase').value;
+        if (!programaBaseId) {
+            showNotification('Por favor selecciona un programa base', 'error');
+            return;
+        }
+        
+        // Crear copia automáticamente
+        const btnProceder = document.getElementById('btnProceder');
+        btnProceder.disabled = true;
+        btnProceder.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando copia...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('action', 'duplicate_programa');
+            formData.append('programa_id', programaBaseId);
+            
+            const response = await fetch('<?= APP_URL ?>/programa/api', {
+                method: 'POST',
+                body: formData
             });
             
-            mostrarProgramas();
-            console.log(`🔍 Filtrado: ${filteredProgramas.length} de ${allProgramas.length} programas`);
+            const result = await response.json();
+            
+            if (result.success) {
+                cerrarModalCreacion();
+                showNotification('✅ Programa duplicado exitosamente', 'success');
+                await cargarProgramas();
+                
+                // Ir al editor del nuevo programa
+                setTimeout(() => {
+                    window.location.href = `<?= APP_URL ?>/programa?id=${result.new_programa_id}`;
+                }, 1500);
+            } else {
+                throw new Error(result.error || 'Error al duplicar');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+            btnProceder.disabled = false;
+            btnProceder.innerHTML = 'Proceder';
         }
+    }
+}
+        
+        function cargarProgramasParaSeleccion() {
+            const select = document.getElementById('programaBase');
+            select.innerHTML = '<option value="">Selecciona un programa base...</option>';
+            
+            // Agregar todos los programas (míos y otros)
+            allProgramas.forEach(programa => {
+                const option = document.createElement('option');
+                option.value = programa.id;
+                const titulo = programa.titulo_programa || `Viaje a ${programa.destino}`;
+                const autor = programa.user_id == CURRENT_USER_ID ? 'Mío' : programa.created_by_name;
+                option.textContent = `${titulo} (${autor})`;
+                option.dataset.programa = JSON.stringify(programa);
+                select.appendChild(option);
+            });
+            
+            // Listener para vista previa
+            select.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const preview = document.getElementById('previstaPrograma');
+                
+                if (selectedOption.value) {
+                    const programa = JSON.parse(selectedOption.dataset.programa);
+                    preview.innerHTML = `
+                        <strong>${programa.titulo_programa || `Viaje a ${programa.destino}`}</strong><br>
+                        📍 ${programa.destino}<br>
+                        👤 ${programa.nombre_viajero} ${programa.apellido_viajero}<br>
+                        👥 ${programa.numero_pasajeros} viajeros<br>
+                        👨‍💼 Creado por: ${programa.user_id == CURRENT_USER_ID ? 'Ti' : programa.created_by_name}
+                    `;
+                    document.getElementById('btnProceder').disabled = false;
+                } else {
+                    preview.textContent = 'Selecciona un programa para ver la vista previa';
+                    document.getElementById('btnProceder').disabled = true;
+                }
+            });
+        }
+        
 
         // ============================================================
         // FUNCIONES DE INTERACCIÓN
@@ -1070,81 +1722,174 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
         }
         
         function verDetalles(id) {
-            console.log(`👁️ Viendo detalles del programa ${id}`);
-            window.open(`<?= APP_URL ?>/programa?id=${id}&preview=1`, '_blank');
-        }
+    console.log(`👁️ Viendo detalles del programa ${id}`);
+    
+    // Abrir en nueva ventana la página de itinerario (preview)
+    const url = `<?= APP_URL ?>/itinerary?id=${id}`;
+    
+    // Abrir en nueva pestaña con características específicas
+    const ventana = window.open(
+        url, 
+        `programa_preview_${id}`,
+        'width=1200,height=800,scrollbars=yes,resizable=yes,toolbar=no,menubar=no,status=no'
+    );
+    
+    // Verificar si se abrió correctamente
+    if (!ventana) {
+        // Si hay bloqueador de popups, mostrar alternativa
+        showNotification('Por favor, permite ventanas emergentes y vuelve a intentar', 'info');
         
-        function eliminarPrograma(id) {
-            if (!confirm('¿Estás seguro de que quieres eliminar este programa?')) {
-                return;
+        // Como alternativa, redirigir en la misma ventana
+        setTimeout(() => {
+            if (confirm('¿Quieres ver el programa en esta ventana?')) {
+                window.location.href = url;
             }
-            
-            console.log(`🗑️ Eliminando programa ${id}`);
-            
-            showNotification('Eliminando programa...', 'info');
-            
-            fetch('<?= APP_URL ?>/programa/api', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    action: 'delete',
-                    id: id
-                })
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.success) {
-                    showNotification('✅ Programa eliminado exitosamente', 'success');
-                    cargarProgramas();
-                } else {
-                    showNotification('❌ Error al eliminar: ' + result.error, 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showNotification('❌ Error de conexión', 'error');
-            });
+        }, 2000);
+    } else {
+        // Enfocar la nueva ventana
+        ventana.focus();
+        
+        // Mostrar mensaje de éxito
+        showNotification('📖 Abriendo vista previa del programa...', 'success');
+    }
+}
+
+// ============================================================
+// FUNCIÓN ALTERNATIVA PARA MODAL (OPCIONAL)
+// ============================================================
+
+function verDetallesModal(id) {
+    console.log(`👁️ Viendo detalles del programa ${id} en modal`);
+    
+    // Crear modal con iframe para mostrar el itinerario
+    const modalHtml = `
+        <div class="modal-overlay" id="modalVistaPrevia" style="display: block; z-index: 2000;">
+            <div class="modal" style="max-width: 95vw; width: 1200px; height: 90vh; padding: 0; border-radius: 12px; overflow: hidden;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--primary-gradient); color: white;">
+                    <h3 style="margin: 0; font-size: 1.2rem;">
+                        <i class="fas fa-eye"></i>
+                        Vista Previa del Programa
+                    </h3>
+                    <button onclick="cerrarModalVistaPrevia()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div style="position: relative; height: calc(100% - 64px); background: #f8fafc;">
+                    <iframe 
+                        src="<?= APP_URL ?>/itinerary?id=${id}&embed=1" 
+                        style="width: 100%; height: 100%; border: none; background: white;"
+                        onload="this.style.background='white'"
+                    ></iframe>
+                    
+                    <div id="loadingPreview" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #718096;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 16px; color: var(--primary-color);"></i>
+                        <p>Cargando vista previa...</p>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                    <div style="font-size: 0.9rem; color: #718096;">
+                        <i class="fas fa-info-circle"></i>
+                        Vista previa del programa - Solo lectura
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="abrirEnNuevaVentana(${id})" class="btn-sm btn-outline-sm">
+                            <i class="fas fa-external-link-alt"></i>
+                            Abrir en nueva ventana
+                        </button>
+                        <button onclick="cerrarModalVistaPrevia()" class="btn-sm btn-primary-sm">
+                            <i class="fas fa-times"></i>
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Agregar al DOM
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Ocultar loading después de un tiempo
+    setTimeout(() => {
+        const loading = document.getElementById('loadingPreview');
+        if (loading) {
+            loading.style.display = 'none';
+        }
+    }, 2000);
+}
+
+function cerrarModalVistaPrevia() {
+    const modal = document.getElementById('modalVistaPrevia');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function abrirEnNuevaVentana(id) {
+    const url = `<?= APP_URL ?>/itinerary?id=${id}`;
+    window.open(url, `programa_preview_${id}`, 'width=1200,height=800,scrollbars=yes,resizable=yes');
+    cerrarModalVistaPrevia();
+}
+        
+        function copiarPrograma(id) {
+            console.log(`📋 Copiando programa ${id}`);
+            window.location.href = `<?= APP_URL ?>/programa?copy_from=${id}`;
         }
 
         // ============================================================
         // ESTADOS DE LA INTERFAZ
         // ============================================================
         
-        function showLoadingState() {
-            document.getElementById('programsContainer').innerHTML = `
+        function showLoadingState(tipo) {
+            const containerId = tipo === 'mios' ? 'misProgramasContainer' : 'otrosProgramasContainer';
+            const tipoText = tipo === 'mios' ? 'mis programas' : 'otros programas';
+            
+            document.getElementById(containerId).innerHTML = `
                 <div class="loading-state">
                     <i class="fas fa-spinner state-icon"></i>
-                    <h3 class="state-title">Cargando programas...</h3>
-                    <p class="state-description">Por favor espera mientras obtenemos tus programas</p>
+                    <h3 class="state-title">Cargando ${tipoText}...</h3>
+                    <p class="state-description">Por favor espera mientras obtenemos los programas</p>
                 </div>
             `;
         }
         
-        function showEmptyState() {
-            const isFiltered = filteredProgramas.length !== allProgramas.length;
+        function showEmptyState(tipo) {
+            const containerId = tipo === 'mios' ? 'misProgramasContainer' : 'otrosProgramasContainer';
+            const programas = tipo === 'mios' ? misProgramasFiltrados : otrosProgramasFiltrados;
+            const programasBase = tipo === 'mios' ? 
+                allProgramas.filter(p => p.user_id == CURRENT_USER_ID) : 
+                allProgramas.filter(p => p.user_id != CURRENT_USER_ID);
             
-            document.getElementById('programsContainer').innerHTML = `
+            const isFiltered = programas.length !== programasBase.length;
+            
+            document.getElementById(containerId).innerHTML = `
                 <div class="empty-state">
-                    <i class="fas fa-map-marked-alt state-icon"></i>
-                    <h3 class="state-title">${isFiltered ? 'No se encontraron programas' : 'No hay programas'}</h3>
+                    <i class="fas fa-${tipo === 'mios' ? 'user-edit' : 'users'} state-icon"></i>
+                    <h3 class="state-title">${isFiltered ? 'No se encontraron programas' : tipo === 'mios' ? 'No tienes programas' : 'No hay otros programas'}</h3>
                     <p class="state-description">
                         ${isFiltered ? 
                             'No se encontraron programas que coincidan con los filtros aplicados.' :
-                            '¡Comienza creando tu primer programa de viaje personalizado!'
+                            tipo === 'mios' ? 
+                                '¡Comienza creando tu primer programa de viaje personalizado!' :
+                                'Aún no hay programas creados por otros usuarios.'
                         }
                     </p>
                     ${isFiltered ? 
-                        '<button onclick="limpiarFiltros()" class="action-btn">Limpiar Filtros</button>' :
-                        '<a href="<?= APP_URL ?>/programa" class="action-btn"><i class="fas fa-plus"></i> Crear Nuevo Programa</a>'
+                        `<button onclick="limpiarFiltros('${tipo}')" class="action-btn">Limpiar Filtros</button>` :
+                        tipo === 'mios' ? 
+                            '<button onclick="mostrarModalCreacion()" class="action-btn"><i class="fas fa-plus"></i> Crear Nuevo Programa</button>' :
+                            ''
                     }
                 </div>
             `;
         }
         
-        function showErrorState(message) {
-            document.getElementById('programsContainer').innerHTML = `
+        function showErrorState(tipo, message) {
+            const containerId = tipo === 'mios' ? 'misProgramasContainer' : 'otrosProgramasContainer';
+            
+            document.getElementById(containerId).innerHTML = `
                 <div class="error-state">
                     <i class="fas fa-exclamation-triangle state-icon"></i>
                     <h3 class="state-title">Error al cargar</h3>
@@ -1161,10 +1906,16 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
         // FUNCIONES AUXILIARES
         // ============================================================
         
-        function limpiarFiltros() {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('filterStatus').value = '';
-            filtrarProgramas();
+        function limpiarFiltros(tipo) {
+            if (tipo === 'mios') {
+                document.getElementById('searchInputMios').value = '';
+                document.getElementById('filterStatusMios').value = '';
+            } else {
+                document.getElementById('searchInputOtros').value = '';
+                document.getElementById('filterStatusOtros').value = '';
+                document.getElementById('filterAuthor').value = '';
+            }
+            filtrarProgramas(tipo);
         }
         
         function showNotification(message, type = 'info') {
@@ -1300,7 +2051,7 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                 return;
             }
             
-            const headers = ['ID', 'Título', 'Destino', 'Viajero', 'Fechas', 'Pasajeros', 'Estado'];
+            const headers = ['ID', 'Título', 'Destino', 'Viajero', 'Fechas', 'Pasajeros', 'Estado', 'Creado por'];
             const csvData = allProgramas.map(programa => [
                 programa.id_solicitud || programa.id,
                 programa.titulo_programa || `Viaje a ${programa.destino}`,
@@ -1308,7 +2059,8 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
                 `${programa.nombre_viajero} ${programa.apellido_viajero}`,
                 formatDateRange(programa.fecha_llegada, programa.fecha_salida),
                 programa.numero_pasajeros,
-                programa.estado || 'borrador'
+                programa.estado || 'borrador',
+                programa.created_by_name || 'N/A'
             ]);
             
             const csvContent = [headers, ...csvData]
@@ -1348,19 +2100,75 @@ $defaultLanguage = ConfigManager::getDefaultLanguage();
             return `${start} - ${end}`;
         }
 
+        // ============================================================
+        // FUNCIONES ADICIONALES PARA LA API
+        // ============================================================
+        
+        // Esta función debe ser agregada al API de programa para obtener todos los programas
+        // Incluye información del creador para distinguir entre "mis programas" y "otros programas"
+        
+        /*
+        NOTA PARA EL DESARROLLADOR:
+        
+        Necesitas agregar este endpoint en tu API de programa:
+        
+        case 'list_all':
+            $result = $this->listAllPrograms();
+            break;
+            
+        Y la función correspondiente:
+        
+        private function listAllPrograms() {
+            try {
+                $programas = $this->db->fetchAll(
+                    "SELECT ps.*, u.full_name as created_by_name
+                     FROM programa_solicitudes ps
+                     LEFT JOIN users u ON ps.user_id = u.id
+                     ORDER BY ps.created_at DESC"
+                );
+                
+                return [
+                    'success' => true,
+                    'data' => $programas
+                ];
+                
+            } catch(Exception $e) {
+                error_log("Error en listAllPrograms: " . $e->getMessage());
+                return [
+                    'success' => false,
+                    'error' => 'Error al obtener todos los programas'
+                ];
+            }
+        }
+        */
+
         // Hacer funciones disponibles globalmente
         window.cargarProgramas = cargarProgramas;
         window.filtrarProgramas = filtrarProgramas;
-        window.editarPrograma = editarPrograma;
         window.verDetalles = verDetalles;
-        window.eliminarPrograma = eliminarPrograma;
+        window.verDetallesModal = verDetallesModal;
+        window.cerrarModalVistaPrevia = cerrarModalVistaPrevia;
+        window.abrirEnNuevaVentana = abrirEnNuevaVentana;
+        window.editarPrograma = editarPrograma;
+        window.copiarPrograma = copiarPrograma;
         window.limpiarFiltros = limpiarFiltros;
         window.exportarProgramas = exportarProgramas;
+        window.mostrarModalCreacion = mostrarModalCreacion;
+        window.cerrarModalCreacion = cerrarModalCreacion;
+        window.seleccionarOpcion = seleccionarOpcion;
+        window.procederCreacion = procederCreacion;
         window.toggleSidebar = toggleSidebar;
         window.closeSidebar = closeSidebar;
         window.toggleUserMenu = toggleUserMenu;
         
-        console.log('✅ Script de itinerarios cargado completamente');
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('modalCreacion').addEventListener('click', function(e) {
+            if (e.target === this) {
+                cerrarModalCreacion();
+            }
+        });
+        
+        console.log('✅ Script de itinerarios mejorado cargado completamente');
         
     </script>
 </body>
