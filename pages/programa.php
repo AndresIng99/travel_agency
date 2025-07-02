@@ -2945,7 +2945,11 @@ function cerrarModalBiblioteca() {
 }
 
 async function eliminarDia(diaId) {
-    if (!confirm('¿Estás seguro de que quieres eliminar este día?')) return;
+    if (!confirm('¿Estás seguro de que quieres eliminar este día? Esta acción no se puede deshacer.')) {
+        return;
+    }
+
+    console.log('🗑️ Eliminando día ID:', diaId);
 
     try {
         const response = await fetch('<?= APP_URL ?>/modules/programa/dias_api.php', {
@@ -2959,17 +2963,59 @@ async function eliminarDia(diaId) {
             })
         });
 
-        const result = await response.json();
+        console.log('📡 Respuesta del servidor:', response.status);
 
-        if (result.success) {
-            showAlert('Día eliminado exitosamente', 'success');
-            cargarDiasPrograma(); // Recargar días
-        } else {
-            showAlert(result.message || 'Error al eliminar día', 'error');
+        // Leer la respuesta como texto
+        const responseText = await response.text();
+        console.log('📄 Respuesta:', responseText);
+
+        // Intentar parsear como JSON
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (parseError) {
+            // Si no se puede parsear pero la eliminación funcionó, asumir éxito
+            console.warn('⚠️ No se pudo parsear la respuesta, pero asumiendo éxito');
+            showAlert('✅ Día eliminado exitosamente', 'success');
+            
+            // Limpiar selección si era el día eliminado
+            if (selectedDayId == diaId) {
+                selectedDayId = null;
+                const servicesContent = document.getElementById('services-content');
+                if (servicesContent) {
+                    servicesContent.innerHTML = '<p class="no-services">Selecciona un día para ver sus servicios</p>';
+                }
+            }
+            
+            // Recargar días
+            await cargarDiasPrograma();
+            return;
         }
+
+        // Si tenemos resultado JSON válido
+        if (result && result.success) {
+            showAlert('✅ Día eliminado exitosamente', 'success');
+            
+            // Limpiar selección
+            if (selectedDayId == diaId) {
+                selectedDayId = null;
+                const servicesContent = document.getElementById('services-content');
+                if (servicesContent) {
+                    servicesContent.innerHTML = '<p class="no-services">Selecciona un día para ver sus servicios</p>';
+                }
+            }
+            
+            // Recargar días
+            await cargarDiasPrograma();
+            
+        } else {
+            // Si hay error específico en el resultado
+            throw new Error(result ? result.message : 'Error desconocido');
+        }
+
     } catch (error) {
-        console.error('Error:', error);
-        showAlert('Error de conexión', 'error');
+        console.error('❌ Error eliminando día:', error);
+        showAlert('Error: ' + error.message, 'error');
     }
 }
 

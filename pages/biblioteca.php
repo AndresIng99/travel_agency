@@ -1859,16 +1859,26 @@ function loadSpecificFields() {
     container.innerHTML = fieldsHTML;
     
     // Configurar vista previa de imágenes después de cargar los campos
-    setTimeout(() => {
-        setupImagePreviews();
-        setupTransportLocationFields();
-    }, 100);
+        setTimeout(() => {
+            setupImagePreviews();
+            setupTransportLocationFields();
+            setupLocationAutocomplete(); // Asegurar que se llame
+            console.log('🚀 Campos específicos cargados y autocompletado inicializado');
+        }, 200);
 }
         
         // Función para configurar autocompletado bidireccional
+// Función para configurar autocompletado bidireccional - VERSIÓN CORREGIDA
 function setupLocationAutocomplete() {
+    console.log('🔧 Configurando autocompletado de ubicación...');
+    
     const ubicacionField = document.getElementById('ubicacion');
-    if (!ubicacionField) return;
+    if (!ubicacionField) {
+        console.log('❌ Campo ubicación no encontrado');
+        return;
+    }
+
+    console.log('✅ Campo ubicación encontrado, configurando eventos...');
 
     let searchTimeout;
     let suggestionsList = null;
@@ -1876,6 +1886,7 @@ function setupLocationAutocomplete() {
     // Event listener para cuando el usuario escribe
     ubicacionField.addEventListener('input', function() {
         const query = this.value.trim();
+        console.log('👤 Usuario escribiendo:', query);
         
         // Limpiar timeout anterior
         if (searchTimeout) {
@@ -1890,16 +1901,15 @@ function setupLocationAutocomplete() {
             return;
         }
 
-        // Buscar después de 500ms de pausa en escritura
+        // Buscar después de 300ms de pausa en escritura
         searchTimeout = setTimeout(() => {
-            searchAndShowSuggestions(query, ubicacionField);
-        }, 500);
+            console.log('🔍 Iniciando búsqueda para:', query);
+            searchLocationWithCoordinates(query, ubicacionField, 'ubicacion');
+        }, 300);
     });
 
     // Event listener para cuando pierde el foco
     ubicacionField.addEventListener('blur', function() {
-        // Remover sugerencias después de un pequeño delay
-        // para permitir clicks en las sugerencias
         setTimeout(() => {
             removeSuggestions();
         }, 200);
@@ -1911,6 +1921,8 @@ function setupLocationAutocomplete() {
             removeSuggestions();
         }
     });
+
+    console.log('✅ Autocompletado configurado correctamente');
 }
 function setupTransportLocationFields() {
     // Configurar autocompletado para lugar de salida
@@ -2206,10 +2218,11 @@ function selectLocation(suggestion, inputField) {
 
 // Remover lista de sugerencias
 function removeSuggestions() {
-    if (suggestionsList) {
-        suggestionsList.remove();
-        suggestionsList = null;
+    const existingList = document.querySelector('.location-suggestions');
+    if (existingList) {
+        existingList.remove();
     }
+    suggestionsList = null;
 }
 
         // Actualizar campo de categoría según tipo de alojamiento
@@ -3131,19 +3144,28 @@ async function searchLocationWithCoordinates(query, field, fieldType) {
     try {
         console.log('🔍 Buscando ubicación:', query);
         
+        // Mostrar indicador simple
+        field.style.background = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23666\' stroke-width=\'2\'%3E%3Cpath d=\'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z\'/%3E%3Ccircle cx=\'12\' cy=\'10\' r=\'3\'/%3E%3C/svg%3E") no-repeat right 12px center';
+        field.style.backgroundSize = '16px 16px';
+        field.style.backgroundColor = '#f8fafc';
+        
         const response = await fetch(
             `https://nominatim.openstreetmap.org/search?` +
             `q=${encodeURIComponent(query)}&` +
             `format=json&` +
             `limit=5&` +
             `addressdetails=1&` +
-            `extratags=1&` +
-            `namedetails=1`
+            `accept-language=es`
         );
         
         if (!response.ok) throw new Error('Error en la búsqueda');
         
         const results = await response.json();
+        console.log('📍 Resultados encontrados:', results.length);
+        
+        // Restaurar estilo normal
+        field.style.background = '';
+        field.style.backgroundColor = '';
         
         if (results.length > 0) {
             showLocationSuggestions(results, field, fieldType);
@@ -3151,16 +3173,20 @@ async function searchLocationWithCoordinates(query, field, fieldType) {
         
     } catch (error) {
         console.error('❌ Error buscando ubicación:', error);
+        // Restaurar estilo normal en caso de error
+        field.style.background = '';
+        field.style.backgroundColor = '';
     }
 }
 
 // Mostrar sugerencias de ubicación mejoradas
 function showLocationSuggestions(results, field, fieldType) {
-    // Remover lista anterior
-    const existingList = document.querySelector('.location-suggestions');
-    if (existingList) existingList.remove();
+    console.log('📋 Mostrando sugerencias:', results.length);
     
-    const suggestionsList = document.createElement('div');
+    // Remover lista anterior
+    removeSuggestions();
+    
+    suggestionsList = document.createElement('div');
     suggestionsList.className = 'location-suggestions';
     suggestionsList.style.cssText = `
         position: absolute;
@@ -3186,16 +3212,9 @@ function showLocationSuggestions(results, field, fieldType) {
             transition: all 0.2s ease;
         `;
         
-        const icon = getLocationIcon(result);
-        
         item.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 18px;">${icon}</span>
-                <div style="flex: 1;">
-                    <div style="font-weight: 600; color: #2d3748;">${result.display_name.split(',')[0]}</div>
-                    <div style="font-size: 12px; color: #718096;">${result.display_name}</div>
-                </div>
-            </div>
+            <div style="font-weight: 600; color: #2d3748;">${result.display_name.split(',')[0]}</div>
+            <div style="font-size: 12px; color: #718096;">${result.display_name}</div>
         `;
         
         item.addEventListener('mouseenter', () => {
@@ -3208,7 +3227,7 @@ function showLocationSuggestions(results, field, fieldType) {
         
         item.addEventListener('click', () => {
             selectLocationWithMap(result, field, fieldType);
-            suggestionsList.remove();
+            removeSuggestions();
         });
         
         suggestionsList.appendChild(item);
@@ -3217,8 +3236,9 @@ function showLocationSuggestions(results, field, fieldType) {
     // Posicionar la lista
     field.parentElement.style.position = 'relative';
     field.parentElement.appendChild(suggestionsList);
+    
+    console.log('✅ Sugerencias mostradas correctamente');
 }
-
 // Función para seleccionar ubicación y actualizar mapa automáticamente
 function selectLocationWithMap(location, field, fieldType) {
     console.log('✅ Ubicación seleccionada:', location.display_name);
