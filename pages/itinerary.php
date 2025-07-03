@@ -17,8 +17,10 @@ if (!$programa_id) {
 try {
     ConfigManager::init();
     $company_name = ConfigManager::getCompanyName();
+    $config = ConfigManager::get();
 } catch(Exception $e) {
     $company_name = 'Travel Agency';
+    $config = [];
 }
 
 // Cargar datos completos del programa
@@ -27,7 +29,10 @@ try {
     
     // Obtener datos básicos del programa
     $programa = $db->fetch(
-        "SELECT ps.*, pp.titulo_programa, pp.foto_portada, pp.idioma_predeterminado
+        "SELECT ps.*, pp.titulo_programa, pp.foto_portada, pp.idioma_predeterminado,
+                DATE_FORMAT(ps.fecha_llegada, '%d/%m/%Y') as fecha_llegada_formatted,
+                DATE_FORMAT(ps.fecha_salida, '%d/%m/%Y') as fecha_salida_formatted,
+                DATEDIFF(ps.fecha_salida, ps.fecha_llegada) as duracion_dias
          FROM programa_solicitudes ps 
          LEFT JOIN programa_personalizacion pp ON ps.id = pp.solicitud_id 
          WHERE ps.id = ?", 
@@ -38,13 +43,13 @@ try {
         throw new Exception('Programa no encontrado');
     }
     
-    // Obtener días con servicios
+    // Obtener días del programa
     $dias = $db->fetchAll(
         "SELECT * FROM programa_dias WHERE solicitud_id = ? ORDER BY dia_numero ASC", 
         [$programa_id]
     );
     
-    // Obtener servicios para cada día con TODAS las alternativas
+    // Obtener servicios para cada día con todas las alternativas
     foreach ($dias as &$dia) {
         $servicios_raw = $db->fetchAll(
             "SELECT 
@@ -66,8 +71,8 @@ try {
                 END as ubicacion,
                 CASE 
                     WHEN pds.tipo_servicio = 'actividad' THEN ba.imagen1
+                    WHEN pds.tipo_servicio = 'transporte' THEN NULL
                     WHEN pds.tipo_servicio = 'alojamiento' THEN bal.imagen
-                    ELSE NULL
                 END as imagen,
                 CASE 
                     WHEN pds.tipo_servicio = 'actividad' THEN ba.imagen2
@@ -79,95 +84,158 @@ try {
                 END as imagen3,
                 CASE 
                     WHEN pds.tipo_servicio = 'actividad' THEN ba.latitud
+                    WHEN pds.tipo_servicio = 'transporte' THEN bt.lat_salida
                     WHEN pds.tipo_servicio = 'alojamiento' THEN bal.latitud
-                    ELSE NULL
                 END as latitud,
                 CASE 
                     WHEN pds.tipo_servicio = 'actividad' THEN ba.longitud
+                    WHEN pds.tipo_servicio = 'transporte' THEN bt.lng_salida
                     WHEN pds.tipo_servicio = 'alojamiento' THEN bal.longitud
-                    ELSE NULL
                 END as longitud,
                 CASE 
-                    WHEN pds.tipo_servicio = 'transporte' THEN bt.medio
+                    WHEN pds.tipo_servicio = 'transporte' THEN bt.lat_llegada
                     ELSE NULL
-                END as medio,
+                END as lat_llegada,
+                CASE 
+                    WHEN pds.tipo_servicio = 'transporte' THEN bt.lng_llegada
+                    ELSE NULL
+                END as lng_llegada,
                 CASE 
                     WHEN pds.tipo_servicio = 'transporte' THEN bt.duracion
                     ELSE NULL
                 END as duracion,
                 CASE 
-                    WHEN pds.tipo_servicio = 'alojamiento' THEN bal.categoria
+                    WHEN pds.tipo_servicio = 'transporte' THEN bt.medio
                     ELSE NULL
-                END as categoria,
+                END as medio_transporte,
                 CASE 
                     WHEN pds.tipo_servicio = 'alojamiento' THEN bal.tipo
                     ELSE NULL
-                END as tipo_alojamiento
+                END as tipo_alojamiento,
+                CASE 
+                    WHEN pds.tipo_servicio = 'alojamiento' THEN bal.categoria
+                    ELSE NULL
+                END as categoria_alojamiento
             FROM programa_dias_servicios pds
-            LEFT JOIN biblioteca_actividades ba ON pds.tipo_servicio = 'actividad' AND pds.biblioteca_item_id = ba.id
-            LEFT JOIN biblioteca_transportes bt ON pds.tipo_servicio = 'transporte' AND pds.biblioteca_item_id = bt.id
-            LEFT JOIN biblioteca_alojamientos bal ON pds.tipo_servicio = 'alojamiento' AND pds.biblioteca_item_id = bal.id
+            LEFT JOIN biblioteca_actividades ba ON pds.tipo_servicio = 'actividad' AND pds.biblioteca_item_id = ba.id AND ba.activo = 1
+            LEFT JOIN biblioteca_transportes bt ON pds.tipo_servicio = 'transporte' AND pds.biblioteca_item_id = bt.id AND bt.activo = 1
+            LEFT JOIN biblioteca_alojamientos bal ON pds.tipo_servicio = 'alojamiento' AND pds.biblioteca_item_id = bal.id AND bal.activo = 1
             WHERE pds.programa_dia_id = ?
             ORDER BY pds.orden ASC, pds.es_alternativa ASC, pds.orden_alternativa ASC", 
             [$dia['id']]
         );
         
-        // Organizar servicios principales con sus alternativas
-        $principales = [];
-        $alternativas = [];
-        
+        // Organizar servicios por orden secuencial
+        $servicios_organizados = [];
         foreach ($servicios_raw as $servicio) {
+            $orden = $servicio['orden'];
+            
+            if (!isset($servicios_organizados[$orden])) {
+                $servicios_organizados[$orden] = [
+                    'principal' => null,
+                    'alternativas' => []
+                ];
+            }
+            
             if ($servicio['es_alternativa'] == 0) {
-                $principales[$servicio['id']] = $servicio;
-                $principales[$servicio['id']]['alternativas'] = [];
+                $servicios_organizados[$orden]['principal'] = $servicio;
             } else {
-                $alternativas[] = $servicio;
+                $servicios_organizados[$orden]['alternativas'][] = $servicio;
             }
         }
         
-        foreach ($alternativas as $alternativa) {
-            $principalId = $alternativa['servicio_principal_id'];
-            if (isset($principales[$principalId])) {
-                $principales[$principalId]['alternativas'][] = $alternativa;
-            }
-        }
-        
-        $dia['servicios'] = array_values($principales);
+        ksort($servicios_organizados);
+        $dia['servicios'] = $servicios_organizados;
     }
     
-    // Obtener precios
+    unset($dia);
+    
+    // Obtener información de precios
     $precios = $db->fetch(
         "SELECT * FROM programa_precios WHERE solicitud_id = ?", 
         [$programa_id]
     );
     
-    // Obtener todas las ubicaciones para el mapa (solo principales para no saturar)
-    $ubicaciones = [];
+    // Preparar datos para el mapa
+    $puntos_mapa = [];
     foreach ($dias as $dia) {
-        foreach ($dia['servicios'] as $servicio) {
-            if ($servicio['latitud'] && $servicio['longitud']) {
-                $ubicaciones[] = [
+        foreach ($dia['servicios'] as $orden => $servicio_grupo) {
+            $servicio = $servicio_grupo['principal'];
+            if ($servicio && $servicio['latitud'] && $servicio['longitud']) {
+                $puntos_mapa[] = [
                     'lat' => floatval($servicio['latitud']),
                     'lng' => floatval($servicio['longitud']),
-                    'nombre' => $servicio['nombre'],
+                    'titulo' => $servicio['nombre'],
+                    'descripcion' => $servicio['descripcion'],
                     'tipo' => $servicio['tipo_servicio'],
                     'dia' => $dia['dia_numero'],
+                    'ubicacion' => $servicio['ubicacion'],
                     'imagen' => $servicio['imagen']
+                ];
+            }
+            
+            // Agregar punto de llegada para transportes
+            if ($servicio && $servicio['tipo_servicio'] == 'transporte' && 
+                $servicio['lat_llegada'] && $servicio['lng_llegada']) {
+                $puntos_mapa[] = [
+                    'lat' => floatval($servicio['lat_llegada']),
+                    'lng' => floatval($servicio['lng_llegada']),
+                    'titulo' => $servicio['nombre'] . ' (Llegada)',
+                    'descripcion' => $servicio['descripcion'],
+                    'tipo' => 'transporte_llegada',
+                    'dia' => $dia['dia_numero'],
+                    'ubicacion' => $servicio['ubicacion']
                 ];
             }
         }
     }
     
 } catch(Exception $e) {
-    error_log("Error cargando itinerario: " . $e->getMessage());
+    error_log("Error cargando programa: " . $e->getMessage());
     header('Location: ' . APP_URL . '/itinerarios');
     exit;
 }
 
-// Preparar datos
-$titulo_programa = $programa['titulo_programa'] ?: 'Mi Viaje a ' . $programa['destino'];
+// Funciones helper
+function getServiceIcon($tipo) {
+    switch($tipo) {
+        case 'actividad': return 'fas fa-hiking';
+        case 'transporte': return 'fas fa-plane';
+        case 'alojamiento': return 'fas fa-bed';
+        default: return 'fas fa-map-marker-alt';
+    }
+}
+
+function formatTransportMedium($medio) {
+    $medios = [
+        'avion' => 'Avión',
+        'bus' => 'Bus',
+        'coche' => 'Coche',
+        'barco' => 'Barco',
+        'tren' => 'Tren'
+    ];
+    return $medios[$medio] ?? ucfirst($medio);
+}
+
+function formatAccommodationType($tipo) {
+    $tipos = [
+        'hotel' => 'Hotel',
+        'camping' => 'Camping',
+        'casa_huespedes' => 'Casa de Huéspedes',
+        'crucero' => 'Crucero',
+        'lodge' => 'Lodge',
+        'atipico' => 'Alojamiento Atípico',
+        'campamento' => 'Campamento',
+        'camping_car' => 'Camping Car',
+        'tren' => 'Tren Hotel'
+    ];
+    return $tipos[$tipo] ?? ucfirst($tipo);
+}
+
+// Datos para el template
+$titulo_programa = $programa['titulo_programa'] ?: 'Viaje a ' . $programa['destino'];
 $nombre_viajero = trim($programa['nombre_viajero'] . ' ' . $programa['apellido_viajero']);
-$imagen_portada = $programa['foto_portada'] ?: APP_URL . '/assets/images/default-travel.jpg';
+$imagen_portada = $programa['foto_portada'] ?: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&h=600&fit=crop';
 $num_dias = count($dias);
 $num_pasajeros = $programa['numero_pasajeros'];
 
@@ -187,13 +255,11 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
 ?>
 
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?= $config['default_language'] ?? 'es' ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($titulo_programa) ?> - Itinerario Completo</title>
-    
-    <!-- Fonts y CSS -->
+    <title><?= htmlspecialchars($titulo_programa) ?> - <?= $company_name ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -1428,11 +1494,14 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                         $total_transportes = 0;
                         
                         foreach ($dias as $dia) {
-                            foreach ($dia['servicios'] as $servicio) {
-                                switch($servicio['tipo_servicio']) {
-                                    case 'actividad': $total_actividades++; break;
-                                    case 'alojamiento': $total_alojamientos++; break;
-                                    case 'transporte': $total_transportes++; break;
+                            foreach ($dia['servicios'] as $servicio_grupo) {
+                                $servicio = $servicio_grupo['principal'];
+                                if ($servicio) {
+                                    switch($servicio['tipo_servicio']) {
+                                        case 'actividad': $total_actividades++; break;
+                                        case 'alojamiento': $total_alojamientos++; break;
+                                        case 'transporte': $total_transportes++; break;
+                                    }
                                 }
                             }
                         }
@@ -1473,7 +1542,7 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         </section>
 
         <!-- Map Section -->
-        <?php if (!empty($ubicaciones)): ?>
+        <?php if (!empty($puntos_mapa)): ?>
         <section id="map" class="section">
             <div class="section-header">
                 <h2 class="section-title">Mapa del Viaje</h2>
@@ -1484,20 +1553,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             
             <div class="map-container">
                 <div id="map"></div>
-                <div class="map-legend">
-                    <div class="legend-item">
-                        <div class="legend-icon actividad"></div>
-                        <span>Actividades</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-icon alojamiento"></div>
-                        <span>Alojamientos</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-icon transporte"></div>
-                        <span>Transportes</span>
-                    </div>
-                </div>
             </div>
         </section>
         <?php endif; ?>
@@ -1515,7 +1570,7 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                 <?php foreach ($dias as $index => $dia): ?>
                 <div class="day-card" style="animation-delay: <?= $index * 0.1 ?>s;">
                     <div class="day-number">
-                        Día <?= $dia['dia_numero'] ?>
+                        <?= $dia['dia_numero'] ?>
                     </div>
                     
                     <div class="day-content">
@@ -1556,109 +1611,116 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                             </h4>
                             
                             <div class="services-grid">
-                                <?php foreach ($dia['servicios'] as $servicio): ?>
-                                <div class="service-group">
-                                    <!-- Servicio Principal -->
-                                    <div class="service-item principal">
-                                        <div class="service-icon <?= $servicio['tipo_servicio'] ?>">
-                                            <i class="fas fa-<?= $servicio['tipo_servicio'] == 'actividad' ? 'hiking' : ($servicio['tipo_servicio'] == 'alojamiento' ? 'bed' : 'car') ?>"></i>
-                                        </div>
-                                        
-                                        <div class="service-details">
-                                            <h4>
-                                                <i class="fas fa-star" style="color: #ffc107; font-size: 12px; margin-right: 4px;"></i>
-                                                <?= htmlspecialchars($servicio['nombre']) ?>
-                                                <?php if (!empty($servicio['alternativas'])): ?>
-                                                <span class="alternative-badge"><?= count($servicio['alternativas']) ?> ALT</span>
-                                                <?php endif; ?>
-                                            </h4>
-                                            
-                                            <?php if ($servicio['descripcion']): ?>
-                                            <p><?= htmlspecialchars($servicio['descripcion']) ?></p>
-                                            <?php endif; ?>
-                                            
-                                            <div class="service-meta">
-                                                <?php if ($servicio['ubicacion']): ?>
-                                                <span>
-                                                    <i class="fas fa-map-marker-alt"></i>
-                                                    <?= htmlspecialchars($servicio['ubicacion']) ?>
-                                                </span>
-                                                <?php endif; ?>
-                                                
-                                                <?php if ($servicio['tipo_servicio'] == 'transporte' && $servicio['duracion']): ?>
-                                                <span>
-                                                    <i class="fas fa-clock"></i>
-                                                    <?= htmlspecialchars($servicio['duracion']) ?>
-                                                </span>
-                                                <?php endif; ?>
-                                                
-                                                <?php if ($servicio['tipo_servicio'] == 'alojamiento' && $servicio['categoria']): ?>
-                                                <span>
-                                                    <i class="fas fa-star"></i>
-                                                    <?= $servicio['categoria'] ?> estrellas
-                                                </span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                        
-                                        <?php if ($servicio['imagen']): ?>
-                                        <div style="width: 80px; height: 80px; border-radius: 10px; background-image: url('<?= htmlspecialchars($servicio['imagen']) ?>'); background-size: cover; background-position: center; flex-shrink: 0;"></div>
-                                        <?php endif; ?>
-                                    </div>
-                                    
-                                    <!-- Alternativas -->
-                                    <?php if (!empty($servicio['alternativas'])): ?>
-                                    <div class="alternatives-header" onclick="toggleAlternatives(<?= $servicio['id'] ?>)">
-                                        <i class="fas fa-sync-alt"></i>
-                                        <span><?= count($servicio['alternativas']) ?> alternativa<?= count($servicio['alternativas']) > 1 ? 's' : '' ?> disponible<?= count($servicio['alternativas']) > 1 ? 's' : '' ?></span>
-                                        <i class="fas fa-chevron-down alternatives-toggle" id="toggle-<?= $servicio['id'] ?>"></i>
-                                    </div>
-                                    
-                                    <div class="alternatives-list" id="alternatives-<?= $servicio['id'] ?>">
-                                        <?php foreach ($servicio['alternativas'] as $alternativa): ?>
-                                        <div class="service-item alternativa">
-                                            <div class="alternative-badge">Alt <?= $alternativa['orden_alternativa'] ?></div>
-                                            
-                                            <div class="service-icon alternativa">
-                                                <i class="fas fa-<?= $alternativa['tipo_servicio'] == 'actividad' ? 'hiking' : ($alternativa['tipo_servicio'] == 'alojamiento' ? 'bed' : 'car') ?>"></i>
+                                <?php foreach ($dia['servicios'] as $servicio_grupo): ?>
+                                    <?php $servicio = $servicio_grupo['principal']; ?>
+                                    <?php if ($servicio): ?>
+                                    <div class="service-group">
+                                        <!-- Servicio Principal -->
+                                        <div class="service-item principal">
+                                            <div class="service-icon <?= $servicio['tipo_servicio'] ?>">
+                                                <i class="<?= getServiceIcon($servicio['tipo_servicio']) ?>"></i>
                                             </div>
                                             
                                             <div class="service-details">
-                                                <h5 style="color: #0c5460; margin-bottom: 5px;">
-                                                    Alternativa <?= $alternativa['orden_alternativa'] ?>: <?= htmlspecialchars($alternativa['nombre']) ?>
-                                                </h5>
+                                                <h4>
+                                                    <i class="fas fa-star" style="color: #ffc107; font-size: 12px; margin-right: 4px;"></i>
+                                                    <?= htmlspecialchars($servicio['nombre']) ?>
+                                                </h4>
                                                 
-                                                <?php if ($alternativa['descripcion']): ?>
-                                                <p style="font-size: 0.9rem; color: #5a6c7d;">
-                                                    <?= htmlspecialchars($alternativa['descripcion']) ?>
-                                                </p>
+                                                <?php if ($servicio['descripcion']): ?>
+                                                <p><?= htmlspecialchars($servicio['descripcion']) ?></p>
                                                 <?php endif; ?>
                                                 
-                                                <?php if ($alternativa['notas_alternativa']): ?>
-                                                <div class="alternative-notes">
-                                                    <i class="fas fa-sticky-note"></i>
-                                                    <?= htmlspecialchars($alternativa['notas_alternativa']) ?>
-                                                </div>
-                                                <?php endif; ?>
-                                                
-                                                <div class="service-meta" style="margin-top: 8px;">
-                                                    <?php if ($alternativa['ubicacion']): ?>
-                                                    <span style="font-size: 0.8rem;">
+                                                <div class="service-meta">
+                                                    <?php if ($servicio['ubicacion']): ?>
+                                                    <span>
                                                         <i class="fas fa-map-marker-alt"></i>
-                                                        <?= htmlspecialchars($alternativa['ubicacion']) ?>
+                                                        <?= htmlspecialchars($servicio['ubicacion']) ?>
+                                                    </span>
+                                                    <?php endif; ?>
+                                                    
+                                                    <?php if ($servicio['tipo_servicio'] == 'transporte' && $servicio['duracion']): ?>
+                                                    <span>
+                                                        <i class="fas fa-clock"></i>
+                                                        <?= htmlspecialchars($servicio['duracion']) ?>
+                                                    </span>
+                                                    <?php endif; ?>
+                                                    
+                                                    <?php if ($servicio['tipo_servicio'] == 'transporte' && $servicio['medio_transporte']): ?>
+                                                    <span>
+                                                        <i class="fas fa-plane"></i>
+                                                        <?= formatTransportMedium($servicio['medio_transporte']) ?>
+                                                    </span>
+                                                    <?php endif; ?>
+                                                    
+                                                    <?php if ($servicio['tipo_servicio'] == 'alojamiento' && $servicio['categoria_alojamiento']): ?>
+                                                    <span>
+                                                        <i class="fas fa-star"></i>
+                                                        <?= $servicio['categoria_alojamiento'] ?> estrellas
                                                     </span>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
                                             
-                                            <?php if ($alternativa['imagen']): ?>
-                                            <div style="width: 60px; height: 60px; border-radius: 8px; background-image: url('<?= htmlspecialchars($alternativa['imagen']) ?>'); background-size: cover; background-position: center; flex-shrink: 0;"></div>
+                                            <?php if ($servicio['imagen']): ?>
+                                            <div style="width: 80px; height: 80px; border-radius: 10px; background-image: url('<?= htmlspecialchars($servicio['imagen']) ?>'); background-size: cover; background-position: center; flex-shrink: 0;"></div>
                                             <?php endif; ?>
                                         </div>
-                                        <?php endforeach; ?>
+                                        
+                                        <!-- Alternativas -->
+                                        <?php if (!empty($servicio_grupo['alternativas'])): ?>
+                                        <div class="alternatives-header" onclick="toggleAlternatives(<?= $servicio['id'] ?>)">
+                                            <i class="fas fa-sync-alt"></i>
+                                            <span><?= count($servicio_grupo['alternativas']) ?> alternativa<?= count($servicio_grupo['alternativas']) > 1 ? 's' : '' ?> disponible<?= count($servicio_grupo['alternativas']) > 1 ? 's' : '' ?></span>
+                                            <i class="fas fa-chevron-down alternatives-toggle" id="toggle-<?= $servicio['id'] ?>"></i>
+                                        </div>
+                                        
+                                        <div class="alternatives-list" id="alternatives-<?= $servicio['id'] ?>">
+                                            <?php foreach ($servicio_grupo['alternativas'] as $alternativa): ?>
+                                            <div class="service-item alternativa">
+                                                <div class="alternative-badge">Alt <?= $alternativa['orden_alternativa'] ?></div>
+                                                
+                                                <div class="service-icon">
+                                                    <i class="<?= getServiceIcon($alternativa['tipo_servicio']) ?>"></i>
+                                                </div>
+                                                
+                                                <div class="service-details">
+                                                    <h4 style="color: #0c5460; margin-bottom: 5px;">
+                                                        <?= htmlspecialchars($alternativa['nombre']) ?>
+                                                    </h4>
+                                                    
+                                                    <?php if ($alternativa['descripcion']): ?>
+                                                    <p style="font-size: 0.9rem; color: #5a6c7d;">
+                                                        <?= htmlspecialchars($alternativa['descripcion']) ?>
+                                                    </p>
+                                                    <?php endif; ?>
+                                                    
+                                                    <?php if ($alternativa['notas_alternativa']): ?>
+                                                    <div class="alternative-notes">
+                                                        <i class="fas fa-sticky-note"></i>
+                                                        <?= htmlspecialchars($alternativa['notas_alternativa']) ?>
+                                                    </div>
+                                                    <?php endif; ?>
+                                                    
+                                                    <div class="service-meta" style="margin-top: 8px;">
+                                                        <?php if ($alternativa['ubicacion']): ?>
+                                                        <span style="font-size: 0.8rem;">
+                                                            <i class="fas fa-map-marker-alt"></i>
+                                                            <?= htmlspecialchars($alternativa['ubicacion']) ?>
+                                                        </span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                                
+                                                <?php if ($alternativa['imagen']): ?>
+                                                <div style="width: 60px; height: 60px; border-radius: 8px; background-image: url('<?= htmlspecialchars($alternativa['imagen']) ?>'); background-size: cover; background-position: center; flex-shrink: 0;"></div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <?php endif; ?>
                                     </div>
                                     <?php endif; ?>
-                                </div>
                                 <?php endforeach; ?>
                             </div>
                             <?php else: ?>
@@ -1891,9 +1953,13 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             </p>
             
             <div class="footer-actions">
-                <a href="<?= APP_URL ?>/programa?id=<?= $programa_id ?>" class="btn btn-primary">
-                    <i class="fas fa-edit"></i>
-                    Personalizar más
+                <a href="<?= APP_URL ?>/itinerarios" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i>
+                    Volver a Itinerarios
+                </a>
+                <a href="<?= APP_URL ?>/preview?id=<?= $programa_id ?>" class="btn btn-primary">
+                    <i class="fas fa-eye"></i>
+                    Vista Previa
                 </a>
                 <a href="#" class="btn btn-outline" onclick="window.print()">
                     <i class="fas fa-print"></i>
@@ -1941,40 +2007,36 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         // =====================================================
         // MAP INITIALIZATION
         // =====================================================
-        <?php if (!empty($ubicaciones)): ?>
+        <?php if (!empty($puntos_mapa)): ?>
         document.addEventListener('DOMContentLoaded', function() {
-            // Calcular centro del mapa
-            const ubicaciones = <?= json_encode($ubicaciones) ?>;
+            const puntosMapa = <?= json_encode($puntos_mapa) ?>;
             
-            if (ubicaciones.length > 0) {
-                let centerLat = ubicaciones.reduce((sum, loc) => sum + loc.lat, 0) / ubicaciones.length;
-                let centerLng = ubicaciones.reduce((sum, loc) => sum + loc.lng, 0) / ubicaciones.length;
+            if (puntosMapa.length > 0) {
+                let centerLat = puntosMapa.reduce((sum, loc) => sum + loc.lat, 0) / puntosMapa.length;
+                let centerLng = puntosMapa.reduce((sum, loc) => sum + loc.lng, 0) / puntosMapa.length;
                 
-                // Inicializar mapa
-                const map = L.map('map').setView([centerLat, centerLng], 10);
+                const map = L.map('map').setView([centerLat, centerLng], 8);
                 
-                // Agregar tiles
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© OpenStreetMap contributors'
                 }).addTo(map);
                 
-                // Colores para diferentes tipos de servicios
                 const iconColors = {
                     'actividad': '#e74c3c',
                     'alojamiento': '#f39c12',
-                    'transporte': '#3498db'
+                    'transporte': '#3498db',
+                    'transporte_llegada': '#9b59b6'
                 };
                 
-                // Agregar marcadores
-                ubicaciones.forEach(function(ubicacion, index) {
-                    const color = iconColors[ubicacion.tipo] || '#95a5a6';
+                puntosMapa.forEach(function(punto, index) {
+                    const color = iconColors[punto.tipo] || '#95a5a6';
                     
                     const customIcon = L.divIcon({
                         html: `
                             <div style="
                                 background-color: ${color};
-                                width: 30px;
-                                height: 30px;
+                                width: 35px;
+                                height: 35px;
                                 border-radius: 50%;
                                 display: flex;
                                 align-items: center;
@@ -1983,32 +2045,40 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                                 font-weight: bold;
                                 font-size: 14px;
                                 border: 3px solid white;
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                            ">${ubicacion.dia}</div>
+                                box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                            ">${punto.dia}</div>
                         `,
                         className: 'custom-div-icon',
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 15]
+                        iconSize: [35, 35],
+                        iconAnchor: [17, 17]
                     });
                     
-                    const marker = L.marker([ubicacion.lat, ubicacion.lng], {
+                    const marker = L.marker([punto.lat, punto.lng], {
                         icon: customIcon
                     }).addTo(map);
                     
-                    // Popup con información
                     const popupContent = `
-                        <div style="text-align: center; min-width: 200px;">
-                            <h4 style="margin: 0 0 10px 0; color: ${color};">
-                                Día ${ubicacion.dia}: ${ubicacion.nombre}
+                        <div style="text-align: center; min-width: 220px;">
+                            <h4 style="margin: 0 0 10px 0; color: ${color}; font-size: 1.1rem;">
+                                ${punto.titulo}
                             </h4>
-                            <p style="margin: 0; color: #666; text-transform: capitalize;">
-                                <i class="fas fa-${ubicacion.tipo === 'actividad' ? 'hiking' : (ubicacion.tipo === 'alojamiento' ? 'bed' : 'car')}"></i>
-                                ${ubicacion.tipo}
+                            <p style="margin: 0 0 8px 0; color: #666; text-transform: capitalize; font-size: 0.9rem;">
+                                <i class="fas fa-${punto.tipo === 'actividad' ? 'hiking' : (punto.tipo === 'alojamiento' ? 'bed' : 'car')}"></i>
+                                ${punto.tipo} - Día ${punto.dia}
                             </p>
-                            ${ubicacion.imagen ? `
-                                <img src="${ubicacion.imagen}" 
-                                     style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 10px;"
-                                     alt="${ubicacion.nombre}">
+                            <p style="margin: 0 0 10px 0; color: #888; font-size: 0.85rem;">
+                                <i class="fas fa-map-marker-alt"></i>
+                                ${punto.ubicacion}
+                            </p>
+                            ${punto.descripcion ? `
+                                <p style="margin: 10px 0 0 0; color: #555; font-size: 0.8rem; line-height: 1.3;">
+                                    ${punto.descripcion.substring(0, 80)}...
+                                </p>
+                            ` : ''}
+                            ${punto.imagen ? `
+                                <img src="${punto.imagen}" 
+                                     style="width: 100%; height: 100px; object-fit: cover; border-radius: 8px; margin-top: 10px;"
+                                     alt="${punto.titulo}">
                             ` : ''}
                         </div>
                     `;
@@ -2016,11 +2086,36 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                     marker.bindPopup(popupContent);
                 });
                 
-                // Ajustar vista para mostrar todos los marcadores
-                if (ubicaciones.length > 1) {
+                if (puntosMapa.length > 1) {
                     const group = new L.featureGroup(map._layers);
                     map.fitBounds(group.getBounds().pad(0.1));
                 }
+                
+                // Conexiones entre puntos del mismo día
+                const puntosPerDia = {};
+                puntosMapa.forEach(punto => {
+                    if (!puntosPerDia[punto.dia]) {
+                        puntosPerDia[punto.dia] = [];
+                    }
+                    puntosPerDia[punto.dia].push(punto);
+                });
+                
+                const colores = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+                
+                Object.keys(puntosPerDia).forEach((dia, index) => {
+                    const puntosDia = puntosPerDia[dia];
+                    if (puntosDia.length > 1) {
+                        const coordenadas = puntosDia.map(p => [p.lat, p.lng]);
+                        const color = colores[index % colores.length];
+                        
+                        L.polyline(coordenadas, {
+                            color: color,
+                            weight: 3,
+                            opacity: 0.7,
+                            dashArray: '8, 5'
+                        }).addTo(map);
+                    }
+                });
             }
         });
         <?php endif; ?>
@@ -2033,7 +2128,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
             const arrow = document.getElementById(`arrow-${sectionId}`);
             const header = arrow.closest('.accordion-header');
             
-            // Cerrar otros acordeones abiertos
             document.querySelectorAll('.accordion-content.active').forEach(function(otherContent) {
                 if (otherContent.id !== `content-${sectionId}`) {
                     otherContent.classList.remove('active');
@@ -2045,7 +2139,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                 }
             });
             
-            // Toggle el acordeón actual
             content.classList.toggle('active');
             arrow.classList.toggle('rotated');
             header.classList.toggle('active');
@@ -2066,34 +2159,12 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         // ACTION BUTTONS FUNCTIONALITY
         // =====================================================
         function requestQuote() {
-            // Implementar funcionalidad de solicitud de cotización
-            alert('Funcionalidad de cotización - Por implementar');
-            // window.location.href = '<?= APP_URL ?>/solicitar-cotizacion?programa=<?= $programa_id ?>';
+            alert('Funcionalidad de cotización - Implementar según necesidades');
         }
 
         function downloadItinerary() {
-            // Funcionalidad de descarga de PDF
             window.print();
         }
-
-        // =====================================================
-        // LAZY LOADING FOR IMAGES
-        // =====================================================
-        document.addEventListener('DOMContentLoaded', function() {
-            const images = document.querySelectorAll('img[data-src]');
-            const imageObserver = new IntersectionObserver((entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const img = entry.target;
-                        img.src = img.dataset.src;
-                        img.classList.remove('lazy');
-                        imageObserver.unobserve(img);
-                    }
-                });
-            });
-
-            images.forEach(img => imageObserver.observe(img));
-        });
 
         // =====================================================
         // ANIMATION ON SCROLL
@@ -2113,23 +2184,38 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
                 });
             }, observerOptions);
 
-            // Observar elementos para animación
             document.querySelectorAll('.day-card, .service-group, .detail-item').forEach(function(el) {
                 observer.observe(el);
             });
         });
 
         // =====================================================
-        // PRINT STYLES
+        // PARALLAX EFFECT - REMOVED
+        // =====================================================
+        // Parallax effect removed to prevent image overlap with text
+        
+        // =====================================================
+        // SMOOTH SCROLL ENHANCEMENT
+        // =====================================================
+        window.addEventListener('scroll', function() {
+            // Only handle navbar visibility, no parallax effects
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 100) {
+                navbar.classList.add('visible');
+            } else {
+                navbar.classList.remove('visible');
+            }
+        });
+
+        // =====================================================
+        // PRINT FUNCTIONALITY
         // =====================================================
         window.addEventListener('beforeprint', function() {
-            // Expandir todos los acordeones para la impresión
             document.querySelectorAll('.accordion-content').forEach(function(content) {
                 content.style.maxHeight = 'none';
                 content.style.display = 'block';
             });
             
-            // Expandir todas las alternativas
             document.querySelectorAll('.alternatives-list').forEach(function(list) {
                 list.style.maxHeight = 'none';
                 list.style.display = 'block';
@@ -2137,7 +2223,6 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         });
 
         window.addEventListener('afterprint', function() {
-            // Restaurar estado original después de imprimir
             document.querySelectorAll('.accordion-content:not(.active)').forEach(function(content) {
                 content.style.maxHeight = '0';
                 content.style.display = 'none';
@@ -2152,7 +2237,7 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
 
     <!-- Estilos adicionales para impresión -->
     <style media="print">
-        .navbar, .scroll-indicator, .map-container, .pricing-actions, .footer-actions {
+        .navbar, .scroll-indicator, .pricing-actions, .footer-actions {
             display: none !important;
         }
         
@@ -2189,6 +2274,10 @@ $fecha_fin_formatted = $programa['fecha_salida'] ?
         
         .day-title {
             font-size: 1.5rem !important;
+        }
+        
+        .map-container {
+            display: none !important;
         }
     </style>
 
