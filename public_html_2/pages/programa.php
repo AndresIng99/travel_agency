@@ -5017,12 +5017,77 @@ function abrirVistaPrevia() {
     
     console.log('🔗 Abriendo vista previa en nueva pestaña:', previewUrl);
 }
-function getServiceIconByType(tipo) {
+function getServiceIconByType(tipo, servicio = null) {
+    // Si es transporte, usar icono específico según el medio
+    if (tipo === 'transporte' && servicio && servicio.medio) {
+        const medio = servicio.medio.toLowerCase();
+        
+        // Mapeo de medios de transporte a iconos Font Awesome
+        const transportIcons = {
+            'bus': 'bus',
+            'autobus': 'bus',
+            'autobús': 'bus',
+            'coche': 'car',
+            'auto': 'car',
+            'automóvil': 'car',
+            'taxi': 'taxi',
+            'avion': 'plane',
+            'avión': 'plane',
+            'vuelo': 'plane',
+            'aereo': 'plane',
+            'aéreo': 'plane',
+            'tren': 'train',
+            'ferrocarril': 'train',
+            'metro': 'subway',
+            'subte': 'subway',
+            'barco': 'ship',
+            'ferry': 'ship',
+            'lancha': 'ship',
+            'crucero': 'ship',
+            'bicicleta': 'bicycle',
+            'bici': 'bicycle',
+            'moto': 'motorcycle',
+            'motocicleta': 'motorcycle',
+            'scooter': 'motorcycle',
+            'camion': 'truck',
+            'camión': 'truck',
+            'van': 'shuttle-van',
+            'minivan': 'shuttle-van',
+            'minibus': 'shuttle-van',
+            'helicopter': 'helicopter',
+            'helicóptero': 'helicopter',
+            'teleférico': 'tram',
+            'teleferico': 'tram',
+            'cable': 'tram',
+            'funicular': 'tram',
+            'pie': 'walking',
+            'caminando': 'walking',
+            'caminata': 'walking',
+            'privado': 'car-side',
+            'compartido': 'shuttle-van',
+            'uber': 'taxi',
+            'cabify': 'taxi',
+            'didi': 'taxi'
+        };
+        
+        // Buscar coincidencia en el mapeo
+        for (const [key, icon] of Object.entries(transportIcons)) {
+            if (medio.includes(key)) {
+                return icon;
+            }
+        }
+        
+        // Si no encuentra coincidencia, usar icono genérico de transporte
+        return 'car';
+    }
+    
+    // Para otros tipos de servicio
     const icons = {
         'actividad': 'hiking',
         'transporte': 'car',
         'alojamiento': 'bed'
     };
+    
     return icons[tipo] || 'star';
 }
 
@@ -5711,7 +5776,7 @@ function renderizarServiciosDia(diaId, servicios) {
             <div class="service-item" data-servicio-id="${servicio.id}">
                 <div class="service-info">
                     <div class="service-icon ${servicio.tipo_servicio}">
-                        <i class="fas fa-${getServiceIconByType(servicio.tipo_servicio)}"></i>
+                        <i class="fas fa-${getServiceIconByType(servicio.tipo_servicio, servicio)}"></i>
                     </div>
                     <div class="service-details">
                         <h6>${servicio.titulo || servicio.nombre || 'Servicio sin título'}</h6>
@@ -6055,7 +6120,7 @@ function renderizarServicioConAlternativas(servicio) {
             <div class="service-item principal">
                 <div class="service-info">
                     <div class="service-icon ${servicio.tipo_servicio}">
-                        <i class="fas fa-${getServiceIconByType(servicio.tipo_servicio)}"></i>
+                        <i class="fas fa-${getServiceIconByType(servicio.tipo_servicio, servicio)}"></i>
                     </div>
                     <div class="service-details">
                         <h6>
@@ -6095,7 +6160,7 @@ function renderizarAlternativa(alternativa) {
             <div class="alternative-connector"></div>
             <div class="service-info">
                 <div class="service-icon ${alternativa.tipo_servicio} alternativa">
-                    <i class="fas fa-${getServiceIconByType(alternativa.tipo_servicio)}"></i>
+                    <i class="fas fa-${getServiceIconByType(alternativa.tipo_servicio, alternativa)}"></i>
                 </div>
                 <div class="service-details">
                     <h6>

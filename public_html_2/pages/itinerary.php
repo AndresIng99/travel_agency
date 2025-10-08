@@ -251,12 +251,29 @@ if (!empty($dia['ubicaciones_secundarias'])) {
 }
 
 // Funciones helper
-function getServiceIcon($tipo) {
+function getServiceIcon($tipo, $medio_transporte = null) {
     switch($tipo) {
-        case 'actividad': return 'fas fa-hiking';
-        case 'transporte': return 'fas fa-plane';
-        case 'alojamiento': return 'fas fa-bed';
-        default: return 'fas fa-map-marker-alt';
+        case 'actividad': 
+            return 'fas fa-hiking';
+            
+        case 'transporte':
+            if ($medio_transporte) {
+                switch(strtolower($medio_transporte)) {
+                    case 'avion': return 'fas fa-plane';
+                    case 'bus': return 'fas fa-bus';
+                    case 'tren': return 'fas fa-train';
+                    case 'barco': return 'fas fa-ship';
+                    case 'coche': return 'fas fa-car';
+                    default: return 'fas fa-plane';
+                }
+            }
+            return 'fas fa-plane';
+            
+        case 'alojamiento': 
+            return 'fas fa-bed';
+            
+        default: 
+            return 'fas fa-map-marker-alt';
     }
 }
 
@@ -859,109 +876,1315 @@ body {
             font-weight: 600;
             border: 2px solid white;
         }
+        /* Badge de duración inline */
+        .day-location .duration-badge {
+            position: relative;
+            top: 0;
+            right: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            font-size: 13px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+        }
 
-        @media print {
+     @media print {
+    /* ========== CONFIGURACIÓN GLOBAL ========== */
     * {
         -webkit-print-color-adjust: exact !important;
         color-adjust: exact !important;
         print-color-adjust: exact !important;
+        box-sizing: border-box !important;
     }
     
+    @page {
+        margin: 12mm;
+        size: A4 portrait;
+    }
+    
+    html, body {
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    body {
+        font-size: 9pt !important;
+        line-height: 1.3 !important;
+        color: #000 !important;
+        background: #fff !important;
+    }
+    
+    /* ========== OCULTAR ELEMENTOS ========== */
     .navbar, 
     .scroll-indicator, 
     .pricing-actions, 
     .footer-actions,
-    .alternatives-header {
+    .alternatives-header,
+    .translate-container,
+    #google_translate_element,
+    .simple-image-modal,
+    .day-images,
+    .service-image,
+    .accordion-arrow,
+    .alternatives-toggle,
+    .map-container {
         display: none !important;
     }
     
+    /* ========== HERO SECTION COMPACTO ========== */
     .hero-section {
-        height: 250px !important;
+        height: 180px !important;
+        min-height: 180px !important;
+        max-height: 180px !important;
         background-attachment: scroll !important;
-        page-break-after: always;
-    }
-    
-    .day-card {
-        page-break-inside: avoid;
-        margin-bottom: 30px !important;
-        break-inside: avoid;
-    }
-    
-    .day-content {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-        border: 1px solid #ddd !important;
-    }
-    
-    .pricing-section {
-        page-break-before: always;
-    }
-    
-    .accordion-content,
-    .alternatives-list {
-        max-height: none !important;
-        overflow: visible !important;
-        padding: 20px !important;
-        display: block !important;
-    }
-    
-    .map-container {
-        height: 200px !important;
-        background: #f8f9fa !important;
+        page-break-after: always !important;
+        margin: 0 !important;
+        padding: 25px 15px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
     }
     
-    .map-container::after {
-        content: "📍 Ver mapa interactivo en la versión digital";
-        color: #6c757d;
-        font-size: 14px;
+    .hero-content {
+        text-align: center !important;
+        max-width: 100% !important;
+        padding: 0 !important;
     }
     
-    #map {
-        display: none !important;
+    .hero-title {
+        font-size: 20pt !important;
+        margin: 0 0 8px 0 !important;
+        color: #fff !important;
+        line-height: 1.2 !important;
     }
     
-    body {
-        font-size: 11px !important;
-        background: #ffffff !important;
-        line-height: 1.4 !important;
+    .hero-subtitle {
+        font-size: 10pt !important;
+        margin: 0 0 5px 0 !important;
+        color: #fff !important;
+    }
+    
+    .hero-description {
+        font-size: 10pt !important;
+        margin: 0 0 12px 0 !important;
+        color: #fff !important;
+    }
+    
+    .hero-stats {
+        gap: 12px !important;
+        margin: 0 !important;
+        justify-content: center !important;
+    }
+    
+    .hero-stat {
+        padding: 8px 12px !important;
+        background: rgba(255,255,255,0.2) !important;
+        min-width: auto !important;
+    }
+    
+    .hero-stat-number {
+        font-size: 16pt !important;
+        margin-bottom: 2px !important;
+    }
+    
+    .hero-stat-label,
+    .hero-stat-title {
+        font-size: 7pt !important;
+    }
+    
+    /* ========== LAYOUT PRINCIPAL SIN ESPACIOS ========== */
+    .main-content {
+        padding: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    .section {
+        margin-bottom: 18px !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .section-header {
+        margin-bottom: 12px !important;
+        text-align: center !important;
     }
     
     .section-title {
-        font-size: 1.8rem !important;
+        font-size: 14pt !important;
+        margin: 0 0 5px 0 !important;
         color: #2c3e50 !important;
+        line-height: 1.2 !important;
+    }
+    
+    .section-subtitle {
+        font-size: 9pt !important;
+        color: #666 !important;
+        margin: 0 !important;
+    }
+    
+    /* ========== OVERVIEW COMPACTO ========== */
+    .overview-grid {
+        display: block !important;
+        margin-bottom: 0 !important;
+    }
+    
+    .overview-content {
+        margin-bottom: 10px !important;
+        padding: 10px !important;
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        border-radius: 5px !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .overview-content h3 {
+        font-size: 10pt !important;
+        margin: 0 0 8px 0 !important;
+    }
+    
+    .overview-details {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .detail-item {
+        padding: 8px !important;
+        border: 1px solid #e9ecef !important;
+        border-radius: 4px !important;
+        background: #f8f9fa !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .detail-icon {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+        flex-shrink: 0 !important;
+    }
+    
+    .detail-info h4 {
+        font-size: 9pt !important;
+        margin: 0 0 2px 0 !important;
+    }
+    
+    .detail-info p {
+        font-size: 8pt !important;
+        margin: 0 !important;
+        line-height: 1.2 !important;
+    }
+    
+    .overview-summary {
+        padding: 10px !important;
+        margin: 0 !important;
+    }
+    
+    .overview-summary h3 {
+        font-size: 9pt !important;
+        margin-bottom: 5px !important;
+    }
+    
+    .overview-summary p {
+        font-size: 8pt !important;
+        line-height: 1.3 !important;
+        margin: 0 !important;
+    }
+    
+    /* ========== DÍAS SUPER COMPACTOS ========== */
+    .itinerary-timeline::before {
+        display: none !important;
+    }
+    
+    .day-card {
+        page-break-inside: avoid !important;
+        margin-bottom: 12px !important;
+        padding-left: 0 !important;
+        position: relative !important;
+    }
+    
+    .day-number {
+        position: relative !important;
+        left: auto !important;
+        top: auto !important;
+        width: auto !important;
+        height: auto !important;
+        display: inline-block !important;
+        padding: 4px 10px !important;
+        margin: 0 0 5px 0 !important;
+        border: 2px solid #3498db !important;
+        border-radius: 5px !important;
+        background: #fff !important;
+    }
+    
+    .day-number-main {
+        font-size: 11pt !important;
+        color: #2c3e50 !important;
+        font-weight: 700 !important;
+        line-height: 1 !important;
+    }
+    
+    .day-number-label {
+        font-size: 7pt !important;
+        color: #7f8c8d !important;
+        line-height: 1 !important;
+    }
+    
+    .duration-badge {
+        background: #3498db !important;
+        color: #fff !important;
+        font-size: 6pt !important;
+        padding: 2px 5px !important;
+        border-radius: 3px !important;
+        position: absolute !important;
+        top: -5px !important;
+        right: -5px !important;
+    }
+    
+    .day-content {
+        border: 1px solid #ddd !important;
+        border-radius: 5px !important;
+        overflow: hidden !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+        margin: 0 !important;
+    }
+    
+    .day-header {
+        padding: 10px !important;
+        border-bottom: 1px solid #e9ecef !important;
+        background: #f8f9fa !important;
     }
     
     .day-title {
-        font-size: 1.3rem !important;
+        font-size: 11pt !important;
         color: #2c3e50 !important;
+        margin: 0 0 6px 0 !important;
+        font-weight: 600 !important;
+        line-height: 1.2 !important;
+    }
+    
+    .day-location {
+        font-size: 8pt !important;
+        margin: 0 !important;
+    }
+    
+    .primary-location,
+    .secondary-locations-new {
+        padding: 6px !important;
+        margin: 0 0 6px 0 !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .secondary-locations-new {
+        background: #f8fffe !important;
+        border: 1px solid #e8f5e8 !important;
+        border-radius: 4px !important;
+    }
+    
+    .secondary-header {
+        margin-bottom: 5px !important;
+        padding-bottom: 5px !important;
+    }
+    
+    .secondary-header h4 {
+        font-size: 8pt !important;
+        margin: 0 !important;
+    }
+    
+    .location-icon {
+        width: 22px !important;
+        height: 22px !important;
+        font-size: 10px !important;
+    }
+    
+    .location-marker {
+        width: 18px !important;
+        height: 18px !important;
+        font-size: 7pt !important;
+    }
+    
+    .location-item {
+        padding: 4px 0 !important;
+        gap: 6px !important;
+    }
+    
+    .location-name {
+        font-size: 8pt !important;
+        line-height: 1.2 !important;
+        margin: 0 !important;
+    }
+    
+    .location-coords {
+        font-size: 7pt !important;
+    }
+    
+    /* ========== SERVICIOS COMPACTOS ========== */
+    .day-services {
+        padding: 10px !important;
+    }
+    
+    .day-description {
+        padding: 8px !important;
+        margin-bottom: 8px !important;
+        background: #f8f9fa !important;
+        border-left: 3px solid #3498db !important;
+        border-radius: 3px !important;
+        font-size: 8pt !important;
+        line-height: 1.3 !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .day-description p {
+        margin: 0 !important;
+    }
+    
+    .stay-info-box {
+        font-size: 7pt !important;
+        padding: 6px !important;
+        margin-top: 6px !important;
+    }
+    
+    .services-grid {
+        display: block !important;
+    }
+    
+    .service-group {
+        margin-bottom: 8px !important;
+        border: 1px solid #e9ecef !important;
+        border-radius: 4px !important;
+        overflow: hidden !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .service-item {
+        padding: 8px !important;
+        display: flex !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        page-break-inside: avoid !important;
+        border-left: 3px solid #3498db !important;
+    }
+    
+    .service-item.principal {
+        background: #fff !important;
+    }
+    
+    .service-item.alternativa {
+        background: #f8f9fa !important;
+        border-left-color: #95a5a6 !important;
+        border-top: 1px solid #e9ecef !important;
     }
     
     .service-icon {
-        background: #3498db !important;
-        -webkit-print-color-adjust: exact !important;
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+        flex-shrink: 0 !important;
+        border-radius: 5px !important;
     }
     
-    .duration-badge,
+    .service-icon.actividad {
+        background: #e74c3c !important;
+    }
+    
+    .service-icon.transporte {
+        background: #3498db !important;
+    }
+    
+    .service-icon.alojamiento {
+        background: #f39c12 !important;
+    }
+    
+    .service-details {
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+    
+    .service-details h4 {
+        font-size: 9pt !important;
+        margin: 0 0 3px 0 !important;
+        color: #2c3e50 !important;
+        line-height: 1.2 !important;
+    }
+    
+    .service-details p {
+        font-size: 8pt !important;
+        line-height: 1.2 !important;
+        color: #555 !important;
+        margin: 0 0 3px 0 !important;
+    }
+    
+    .service-meta {
+        font-size: 7pt !important;
+        color: #888 !important;
+        margin-top: 3px !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+    
+    .service-meta span {
+        margin: 0 !important;
+    }
+    
     .extended-stay-badge,
     .duration-indicator {
         background: #6c757d !important;
-        color: white !important;
+        color: #fff !important;
+        padding: 2px 6px !important;
+        border-radius: 3px !important;
+        font-size: 6pt !important;
+        display: inline-block !important;
+    }
+    
+    .alternative-badge {
+        background: #95a5a6 !important;
+        color: #fff !important;
+        padding: 2px 5px !important;
+        border-radius: 3px !important;
+        font-size: 6pt !important;
+    }
+    
+    .alternative-notes {
+        margin-top: 5px !important;
+        padding: 5px !important;
+        font-size: 7pt !important;
+        line-height: 1.2 !important;
+    }
+    
+    /* ========== COMIDAS COMPACTO ========== */
+    .day-meals {
+        padding: 8px !important;
+        margin-top: 8px !important;
+        background: #fff9f0 !important;
+        border-left: 3px solid #f39c12 !important;
+        border-radius: 3px !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .day-meals h4 {
+        font-size: 8pt !important;
+        margin: 0 0 5px 0 !important;
+        color: #d35400 !important;
+    }
+    
+    .meals-list {
+        gap: 5px !important;
+    }
+    
+    .meal-item {
+        font-size: 7pt !important;
+        padding: 4px 8px !important;
+    }
+    
+    /* ========== ALTERNATIVAS ========== */
+    .alternatives-list {
+        max-height: none !important;
+        overflow: visible !important;
+        display: block !important;
+        padding: 0 !important;
+    }
+    
+    /* ========== PRECIOS COMPACTO ========== */
+    .pricing-section {
+        page-break-before: always !important;
+        background: #fff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    .pricing-content {
+        padding: 0 !important;
+    }
+    
+    .pricing-header {
+        margin-bottom: 12px !important;
+        text-align: center !important;
+    }
+    
+    .pricing-header h2 {
+        font-size: 14pt !important;
+        margin: 0 0 5px 0 !important;
+    }
+    
+    .pricing-header p {
+        font-size: 9pt !important;
+        margin: 0 !important;
+    }
+    
+    .price-main-card {
+        padding: 12px !important;
+        border: 2px solid #3498db !important;
+        border-radius: 5px !important;
+        margin-bottom: 12px !important;
+        page-break-inside: avoid !important;
+        text-align: center !important;
+    }
+    
+    .price-display {
+        margin: 0 !important;
+    }
+    
+    .price-amount {
+        margin-bottom: 8px !important;
+    }
+    
+    .price-currency {
+        font-size: 10pt !important;
+    }
+    
+    .price-value {
+        font-size: 18pt !important;
+        margin: 0 5px !important;
+    }
+    
+    .price-per {
+        font-size: 9pt !important;
+    }
+    
+    .nights-included {
+        padding: 6px 12px !important;
+        font-size: 8pt !important;
+        display: inline-flex !important;
+        gap: 5px !important;
+    }
+    
+    .pricing-accordions {
+        margin-bottom: 0 !important;
+    }
+    
+    .pricing-accordion {
+        margin-bottom: 8px !important;
+        border: 1px solid #ddd !important;
+        border-radius: 4px !important;
+        overflow: hidden !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .accordion-header {
+        padding: 8px 10px !important;
+        background: #f8f9fa !important;
+        border-bottom: 1px solid #e9ecef !important;
+    }
+    
+    .accordion-title {
+        font-size: 9pt !important;
+        font-weight: 600 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+    
+    .accordion-title i {
+        font-size: 10px !important;
+    }
+    
+    .accordion-content {
+        max-height: none !important;
+        overflow: visible !important;
+        display: block !important;
+        padding: 8px 10px !important;
+    }
+    
+    .pricing-list {
+        margin: 0 !important;
+        padding: 0 !important;
+        list-style: none !important;
+    }
+    
+    .pricing-list li {
+        font-size: 8pt !important;
+        padding: 3px 0 !important;
+        line-height: 1.2 !important;
+        display: flex !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+    }
+    
+    .pricing-list li i {
+        font-size: 8px !important;
+        margin-top: 2px !important;
+    }
+    
+    .conditions-text,
+    .passport-info,
+    .insurance-info,
+    .additional-info,
+    .accessibility-details {
+        padding: 8px !important;
+        font-size: 8pt !important;
+        line-height: 1.3 !important;
+        margin: 0 !important;
+    }
+    
+    .status-badge {
+        padding: 5px 10px !important;
+        font-size: 7pt !important;
+    }
+    
+    .accessibility-details ul {
+        margin: 5px 0 !important;
+        padding-left: 15px !important;
+    }
+    
+    .accessibility-details li {
+        font-size: 8pt !important;
+        line-height: 1.2 !important;
+        margin-bottom: 2px !important;
+    }
+    
+    .accessibility-details p {
+        font-size: 8pt !important;
+        line-height: 1.3 !important;
+        margin: 5px 0 !important;
+    }
+    
+    /* ========== FOOTER COMPACTO ========== */
+    .footer {
+        background: #2c3e50 !important;
+        color: #fff !important;
+        padding: 12px !important;
+        text-align: center !important;
+        page-break-inside: avoid !important;
+        margin-top: 15px !important;
+    }
+    
+    .footer-content {
+        padding: 0 !important;
+    }
+    
+    .footer h3 {
+        font-size: 12pt !important;
+        margin: 0 0 5px 0 !important;
+    }
+    
+    .footer p {
+        font-size: 8pt !important;
+        margin: 0 !important;
+    }
+    
+    .footer-bottom {
+        font-size: 7pt !important;
+        margin-top: 8px !important;
+        padding-top: 8px !important;
+        border-top: 1px solid #34495e !important;
+    }
+    
+    /* ========        @media print {
+    /* ========== CONFIGURACIÓN GLOBAL ========== */
+    * {
         -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        box-sizing: border-box !important;
     }
     
     @page {
-        margin: 1.5cm;
-        size: A4;
+        margin: 15mm;
+        size: A4 landscape;
+    }
+    
+    html, body {
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    body {
+        font-size: 9pt !important;
+        line-height: 1.3 !important;
+        color: #000 !important;
+        background: #fff !important;
+    }
+    
+    /* ========== OCULTAR ELEMENTOS ========== */
+    .navbar, 
+    .scroll-indicator, 
+    .pricing-actions, 
+    .footer-actions,
+    .alternatives-header,
+    .translate-container,
+    #google_translate_element,
+    .simple-image-modal,
+    .day-images,
+    .service-image,
+    .accordion-arrow,
+    .alternatives-toggle,
+    .map-container,
+    #map,
+    .leaflet-container,
+    .section:has(#map),
+    section[id="map"] {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        visibility: hidden !important;
+    }
+    
+    /* ========== HERO SECTION SUPER COMPACTO ========== */
+    .hero-section {
+        height: 140px !important;
+        min-height: 140px !important;
+        max-height: 140px !important;
+        background-attachment: scroll !important;
+        page-break-after: always !important;
+        margin: 0 !important;
+        padding: 20px 15px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    .hero-content {
+        text-align: center !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+    
+    .hero-title {
+        font-size: 18pt !important;
+        margin: 0 0 6px 0 !important;
+        color: #fff !important;
+        line-height: 1.1 !important;
+    }
+    
+    .hero-subtitle {
+        font-size: 9pt !important;
+        margin: 0 0 4px 0 !important;
+        color: #fff !important;
+        display: none !important;
+    }
+    
+    .hero-description {
+        font-size: 9pt !important;
+        margin: 0 0 10px 0 !important;
+        color: #fff !important;
+    }
+    
+    .hero-stats {
+        gap: 10px !important;
+        margin: 0 !important;
+        justify-content: center !important;
+    }
+    
+    .hero-stat {
+        padding: 6px 10px !important;
+        background: rgba(255,255,255,0.2) !important;
+        min-width: auto !important;
+    }
+    
+    .hero-stat-number {
+        font-size: 14pt !important;
+        margin-bottom: 1px !important;
+    }
+    
+    .hero-stat-label,
+    .hero-stat-title {
+        font-size: 6pt !important;
+    }
+    
+    /* ========== LAYOUT PRINCIPAL SIN ESPACIOS ========== */
+    .main-content {
+        padding: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    .section {
+        margin-bottom: 12px !important;
+        page-break-inside: avoid !important;
+    }
+    
+    /* Ocultar sección completa del mapa */
+    .section:nth-child(3),
+    section#map,
+    .section:has(.map-container) {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .section-header {
+        margin-bottom: 8px !important;
+        text-align: center !important;
+    }
+    
+    .section-title {
+        font-size: 13pt !important;
+        margin: 0 0 4px 0 !important;
+        color: #2c3e50 !important;
+        line-height: 1.1 !important;
+    }
+    
+    .section-subtitle {
+        font-size: 8pt !important;
+        color: #666 !important;
+        margin: 0 !important;
+    }
+    
+    /* ========== OVERVIEW COMPACTO ========== */
+    .overview-grid {
+        display: block !important;
+        margin-bottom: 0 !important;
+    }
+    
+    .overview-content {
+        margin-bottom: 10px !important;
+        padding: 10px !important;
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        border-radius: 5px !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .overview-content h3 {
+        font-size: 10pt !important;
+        margin: 0 0 8px 0 !important;
+    }
+    
+    .overview-details {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .detail-item {
+        padding: 8px !important;
+        border: 1px solid #e9ecef !important;
+        border-radius: 4px !important;
+        background: #f8f9fa !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .detail-icon {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+        flex-shrink: 0 !important;
+    }
+    
+    .detail-info h4 {
+        font-size: 9pt !important;
+        margin: 0 0 2px 0 !important;
+    }
+    
+    .detail-info p {
+        font-size: 8pt !important;
+        margin: 0 !important;
+        line-height: 1.2 !important;
+    }
+    
+    .overview-summary {
+        padding: 10px !important;
+        margin: 0 !important;
+    }
+    
+    .overview-summary h3 {
+        font-size: 9pt !important;
+        margin-bottom: 5px !important;
+    }
+    
+    .overview-summary p {
+        font-size: 8pt !important;
+        line-height: 1.3 !important;
+        margin: 0 !important;
+    }
+    
+    /* ========== DÍAS SUPER COMPACTOS ========== */
+    .itinerary-timeline::before {
+        display: none !important;
+    }
+    
+    .day-card {
+        page-break-inside: avoid !important;
+        margin-bottom: 12px !important;
+        padding-left: 0 !important;
+        position: relative !important;
+    }
+    
+    .day-number {
+        position: relative !important;
+        left: auto !important;
+        top: auto !important;
+        width: auto !important;
+        height: auto !important;
+        display: inline-block !important;
+        padding: 4px 10px !important;
+        margin: 0 0 5px 0 !important;
+        border: 2px solid #3498db !important;
+        border-radius: 5px !important;
+        background: #fff !important;
+    }
+    
+    .day-number-main {
+        font-size: 11pt !important;
+        color: #2c3e50 !important;
+        font-weight: 700 !important;
+        line-height: 1 !important;
+    }
+    
+    .day-number-label {
+        font-size: 7pt !important;
+        color: #7f8c8d !important;
+        line-height: 1 !important;
+    }
+    
+    .duration-badge {
+        background: #3498db !important;
+        color: #fff !important;
+        font-size: 6pt !important;
+        padding: 2px 5px !important;
+        border-radius: 3px !important;
+        position: absolute !important;
+        top: -5px !important;
+        right: -5px !important;
+    }
+    
+    .day-content {
+        border: 1px solid #ddd !important;
+        border-radius: 5px !important;
+        overflow: hidden !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+        margin: 0 !important;
+    }
+    
+    .day-header {
+        padding: 10px !important;
+        border-bottom: 1px solid #e9ecef !important;
+        background: #f8f9fa !important;
+    }
+    
+    .day-title {
+        font-size: 11pt !important;
+        color: #2c3e50 !important;
+        margin: 0 0 6px 0 !important;
+        font-weight: 600 !important;
+        line-height: 1.2 !important;
+    }
+    
+    .day-location {
+        font-size: 8pt !important;
+        margin: 0 !important;
+    }
+    
+    .primary-location,
+    .secondary-locations-new {
+        padding: 6px !important;
+        margin: 0 0 6px 0 !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .secondary-locations-new {
+        background: #f8fffe !important;
+        border: 1px solid #e8f5e8 !important;
+        border-radius: 4px !important;
+    }
+    
+    .secondary-header {
+        margin-bottom: 5px !important;
+        padding-bottom: 5px !important;
+    }
+    
+    .secondary-header h4 {
+        font-size: 8pt !important;
+        margin: 0 !important;
+    }
+    
+    .location-icon {
+        width: 22px !important;
+        height: 22px !important;
+        font-size: 10px !important;
+    }
+    
+    .location-marker {
+        width: 18px !important;
+        height: 18px !important;
+        font-size: 7pt !important;
+    }
+    
+    .location-item {
+        padding: 4px 0 !important;
+        gap: 6px !important;
+    }
+    
+    .location-name {
+        font-size: 8pt !important;
+        line-height: 1.2 !important;
+        margin: 0 !important;
+    }
+    
+    .location-coords {
+        font-size: 7pt !important;
+    }
+    
+    /* ========== SERVICIOS ========== */
+    .day-services {
+        padding: 15px !important;
+    }
+    
+    .day-description {
+        padding: 12px !important;
+        margin-bottom: 15px !important;
+        background: #f8f9fa !important;
+        border-left: 3px solid #3498db !important;
+        border-radius: 4px !important;
+        font-size: 9pt !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .services-grid {
+        display: block !important;
+    }
+    
+    .service-group {
+        margin-bottom: 12px !important;
+        border: 1px solid #e9ecef !important;
+        border-radius: 6px !important;
+        overflow: hidden !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .service-item {
+        padding: 12px !important;
+        display: flex !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+        page-break-inside: avoid !important;
+        border-left: 3px solid #3498db !important;
+    }
+    
+    .service-item.principal {
+        background: #fff !important;
+    }
+    
+    .service-item.alternativa {
+        background: #f8f9fa !important;
+        border-left: 3px solid #95a5a6 !important;
+        border-top: 1px solid #e9ecef !important;
+    }
+    
+    .service-icon {
+        width: 35px !important;
+        height: 35px !important;
+        font-size: 14px !important;
+        flex-shrink: 0 !important;
+        border-radius: 8px !important;
+    }
+    
+    .service-icon.actividad {
+        background: #e74c3c !important;
+    }
+    
+    .service-icon.transporte {
+        background: #3498db !important;
+    }
+    
+    .service-icon.alojamiento {
+        background: #f39c12 !important;
+    }
+    
+    .service-details {
+        flex: 1 !important;
+    }
+    
+    .service-details h4 {
+        font-size: 11pt !important;
+        margin-bottom: 5px !important;
+        color: #2c3e50 !important;
+    }
+    
+    .service-details p {
+        font-size: 9pt !important;
+        line-height: 1.3 !important;
+        color: #555 !important;
+        margin-bottom: 5px !important;
+    }
+    
+    .service-meta {
+        font-size: 8pt !important;
+        color: #888 !important;
+        margin-top: 5px !important;
+    }
+    
+    .service-meta span {
+        margin-right: 10px !important;
+    }
+    
+    .extended-stay-badge,
+    .duration-indicator {
+        background: #6c757d !important;
+        color: #fff !important;
+        padding: 3px 8px !important;
+        border-radius: 4px !important;
+        font-size: 7pt !important;
+    }
+    
+    .alternative-badge {
+        background: #95a5a6 !important;
+        color: #fff !important;
+        padding: 2px 6px !important;
+        border-radius: 4px !important;
+        font-size: 7pt !important;
+    }
+    
+    /* ========== COMIDAS ========== */
+    .day-meals {
+        padding: 12px !important;
+        margin-top: 12px !important;
+        background: #fff9f0 !important;
+        border-left: 3px solid #f39c12 !important;
+        border-radius: 4px !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .day-meals h4 {
+        font-size: 10pt !important;
+        margin-bottom: 8px !important;
+        color: #d35400 !important;
+    }
+    
+    .meal-item {
+        font-size: 8pt !important;
+        padding: 5px 10px !important;
+    }
+    
+    /* ========== ALTERNATIVAS ========== */
+    .alternatives-list {
+        max-height: none !important;
+        overflow: visible !important;
+        display: block !important;
+        padding: 0 !important;
+    }
+    
+    /* ========== PRECIOS ========== */
+    .pricing-section {
+        page-break-before: always !important;
+        background: #fff !important;
+        padding: 20px 0 !important;
+        margin: 0 !important;
+    }
+    
+    .pricing-header {
+        margin-bottom: 20px !important;
+    }
+    
+    .pricing-header h2 {
+        font-size: 18pt !important;
+    }
+    
+    .price-main-card {
+        padding: 20px !important;
+        border: 2px solid #3498db !important;
+        border-radius: 8px !important;
+        margin-bottom: 20px !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .price-value {
+        font-size: 24pt !important;
+    }
+    
+    .pricing-accordion {
+        margin-bottom: 12px !important;
+        border: 1px solid #ddd !important;
+        border-radius: 6px !important;
+        overflow: hidden !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .accordion-header {
+        padding: 10px 12px !important;
+        background: #f8f9fa !important;
+        border-bottom: 1px solid #e9ecef !important;
+    }
+    
+    .accordion-title {
+        font-size: 10pt !important;
+        font-weight: 600 !important;
+    }
+    
+    .accordion-content {
+        max-height: none !important;
+        overflow: visible !important;
+        display: block !important;
+        padding: 12px !important;
+    }
+    
+    .pricing-list {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .pricing-list li {
+        font-size: 9pt !important;
+        padding: 4px 0 !important;
+        line-height: 1.3 !important;
+    }
+    
+    /* ========== FOOTER ========== */
+    .footer {
+        background: #2c3e50 !important;
+        color: #fff !important;
+        padding: 20px !important;
+        text-align: center !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .footer h3 {
+        font-size: 16pt !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .footer p {
+        font-size: 9pt !important;
+    }
+    
+    .footer-bottom {
+        font-size: 8pt !important;
+        margin-top: 15px !important;
+    }
+    
+    /* ========== TIPOGRAFÍA GENERAL ========== */
+    h1, h2, h3, h4, h5, h6 {
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
+    }
+    
+    p, ul, ol {
+        orphans: 3 !important;
+        widows: 3 !important;
+    }
+    
+    ul, ol {
+        page-break-inside: avoid !important;
     }
 }
 
+/* ========== CLASE PRINT MODE ========== */
 .print-mode .accordion-content,
 .print-mode .alternatives-list {
     max-height: none !important;
     display: block !important;
+    overflow: visible !important;
 }
+    
         
         /* ========================================
            DAY CONTENT - DISEÑO LIMPIO
@@ -1419,13 +2642,45 @@ body {
         }
         
         .service-image {
-            width: 70px;
-            height: 70px;
-            border-radius: 8px;
+            width: 150px;
+            height: 150px;
+            border-radius: 15px;
             background-size: cover;
             background-position: center;
             flex-shrink: 0;
             margin-top: 5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-image::before {
+            content: '🔍 Ver imagen';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .service-image:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .service-image:hover::before {
+            opacity: 1;
         }
         
         /* Extended stay badge minimalista */
@@ -2518,34 +3773,33 @@ body {
                                 <?php endif; ?>
                             </h3>
                             <div class="day-location">
-                                <!-- Ubicación Principal -->
-                                <div class="primary-location">
-                                    <div class="location-icon">
-                                        <i class="fas fa-map-marker-alt"></i>
-                                    </div>
-                                    <div class="location-info">
-                                        <div class="location-title"><?= htmlspecialchars($dia['ubicacion']) ?></div>
-                                        <div class="location-subtitle">Ubicación Principal</div>
-                                    </div>
-                                    <?php if ($duracion > 1): ?>
-                                    <div class="duration-badge">
-                                        Estancia de <?= $duracion ?> días
-                                    </div>
-                                    <?php endif; ?>
+                                <?php if ($duracion > 1): ?>
+                                <div class="duration-badge" style="margin-bottom: 15px; display: inline-block;">
+                                    <i class="fas fa-calendar-alt"></i> Estancia de <?= $duracion ?> días
                                 </div>
+                                <?php endif; ?>
                                 
-                                <?php if (!empty($dia['ubicaciones_secundarias'])): ?>
-                                <!-- Ubicaciones Secundarias -->
+                                <!-- Todas las Ubicaciones Unificadas -->
                                 <div class="secondary-locations-new">
                                     <div class="secondary-header">
-                                        <i class="fas fa-route"></i>
-                                        <h4>También visitarás estos lugares:</h4>
+                                        <i class="fas fa-map-marked-alt"></i>
+                                        <h4>Lugares que visitarás:</h4>
                                     </div>
                                     
                                     <ul class="locations-list">
+                                        <!-- Primera ubicación (antes llamada "principal") -->
+                                        <li class="location-item">
+                                            <div class="location-marker">1</div>
+                                            <div class="location-details">
+                                                <div class="location-name"><?= htmlspecialchars($dia['ubicacion']) ?></div>
+                                            </div>
+                                        </li>
+                                        
+                                        <?php if (!empty($dia['ubicaciones_secundarias'])): ?>
+                                        <!-- Resto de ubicaciones -->
                                         <?php foreach ($dia['ubicaciones_secundarias'] as $index => $ubicacion_sec): ?>
                                         <li class="location-item">
-                                            <div class="location-marker"><?= $index + 1 ?></div>
+                                            <div class="location-marker"><?= $index + 2 ?></div>
                                             <div class="location-details">
                                                 <div class="location-name"><?= htmlspecialchars($ubicacion_sec['ubicacion']) ?></div>
                                                 <?php if ($ubicacion_sec['latitud'] && $ubicacion_sec['longitud']): ?>
@@ -2557,8 +3811,11 @@ body {
                                             </div>
                                         </li>
                                         <?php endforeach; ?>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
+                                <?php if (empty($dia['ubicaciones_secundarias'])): ?>
+                                <!-- Si solo hay una ubicación, cerrar el div aquí -->
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -2596,6 +3853,36 @@ body {
                                 <?php endif; ?>
                             </div>
                             <?php endif; ?>
+
+                            <!-- Mostrar comidas si están incluidas -->
+                            <?php if (isset($dia['comidas_incluidas']) && $dia['comidas_incluidas'] == 1): ?>
+                                <div class="day-meals">
+                                    <h4>
+                                        <i class="fas fa-utensils"></i>
+                                        Comidas incluidas
+                                    </h4>
+                                    <div class="meals-list">
+                                        <?php if ($dia['desayuno'] == 1): ?>
+                                            <span class="meal-item">
+                                                <i class="fas fa-check"></i> 
+                                                Desayuno
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($dia['almuerzo'] == 1): ?>
+                                            <span class="meal-item">
+                                                <i class="fas fa-check"></i> 
+                                                Almuerzo
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($dia['cena'] == 1): ?>
+                                            <span class="meal-item">
+                                                <i class="fas fa-check"></i> 
+                                                Cena
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                             
                             <?php if (!empty($dia['servicios'])): ?>
                             <h4 style="margin-bottom: 20px; color: #2c3e50; font-size: 1.2rem; font-weight: 600;">
@@ -2615,7 +3902,7 @@ body {
                                         <!-- Servicio Principal -->
                                         <div class="service-item principal">
                                             <div class="service-icon <?= $servicio['tipo_servicio'] ?>">
-                                                <i class="<?= getServiceIcon($servicio['tipo_servicio']) ?>"></i>
+                                                <i class="<?= getServiceIcon($servicio['tipo_servicio'], $servicio['medio_transporte']) ?>"></i>
                                             </div>
                                             
                                             <div class="service-details">
@@ -2650,7 +3937,7 @@ body {
                                                     
                                                     <?php if ($servicio['tipo_servicio'] == 'transporte' && $servicio['medio_transporte']): ?>
                                                     <span>
-                                                        <i class="fas fa-plane"></i>
+                                                        <i class="<?= getServiceIcon('transporte', $servicio['medio_transporte']) ?>"></i>
                                                         <?= formatTransportMedium($servicio['medio_transporte']) ?>
                                                     </span>
                                                     <?php endif; ?>
@@ -2665,7 +3952,9 @@ body {
                                             </div>
                                             
                                             <?php if ($servicio['imagen']): ?>
-                                            <div class="service-image" style="background-image: url('<?= htmlspecialchars($servicio['imagen']) ?>');"></div>
+                                            <div class="service-image" 
+                                                style="background-image: url('<?= htmlspecialchars($servicio['imagen']) ?>');"
+                                                onclick="showImage('<?= htmlspecialchars($servicio['imagen']) ?>')"></div>
                                             <?php endif; ?>
                                         </div>
                                         
@@ -2683,7 +3972,7 @@ body {
                                                 <div class="alternative-badge">Alt <?= $alternativa['orden_alternativa'] ?></div>
                                                 
                                                 <div class="service-icon">
-                                                    <i class="<?= getServiceIcon($alternativa['tipo_servicio']) ?>"></i>
+                                                    <i class="<?= getServiceIcon($alternativa['tipo_servicio'], $alternativa['medio_transporte']) ?>"></i>
                                                 </div>
                                                 
                                                 <div class="service-details">
@@ -2715,7 +4004,9 @@ body {
                                                 </div>
                                                 
                                                 <?php if ($alternativa['imagen']): ?>
-                                                <div class="service-image" style="width: 50px; height: 50px; background-image: url('<?= htmlspecialchars($alternativa['imagen']) ?>');"></div>
+                                                <div class="service-image" 
+                                                    style="width: 120px; height: 120px; background-image: url('<?= htmlspecialchars($alternativa['imagen']) ?>');"
+                                                    onclick="showImage('<?= htmlspecialchars($alternativa['imagen']) ?>')"></div>
                                                 <?php endif; ?>
                                             </div>
                                             <?php endforeach; ?>
@@ -2725,42 +4016,10 @@ body {
                                     <?php endif; ?>
                                 <?php endforeach; ?>
                             </div>
-                            <?php else: ?>
-                            <div style="text-align: center; padding: 40px; color: #7f8c8d;">
-                                <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 15px;"></i>
-                                <p>Los servicios para este día están siendo planificados</p>
-                            </div>
+                            
                             <?php endif; ?>
                             
-                            <!-- Mostrar comidas si están incluidas -->
-                            <?php if (isset($dia['comidas_incluidas']) && $dia['comidas_incluidas'] == 1): ?>
-                                <div class="day-meals">
-                                    <h4>
-                                        <i class="fas fa-utensils"></i>
-                                        Comidas incluidas
-                                    </h4>
-                                    <div class="meals-list">
-                                        <?php if ($dia['desayuno'] == 1): ?>
-                                            <span class="meal-item">
-                                                <i class="fas fa-check"></i> 
-                                                Desayuno
-                                            </span>
-                                        <?php endif; ?>
-                                        <?php if ($dia['almuerzo'] == 1): ?>
-                                            <span class="meal-item">
-                                                <i class="fas fa-check"></i> 
-                                                Almuerzo
-                                            </span>
-                                        <?php endif; ?>
-                                        <?php if ($dia['cena'] == 1): ?>
-                                            <span class="meal-item">
-                                                <i class="fas fa-check"></i> 
-                                                Cena
-                                            </span>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
+                            
                         </div>
                     </div>
                 </div>
@@ -3238,33 +4497,76 @@ body {
             });
         }
 
-        function downloadItinerary() {
-            // Preparar para impresión
-            document.body.classList.add('print-mode');
-            
-            // Expandir todo el contenido
-            document.querySelectorAll('.accordion-content').forEach(content => {
-                content.style.maxHeight = 'none';
-                content.style.display = 'block';
-                content.classList.add('active');
-            });
-            
-            document.querySelectorAll('.alternatives-list').forEach(list => {
-                list.style.maxHeight = 'none';
-                list.style.display = 'block';
-                list.classList.add('expanded');
-            });
-            
-            // Pequeño delay para que se rendericen los cambios
-            setTimeout(() => {
-                window.print();
-                
-                // Restaurar después de la impresión
-                setTimeout(() => {
-                    document.body.classList.remove('print-mode');
-                }, 1000);
-            }, 500);
-        }
+function downloadItinerary() {
+    // Mostrar mensaje de preparación
+    const loadingMsg = document.createElement('div');
+    loadingMsg.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 30px 50px;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        z-index: 99999;
+        text-align: center;
+        font-family: 'Inter', sans-serif;
+    `;
+    loadingMsg.innerHTML = `
+        <div style="font-size: 2rem; margin-bottom: 15px;">📄</div>
+        <div style="font-size: 1.2rem; font-weight: 600; color: #2c3e50; margin-bottom: 10px;">
+            Preparando PDF
+        </div>
+        <div style="font-size: 0.9rem; color: #7f8c8d;">
+            Expandiendo todo el contenido...
+        </div>
+    `;
+    document.body.appendChild(loadingMsg);
+    
+    // Preparar para impresión
+    document.body.classList.add('print-mode');
+    
+    // Expandir TODO el contenido de accordions
+    document.querySelectorAll('.accordion-content').forEach(content => {
+        content.style.maxHeight = 'none';
+        content.style.overflow = 'visible';
+        content.style.display = 'block';
+        content.style.padding = '15px 25px';
+        content.classList.add('active');
+    });
+    
+    // Expandir TODAS las alternativas
+    document.querySelectorAll('.alternatives-list').forEach(list => {
+        list.style.maxHeight = 'none';
+        list.style.overflow = 'visible';
+        list.style.display = 'block';
+        list.classList.add('expanded');
+    });
+    
+    // Rotar flechas de accordions
+    document.querySelectorAll('.accordion-arrow').forEach(arrow => {
+        arrow.classList.add('rotated');
+    });
+    
+    document.querySelectorAll('.alternatives-toggle').forEach(toggle => {
+        toggle.classList.add('rotated');
+    });
+    
+    // Hacer visibles los headers de accordions como activos
+    document.querySelectorAll('.accordion-header').forEach(header => {
+        header.classList.add('active');
+    });
+    
+    // Scroll to top antes de imprimir
+    window.scrollTo(0, 0);
+    
+    // Delay para que se rendericen TODOS los cambios
+    setTimeout(() => {
+        loadingMsg.remove();
+        window.print();
+    }, 1200);
+}
 
         // =====================================================
         // ANIMATION ON SCROLL
@@ -3314,34 +4616,64 @@ body {
         // PRINT FUNCTIONALITY
         // =====================================================
         window.addEventListener('beforeprint', function() {
+            console.log('Preparando documento para impresión...');
+            
             // Expandir todos los accordions para impresión
             document.querySelectorAll('.accordion-content').forEach(function(content) {
                 content.style.maxHeight = 'none';
+                content.style.overflow = 'visible';
                 content.style.display = 'block';
+                content.style.padding = '15px';
                 content.classList.add('active');
             });
             
             // Expandir todas las alternativas
             document.querySelectorAll('.alternatives-list').forEach(function(list) {
                 list.style.maxHeight = 'none';
+                list.style.overflow = 'visible';
                 list.style.display = 'block';
                 list.classList.add('expanded');
             });
+            
+            // Asegurar que todos los headers estén visibles
+            document.querySelectorAll('.accordion-header').forEach(function(header) {
+                header.classList.add('active');
+            });
+            
+            // Expandir flechas
+            document.querySelectorAll('.accordion-arrow, .alternatives-toggle').forEach(function(arrow) {
+                arrow.classList.add('rotated');
+            });
+            
+            // Aplicar clase print-mode
+            document.body.classList.add('print-mode');
+            
+            console.log('Documento preparado para impresión');
         });
 
         window.addEventListener('afterprint', function() {
-            // Restaurar estado original después de impresión
-            document.querySelectorAll('.accordion-content:not(.active)').forEach(function(content) {
-                content.style.maxHeight = '0';
-                content.style.display = 'none';
-                content.classList.remove('active');
-            });
+            console.log('Impresión finalizada, restaurando vista...');
             
-            document.querySelectorAll('.alternatives-list:not(.expanded)').forEach(function(list) {
-                list.style.maxHeight = '0';
-                list.style.display = 'none';
-                list.classList.remove('expanded');
-            });
+            // Restaurar estado original después de impresión
+            // Esperar un poco antes de colapsar para evitar flash visual
+            setTimeout(() => {
+                document.body.classList.remove('print-mode');
+                
+                // Solo colapsar los que NO estaban activos antes
+                document.querySelectorAll('.accordion-content:not([data-was-active])').forEach(function(content) {
+                    content.style.maxHeight = '0';
+                    content.style.overflow = 'hidden';
+                    content.classList.remove('active');
+                });
+                
+                document.querySelectorAll('.alternatives-list:not([data-was-expanded])').forEach(function(list) {
+                    list.style.maxHeight = '0';
+                    list.style.overflow = 'hidden';
+                    list.classList.remove('expanded');
+                });
+                
+                console.log('Vista restaurada');
+            }, 100);
         });
 
         // =====================================================

@@ -3311,35 +3311,34 @@ function loadSpecificFields() {
     switch(currentTab) {
         case 'dias':
             fieldsHTML = `
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="titulo">Título de la Jornada</label>
-                        <div class="input-with-counter">
-                            <input type="text" id="titulo" name="titulo" required 
-                                placeholder="Ej: Día en París"
-                                maxlength="250">
-                            <div class="char-counter" id="titulo-counter">0/250</div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="ubicacion">Ubicación</label>
-                        <input type="text" id="ubicacion" name="ubicacion" required placeholder="Ciudad, País">
+                <div class="form-group">
+                    <label for="titulo">Título de la Jornada</label>
+                    <div class="input-with-counter">
+                        <input type="text" id="titulo" name="titulo" required 
+                            placeholder="Ej: Día en París"
+                            maxlength="250">
+                        <div class="char-counter" id="titulo-counter">0/250</div>
                     </div>
                 </div>
-                <div class="form-group ubicaciones-secundarias-section" style="display: block;" id="ubicaciones-secundarias-section">
-                    <label for="ubicaciones_secundarias">
-                        📍 Ubicaciones Secundarias
+
+                <div class="form-group">
+                    <label for="ubicacion">
+                        📍 Ubicaciones
                         <small style="display: block; color: #666; font-weight: normal; margin-top: 4px;">
-                            Opcional - Agrega ubicaciones adicionales para este día
+                            Agrega una o más ubicaciones para este día
                         </small>
                     </label>
+                    <input type="text" id="ubicacion" name="ubicacion" required placeholder="Primera ubicación: Ej: París, Francia">
+                </div>
+
+                <div class="form-group ubicaciones-secundarias-section" style="display: block;" id="ubicaciones-secundarias-section">
                     
                     <div id="ubicaciones-secundarias-container">
                         <!-- Ubicaciones secundarias se cargan aquí dinámicamente -->
                     </div>
                     
                     <button type="button" class="btn-add-ubicacion" onclick="agregarUbicacionSecundaria()">
-                        ➕ Agregar Ubicación Secundaria
+                        ➕ Agregar Otra Ubicación
                     </button>
                 </div>
                 <div class="form-group">
