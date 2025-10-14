@@ -78,11 +78,14 @@ class ProgramaPreciosAPI {
                 throw new Exception('Programa no encontrado o sin permisos');
             }
             
-            // Preparar datos de precios
+            // Preparar datos de precios - NUEVOS CAMPOS
             $preciosData = [
                 'solicitud_id' => $programa_id,
                 'moneda' => trim($_POST['moneda'] ?? 'USD'),
-                'precio_por_persona' => $this->parseDecimal($_POST['precio_por_persona'] ?? null),
+                'precio_adulto' => $this->parseDecimal($_POST['precio_adulto'] ?? null),
+                'precio_nino' => $this->parseDecimal($_POST['precio_nino'] ?? null),
+                'cantidad_adultos' => intval($_POST['cantidad_adultos'] ?? 1),
+                'cantidad_ninos' => intval($_POST['cantidad_ninos'] ?? 0),
                 'precio_total' => $this->parseDecimal($_POST['precio_total'] ?? null),
                 'noches_incluidas' => intval($_POST['noches_incluidas'] ?? 0),
                 'precio_incluye' => trim($_POST['precio_incluye'] ?? ''),

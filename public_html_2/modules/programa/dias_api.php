@@ -46,6 +46,86 @@ class ProgramaDiasAPI {
                 case 'list':
                     $result = $this->listDias($_GET['programa_id'] ?? null);
                     break;
+
+                    // Agregar este case en el switch de dias_api.php
+
+case 'reorder':
+            // NUEVO CASE PARA REORDENAR
+            try {
+                $data = json_decode(file_get_contents('php://input'), true);
+                
+                if (!isset($data['solicitud_id']) || !isset($data['nuevo_orden'])) {
+                    throw new Exception('Datos incompletos para reordenar');
+                }
+                
+                $solicitud_id = intval($data['solicitud_id']);
+                $nuevo_orden = $data['nuevo_orden'];
+                
+                if (!is_array($nuevo_orden) || empty($nuevo_orden)) {
+                    throw new Exception('Orden inválido');
+                }
+                
+                // Validar que el programa pertenece al usuario
+                $programa = $db->fetch(
+                    "SELECT id FROM programa_solicitudes WHERE id = ? AND user_id = ?",
+                    [$solicitud_id, $user['id']]
+                );
+                
+                if (!$programa) {
+                    throw new Exception('Programa no encontrado o sin permisos');
+                }
+                
+                $db->beginTransaction();
+                
+                try {
+                    // Actualizar dia_numero para cada día según el nuevo orden
+                    foreach ($nuevo_orden as $index => $dia_id) {
+                        $nuevo_dia_numero = $index + 1;
+                        
+                        // Validar que el día existe y pertenece al programa
+                        $dia = $db->fetch(
+                            "SELECT id FROM programa_dias WHERE id = ? AND solicitud_id = ?",
+                            [$dia_id, $solicitud_id]
+                        );
+                        
+                        if (!$dia) {
+                            throw new Exception("Día ID {$dia_id} no encontrado");
+                        }
+                        
+                        // Actualizar orden
+                        $db->execute(
+                            "UPDATE programa_dias 
+                             SET dia_numero = ?, updated_at = NOW() 
+                             WHERE id = ? AND solicitud_id = ?",
+                            [$nuevo_dia_numero, $dia_id, $solicitud_id]
+                        );
+                        
+                        error_log("✅ Día {$dia_id} actualizado a posición {$nuevo_dia_numero}");
+                    }
+                    
+                    $db->commit();
+                    
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'Días reordenados correctamente',
+                        'nuevo_orden' => $nuevo_orden
+                    ]);
+                    
+                } catch (Exception $e) {
+                    $db->rollback();
+                    throw $e;
+                }
+                
+            } catch (Exception $e) {
+                error_log("❌ Error en reorder: " . $e->getMessage());
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => $e->getMessage()
+                ]);
+            }
+            break;
+
                 case 'add_from_biblioteca':
                     $result = $this->addDiaFromBiblioteca($_POST['programa_id'] ?? null, $_POST['biblioteca_dia_id'] ?? null);
                     break;

@@ -449,7 +449,6 @@ private function duplicarPrecios($programa_original_id, $nuevo_programa_id) {
     try {
         error_log("=== DUPLICANDO PRECIOS ===");
         
-        // Obtener precios originales
         $precios_original = $this->db->fetch(
             "SELECT * FROM programa_precios WHERE solicitud_id = ?",
             [$programa_original_id]
@@ -460,13 +459,14 @@ private function duplicarPrecios($programa_original_id, $nuevo_programa_id) {
             return;
         }
         
-        error_log("Precios encontrados para duplicar");
-        
-        // Crear nuevos precios con TODOS los campos de la BD
+        // Crear nuevos precios con NUEVOS CAMPOS
         $nuevo_precio_data = [
             'solicitud_id' => $nuevo_programa_id,
             'moneda' => $precios_original['moneda'],
-            'precio_por_persona' => $precios_original['precio_por_persona'],
+            'precio_adulto' => $precios_original['precio_adulto'],
+            'precio_nino' => $precios_original['precio_nino'],
+            'cantidad_adultos' => $precios_original['cantidad_adultos'],
+            'cantidad_ninos' => $precios_original['cantidad_ninos'],
             'precio_total' => $precios_original['precio_total'],
             'noches_incluidas' => $precios_original['noches_incluidas'],
             'precio_incluye' => $precios_original['precio_incluye'],
@@ -481,15 +481,10 @@ private function duplicarPrecios($programa_original_id, $nuevo_programa_id) {
         
         if ($nuevo_precio_id) {
             error_log("✅ Precios duplicados con ID: $nuevo_precio_id");
-        } else {
-            error_log("❌ Error creando precios");
         }
-        
-        error_log("=== PRECIOS DUPLICADOS ===");
         
     } catch(Exception $e) {
         error_log("❌ Error duplicando precios: " . $e->getMessage());
-        error_log("Stack trace: " . $e->getTraceAsString());
     }
 }
     

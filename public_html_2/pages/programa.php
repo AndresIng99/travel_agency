@@ -3127,6 +3127,76 @@ textarea.form-control {
     opacity: 0.9;
     transform: translateY(-1px);
 }
+
+/* Estilos para drag & drop */
+.days-list {
+    position: relative;
+}
+
+.day-sidebar-item {
+    cursor: move;
+    user-select: none;
+    transition: all 0.3s ease;
+}
+
+.day-sidebar-item:hover {
+    transform: translateX(5px);
+}
+
+/* Estado mientras se arrastra */
+.day-sidebar-item.sortable-chosen {
+    opacity: 0.5;
+    transform: scale(0.98);
+    cursor: grabbing !important;
+}
+
+.day-sidebar-item.sortable-ghost {
+    opacity: 0.3;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 2px dashed #667eea;
+}
+
+/* Indicador de drag */
+.day-sidebar-item::before {
+    content: '⋮⋮';
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(0,0,0,0.2);
+    font-size: 16px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.day-sidebar-item:hover::before {
+    opacity: 1;
+}
+
+/* Animación de reordenamiento */
+.sortable-drag {
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+    transform: rotate(2deg);
+}
+
+/* Mensaje de ayuda */
+.drag-helper {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 12px;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.drag-helper.show {
+    opacity: 1;
+}
     </style>
 </head>
 
@@ -3551,23 +3621,70 @@ textarea.form-control {
                                             <option value="FOK">FOK - Corona feroesa</option>
                                         </select>
                                     </div>
-                                    <div class="form-group">
-                                        <label class="form-label">Precio por persona</label>
-                                        <div class="price-input-container">
-                                            <span class="currency-icon" id="currency-icon-persona">$</span>
-                                            <input type="number" class="form-control price-input-with-icon" name="precio_por_persona" placeholder="0.00" step="0.01">
+                                    <!-- NUEVOS CAMPOS: ADULTOS -->
+                                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                        <div class="form-group">
+                                            <label class="form-label">Cantidad de Adultos</label>
+                                            <input type="number" class="form-control" name="cantidad_adultos" 
+                                                id="cantidad-adultos" min="1" value="1" 
+                                                onchange="calcularPrecioTotal()">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Precio por Adulto</label>
+                                            <div class="price-input-container">
+                                                <span class="currency-icon" id="currency-icon-adulto">$</span>
+                                                <input type="number" class="form-control price-input-with-icon" 
+                                                    name="precio_adulto" id="precio-adulto" 
+                                                    placeholder="0.00" step="0.01" 
+                                                    onchange="calcularPrecioTotal()">
+                                            </div>
                                         </div>
                                     </div>
+
+                                    <!-- NUEVOS CAMPOS: NIÑOS -->
+                                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                        <div class="form-group">
+                                            <label class="form-label">Cantidad de Niños</label>
+                                            <input type="number" class="form-control" name="cantidad_ninos" 
+                                                id="cantidad-ninos" min="0" value="0" 
+                                                onchange="calcularPrecioTotal()">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Precio por Niño</label>
+                                            <div class="price-input-container">
+                                                <span class="currency-icon" id="currency-icon-nino">$</span>
+                                                <input type="number" class="form-control price-input-with-icon" 
+                                                    name="precio_nino" id="precio-nino" 
+                                                    placeholder="0.00" step="0.01" 
+                                                    onchange="calcularPrecioTotal()">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- PRECIO TOTAL (AUTO-CALCULADO PERO EDITABLE) -->
                                     <div class="form-group">
-                                        <label class="form-label">Precio total</label>
+                                        <label class="form-label">
+                                            Precio Total
+                                            <small style="color: #6c757d; font-weight: normal; margin-left: 8px;">
+                                                (Se calcula automáticamente, pero puedes editarlo)
+                                            </small>
+                                        </label>
                                         <div class="price-input-container">
                                             <span class="currency-icon" id="currency-icon-total">$</span>
-                                            <input type="number" class="form-control price-input-with-icon" name="precio_total" placeholder="0.00" step="0.01">
+                                            <input type="number" class="form-control price-input-with-icon" 
+                                                name="precio_total" id="precio-total" 
+                                                placeholder="0.00" step="0.01">
                                         </div>
+                                        <small class="form-text text-muted" id="calculo-info" style="display: none;">
+                                            <i class="fas fa-calculator"></i> 
+                                            <span id="calculo-detalle"></span>
+                                        </small>
                                     </div>
+                                    
                                     <div class="form-group">
                                         <label class="form-label">Noches incluidas</label>
-                                        <input type="number" class="form-control" name="noches_incluidas" placeholder="0" min="0">
+                                        <input type="number" class="form-control" name="noches_incluidas" 
+                                            placeholder="0" min="0">
                                     </div>
                                 </div>
                                 
@@ -3702,6 +3819,7 @@ textarea.form-control {
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     
@@ -5255,10 +5373,15 @@ async function cargarPreciosPrograma() {
             const data = result.data;
             const form = document.getElementById('precio-form');
             
-            // Llenar campos del formulario
             if (form) {
                 form.querySelector('[name="moneda"]').value = data.moneda || 'USD';
-                form.querySelector('[name="precio_por_persona"]').value = data.precio_por_persona || '';
+                
+                // NUEVOS CAMPOS
+                form.querySelector('[name="precio_adulto"]').value = data.precio_adulto || '';
+                form.querySelector('[name="precio_nino"]').value = data.precio_nino || '';
+                form.querySelector('[name="cantidad_adultos"]').value = data.cantidad_adultos || 1;
+                form.querySelector('[name="cantidad_ninos"]').value = data.cantidad_ninos || 0;
+                
                 form.querySelector('[name="precio_total"]').value = data.precio_total || '';
                 form.querySelector('[name="noches_incluidas"]').value = data.noches_incluidas || '';
                 form.querySelector('[name="precio_incluye"]').value = data.precio_incluye || '';
@@ -5267,9 +5390,12 @@ async function cargarPreciosPrograma() {
                 form.querySelector('[name="info_pasaporte"]').value = data.info_pasaporte || '';
                 form.querySelector('[name="info_seguros"]').value = data.info_seguros || '';
                 form.querySelector('[name="movilidad_reducida"]').checked = data.movilidad_reducida == 1;
+                
+                // Actualizar íconos y calcular total
+                updateCurrencyIcons();
+                calcularPrecioTotal();
             }
             
-            // Reconfigurar contadores después de cargar los datos
             setTimeout(() => {
                 setupCharacterCounters();
             }, 100);
@@ -5497,9 +5623,17 @@ function renderizarSidebarDias() {
         const html = `
             <div class="day-sidebar-item ${selectedDayId === dia.id ? 'active' : ''}" 
                 data-dia-id="${dia.id}" 
+                data-dia-numero="${dia.dia_numero}"
                 onclick="seleccionarDiaEnSidebar(${dia.id})">
+                
+                <!-- Indicador de drag (se muestra al hover) -->
+                <div class="drag-handle" title="Arrastra para reordenar">
+                    <i class="fas fa-grip-vertical"></i>
+                </div>
+                
                 <div class="day-services-count" id="services-count-${dia.id}">0</div>
                 ${duracion > 1 ? '<div class="multi-day-indicator" title="' + duracion + ' días de estancia"></div>' : ''}
+                
                 <div class="day-item-header">
                     <div class="day-number-sidebar">
                         ${rangoTexto}
@@ -5545,6 +5679,160 @@ function renderizarSidebarDias() {
     // Seleccionar primer día si no hay ninguno seleccionado
     if (!selectedDayId && diasOrdenados.length > 0) {
         seleccionarDiaEnSidebar(diasOrdenados[0].id);
+    }
+    
+    // ✅ INICIALIZAR DRAG & DROP DESPUÉS DE RENDERIZAR
+    setTimeout(() => {
+        initializeDragAndDrop();
+    }, 100);
+}
+
+let sortableInstance = null;
+
+/**
+ * Inicializar drag & drop para días
+ */
+function initializeDragAndDrop() {
+    const daysList = document.getElementById('days-sidebar-list');
+    
+    if (!daysList || sortableInstance) return;
+    
+    // Destruir instancia anterior si existe
+    if (sortableInstance) {
+        sortableInstance.destroy();
+    }
+    
+    sortableInstance = new Sortable(daysList, {
+        animation: 200,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        dragClass: 'sortable-drag',
+        handle: '.day-sidebar-item', // Todo el item es arrastrable
+        
+        // Prevenir drag en botones y controles
+        filter: '.day-actions-sidebar, .day-controls, .estancia-btn',
+        preventOnFilter: true,
+        
+        // Evento al empezar a arrastrar
+        onStart: function(evt) {
+            console.log('🎯 Iniciando drag del día:', evt.oldIndex + 1);
+            mostrarMensajeAyuda('Arrastra para reordenar los días');
+        },
+        
+        // Evento al soltar
+        onEnd: function(evt) {
+            const oldIndex = evt.oldIndex;
+            const newIndex = evt.newIndex;
+            
+            console.log(`📦 Día movido de posición ${oldIndex + 1} a ${newIndex + 1}`);
+            
+            if (oldIndex !== newIndex) {
+                reordenarDias(oldIndex, newIndex);
+            }
+            
+            ocultarMensajeAyuda();
+        }
+    });
+    
+    console.log('✅ Drag & drop inicializado correctamente');
+}
+
+async function reordenarDias(oldIndex, newIndex) {
+    try {
+        console.log(`📦 Reordenando: posición ${oldIndex + 1} → ${newIndex + 1}`);
+        
+        showAlert('🔄 Reordenando días...', 'info');
+        
+        // Obtener el nuevo orden de IDs basado en dia_numero
+        const diasOrdenados = [...diasPrograma].sort((a, b) => 
+            (a.dia_numero || 0) - (b.dia_numero || 0)
+        );
+        
+        const nuevoOrden = diasOrdenados.map(dia => dia.id);
+        
+        // Mover el elemento en el array
+        const [movedItem] = nuevoOrden.splice(oldIndex, 1);
+        nuevoOrden.splice(newIndex, 0, movedItem);
+        
+        console.log('📋 Nuevo orden de IDs:', nuevoOrden);
+        console.log('🎯 Programa ID:', programaId);
+        
+        // Enviar al servidor
+        const response = await fetch('<?= APP_URL ?>/modules/programa/dias_api.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'reorder',
+                solicitud_id: programaId,
+                nuevo_orden: nuevoOrden
+            })
+        });
+        
+        console.log('📡 Status:', response.status);
+        
+        // Leer la respuesta como texto primero
+        const responseText = await response.text();
+        console.log('📄 Respuesta raw:', responseText);
+        
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status} - ${responseText}`);
+        }
+        
+        // Intentar parsear JSON
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('❌ Error parseando JSON:', e);
+            throw new Error('Respuesta inválida del servidor');
+        }
+        
+        if (result.success) {
+            showAlert('✅ Días reordenados correctamente', 'success');
+            
+            // Recargar días para actualizar la vista
+            await cargarDiasPrograma();
+            
+        } else {
+            throw new Error(result.error || 'Error desconocido');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error reordenando días:', error);
+        showAlert('❌ Error al reordenar: ' + error.message, 'error');
+        
+        // Recargar para restaurar orden original
+        await cargarDiasPrograma();
+    }
+}
+
+/**
+ * Mostrar mensaje de ayuda durante drag
+ */
+function mostrarMensajeAyuda(mensaje) {
+    let helper = document.querySelector('.drag-helper');
+    
+    if (!helper) {
+        helper = document.createElement('div');
+        helper.className = 'drag-helper';
+        document.body.appendChild(helper);
+    }
+    
+    helper.textContent = mensaje;
+    helper.classList.add('show');
+}
+
+/**
+ * Ocultar mensaje de ayuda
+ */
+function ocultarMensajeAyuda() {
+    const helper = document.querySelector('.drag-helper');
+    if (helper) {
+        helper.classList.remove('show');
+        setTimeout(() => helper.remove(), 300);
     }
 }
 
@@ -6715,6 +7003,77 @@ function updateCurrencyIcons() {
         iconTotal.textContent = symbol;
     }
 }
+
+// Función para calcular precio total automáticamente
+function calcularPrecioTotal() {
+    const cantidadAdultos = parseInt(document.getElementById('cantidad-adultos')?.value) || 0;
+    const precioAdulto = parseFloat(document.getElementById('precio-adulto')?.value) || 0;
+    const cantidadNinos = parseInt(document.getElementById('cantidad-ninos')?.value) || 0;
+    const precioNino = parseFloat(document.getElementById('precio-nino')?.value) || 0;
+    
+    // Calcular total
+    const totalAdultos = cantidadAdultos * precioAdulto;
+    const totalNinos = cantidadNinos * precioNino;
+    const precioTotal = totalAdultos + totalNinos;
+    
+    // Actualizar campo de precio total
+    const precioTotalInput = document.getElementById('precio-total');
+    if (precioTotalInput) {
+        precioTotalInput.value = precioTotal.toFixed(2);
+        
+        // Mostrar desglose del cálculo
+        const calculoInfo = document.getElementById('calculo-info');
+        const calculoDetalle = document.getElementById('calculo-detalle');
+        
+        if (precioTotal > 0 && calculoInfo && calculoDetalle) {
+            let detalle = [];
+            
+            if (cantidadAdultos > 0) {
+                const moneda = document.getElementById('currency-icon-total')?.textContent || '$';
+                detalle.push(`${cantidadAdultos} adulto${cantidadAdultos > 1 ? 's' : ''} × ${moneda}${precioAdulto.toFixed(2)} = ${moneda}${totalAdultos.toFixed(2)}`);
+            }
+            
+            if (cantidadNinos > 0) {
+                const moneda = document.getElementById('currency-icon-total')?.textContent || '$';
+                detalle.push(`${cantidadNinos} niño${cantidadNinos > 1 ? 's' : ''} × ${moneda}${precioNino.toFixed(2)} = ${moneda}${totalNinos.toFixed(2)}`);
+            }
+            
+            calculoDetalle.textContent = detalle.join(' + ');
+            calculoInfo.style.display = 'block';
+        } else if (calculoInfo) {
+            calculoInfo.style.display = 'none';
+        }
+    }
+}
+
+// Función mejorada para actualizar íconos de moneda
+function updateCurrencyIcons() {
+    const monedaSelect = document.querySelector('[name="moneda"]');
+    const iconAdulto = document.getElementById('currency-icon-adulto');
+    const iconNino = document.getElementById('currency-icon-nino');
+    const iconTotal = document.getElementById('currency-icon-total');
+    
+    if (monedaSelect) {
+        const selectedCurrency = monedaSelect.value;
+        const symbol = currencySymbols[selectedCurrency] || selectedCurrency;
+        
+        if (iconAdulto) iconAdulto.textContent = symbol;
+        if (iconNino) iconNino.textContent = symbol;
+        if (iconTotal) iconTotal.textContent = symbol;
+        
+        // Recalcular para mostrar nueva moneda
+        calcularPrecioTotal();
+    }
+}
+
+// Event listener para el select de moneda
+document.addEventListener('DOMContentLoaded', function() {
+    const monedaSelect = document.querySelector('[name="moneda"]');
+    if (monedaSelect) {
+        monedaSelect.addEventListener('change', updateCurrencyIcons);
+        updateCurrencyIcons(); // Inicializar
+    }
+});
 
 // Agregar el event listener al select de moneda
 document.addEventListener('DOMContentLoaded', function() {

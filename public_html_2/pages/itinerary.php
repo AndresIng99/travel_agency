@@ -3520,6 +3520,325 @@ body {
         font-size: 9px;
     }
 }
+
+
+
+
+
+
+/* Nuevos estilos para desglose de precios - COLORES ACTUALIZADOS */
+.price-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.price-categories {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.price-category {
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+    padding: 20px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: 2px solid #e9ecef;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.price-category:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+/* Adultos - Azul coherente con el diseño */
+.price-category.adulto {
+    border-color: #3498db;
+    background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
+}
+
+.price-category.adulto .category-icon {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+/* Niños - Verde coherente con ubicaciones secundarias */
+.price-category.nino {
+    border-color: #27ae60;
+    background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+}
+
+.price-category.nino .category-icon {
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.category-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.category-info {
+    flex: 1;
+}
+
+.category-label {
+    font-size: 14px;
+    color: #5a6c7d;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.category-price {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.category-price .price-currency {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.category-price .price-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: #2c3e50;
+}
+
+.category-price .price-per {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.category-subtotal {
+    font-size: 12px;
+    color: #95a5a6;
+    font-style: italic;
+}
+
+.price-total-section {
+    margin-top: 10px;
+}
+
+.total-divider {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #e9ecef, transparent);
+    margin-bottom: 20px;
+}
+
+/* Total - Degradado más suave coherente con el hero - TEXTO BLANCO */
+.price-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    border-radius: 12px;
+    color: #ffffff;
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.3);
+}
+
+.total-label {
+    font-size: 18px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #ffffff;
+}
+
+.price-total .total-amount {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.price-total .price-currency {
+    font-size: 20px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.price-total .price-value {
+    font-size: 36px;
+    font-weight: 900;
+    color: #ffffff;
+}
+
+/* Noches incluidas - Naranja coherente con alojamientos */
+.nights-included {
+    text-align: center;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+}
+
+.nights-included i {
+    font-size: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .price-categories {
+        flex-direction: column;
+    }
+    
+    .price-category {
+        max-width: 100%;
+    }
+    
+    .price-total {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .category-price .price-value {
+        font-size: 24px;
+    }
+    
+    .price-total .price-value {
+        font-size: 28px;
+        color: #ffffff;
+    }
+    
+    .total-label {
+        color: #ffffff;
+    }
+    
+    .price-total .price-currency {
+        color: #ffffff;
+    }
+    
+    .category-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 20px;
+    }
+}
+
+/* Estilos para impresión */
+@media print {
+    .price-breakdown {
+        page-break-inside: avoid;
+    }
+    
+    .price-category {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+    }
+    
+    .price-category.adulto {
+        border-color: #3498db !important;
+    }
+    
+    .price-category.nino {
+        border-color: #27ae60 !important;
+    }
+    
+    .category-icon {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .price-total {
+        background: #2c3e50 !important;
+        color: #ffffff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .price-total .total-label,
+    .price-total .price-currency,
+    .price-total .price-value {
+        color: #ffffff !important;
+    }
+    
+    .nights-included {
+        background: #f39c12 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+/* Animaciones suaves */
+.price-category {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.price-category:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.price-category:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.price-total-section {
+    animation: fadeInUp 0.6s ease-out;
+    animation-delay: 0.3s;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Estados de hover más refinados */
+.price-category.adulto:hover {
+    border-color: #2980b9;
+    box-shadow: 0 8px 20px rgba(52, 152, 219, 0.2);
+}
+
+.price-category.nino:hover {
+    border-color: #2ecc71;
+    box-shadow: 0 8px 20px rgba(39, 174, 96, 0.2);
+}
+
+.price-category:hover .category-icon {
+    transform: scale(1.05);
+}
+
+.price-total:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(44, 62, 80, 0.4);
+}
+
+
     </style>
 </head>
 
@@ -4036,99 +4355,161 @@ body {
             <div class="pricing-content">
                 <div class="pricing-header">
                     <h2>Información de Precios</h2>
-                    <p>Todos los detalles sobre la inversión de tu viaje</p>
+                    <p>Desglose detallado de la inversión de tu viaje</p>
                 </div>
                 
-                <!-- Precio Principal -->
+                <!-- Precio Principal - NUEVA ESTRUCTURA -->
                 <div class="price-main-card">
-                    <div class="price-display">
-                        <div class="price-amount">
-                            <span class="price-currency"><?= htmlspecialchars($precios['moneda']) ?></span>
-                            <?php if ($precios['precio_por_persona']): ?>
-                            <span class="price-value"><?= number_format($precios['precio_por_persona'], 0, ',', '.') ?></span>
-                            <span class="price-per">por persona</span>
-                            <?php elseif ($precios['precio_total']): ?>
-                            <span class="price-value"><?= number_format($precios['precio_total'], 0, ',', '.') ?></span>
-                            <span class="price-per">precio total</span>
-                            <?php else: ?>
-                            <span class="price-value">Consultar</span>
-                            <span class="price-per">precio</span>
+                    <div class="price-breakdown">
+                        <!-- Precios por Categoría -->
+                        <div class="price-categories">
+                            <?php 
+                            $mostrar_adultos = isset($precios['precio_adulto']) && $precios['precio_adulto'] > 0;
+                            $mostrar_ninos = isset($precios['precio_nino']) && $precios['precio_nino'] > 0;
+                            $cantidad_adultos = $precios['cantidad_adultos'] ?? 1;
+                            $cantidad_ninos = $precios['cantidad_ninos'] ?? 0;
+                            ?>
+                            
+                            <?php if ($mostrar_adultos): ?>
+                            <div class="price-category adulto">
+                                <div class="category-icon">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="category-info">
+                                    <div class="category-label">
+                                        <?= $cantidad_adultos ?> <?= $cantidad_adultos == 1 ? 'Adulto' : 'Adultos' ?>
+                                    </div>
+                                    <div class="category-price">
+                                        <span class="price-currency"><?= htmlspecialchars($precios['moneda']) ?></span>
+                                        <span class="price-value"><?= number_format($precios['precio_adulto'], 0, ',', '.') ?></span>
+                                        <span class="price-per">c/u</span>
+                                    </div>
+                                    <?php if ($cantidad_adultos > 1): ?>
+                                    <div class="category-subtotal">
+                                        Subtotal: <?= htmlspecialchars($precios['moneda']) ?> 
+                                        <?= number_format($precios['precio_adulto'] * $cantidad_adultos, 0, ',', '.') ?>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <?php if ($mostrar_ninos): ?>
+                            <div class="price-category nino">
+                                <div class="category-icon">
+                                    <i class="fas fa-child"></i>
+                                </div>
+                                <div class="category-info">
+                                    <div class="category-label">
+                                        <?= $cantidad_ninos ?> <?= $cantidad_ninos == 1 ? 'Niño' : 'Niños' ?>
+                                    </div>
+                                    <div class="category-price">
+                                        <span class="price-currency"><?= htmlspecialchars($precios['moneda']) ?></span>
+                                        <span class="price-value"><?= number_format($precios['precio_nino'], 0, ',', '.') ?></span>
+                                        <span class="price-per">c/u</span>
+                                    </div>
+                                    <?php if ($cantidad_ninos > 1): ?>
+                                    <div class="category-subtotal">
+                                        Subtotal: <?= htmlspecialchars($precios['moneda']) ?> 
+                                        <?= number_format($precios['precio_nino'] * $cantidad_ninos, 0, ',', '.') ?>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
                             <?php endif; ?>
                         </div>
                         
+                        <!-- Precio Total -->
+                        <div class="price-total-section">
+                            <div class="total-divider"></div>
+                            <div class="price-total">
+                                <span class="total-label">Precio Total</span>
+                                <div class="total-amount">
+                                    <span class="price-currency"><?= htmlspecialchars($precios['moneda']) ?></span>
+                                    <span class="price-value"><?= number_format($precios['precio_total'], 0, ',', '.') ?></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Noches Incluidas -->
                         <?php if ($precios['noches_incluidas'] > 0): ?>
                         <div class="nights-included">
                             <i class="fas fa-bed"></i>
-                            <?= $precios['noches_incluidas'] ?> <?= $precios['noches_incluidas'] == 1 ? 'noche' : 'noches' ?> incluidas
+                            <?= $precios['noches_incluidas'] ?> <?= $precios['noches_incluidas'] == 1 ? 'noche incluida' : 'noches incluidas' ?>
                         </div>
                         <?php endif; ?>
                     </div>
                 </div>
                 
-                <!-- Desplegables de Información -->
+                <!-- Resto del contenido de precios (incluye/no incluye/condiciones) -->
                 <div class="pricing-accordions">
-                    
-                    <!-- ¿Qué incluye? -->
-                    <?php if ($precios['precio_incluye']): ?>
+                    <!-- Lo que incluye -->
+                    <?php if (!empty($precios['precio_incluye'])): ?>
                     <div class="pricing-accordion">
-                        <div class="accordion-header" onclick="toggleAccordion('incluye')">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
                             <div class="accordion-title">
                                 <i class="fas fa-check-circle" style="color: #27ae60;"></i>
                                 <span>¿Qué incluye el precio?</span>
                             </div>
-                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-incluye"></i>
+                            <i class="fas fa-chevron-down accordion-icon"></i>
                         </div>
-                        <div class="accordion-content" id="content-incluye">
-                            <ul class="pricing-list included">
-                                <?php foreach (explode("\n", $precios['precio_incluye']) as $item): ?>
-                                <?php if (trim($item)): ?>
+                        <div class="accordion-content">
+                            <ul class="pricing-list">
+                                <?php 
+                                $incluidos = explode("\n", $precios['precio_incluye']);
+                                foreach ($incluidos as $item): 
+                                    $item = trim($item);
+                                    if (empty($item)) continue;
+                                ?>
                                 <li>
-                                    <i class="fas fa-check"></i>
-                                    <span><?= htmlspecialchars(trim($item)) ?></span>
+                                    <i class="fas fa-check" style="color: #27ae60;"></i>
+                                    <?= nl2br(htmlspecialchars($item)) ?>
                                 </li>
-                                <?php endif; ?>
                                 <?php endforeach; ?>
                             </ul>
                         </div>
                     </div>
                     <?php endif; ?>
                     
-                    <!-- ¿Qué NO incluye? -->
-                    <?php if ($precios['precio_no_incluye']): ?>
+                    <!-- Lo que NO incluye -->
+                    <?php if (!empty($precios['precio_no_incluye'])): ?>
                     <div class="pricing-accordion">
-                        <div class="accordion-header" onclick="toggleAccordion('no-incluye')">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
                             <div class="accordion-title">
                                 <i class="fas fa-times-circle" style="color: #e74c3c;"></i>
                                 <span>¿Qué NO incluye?</span>
                             </div>
-                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-no-incluye"></i>
+                            <i class="fas fa-chevron-down accordion-icon"></i>
                         </div>
-                        <div class="accordion-content" id="content-no-incluye">
-                            <ul class="pricing-list excluded">
-                                <?php foreach (explode("\n", $precios['precio_no_incluye']) as $item): ?>
-                                <?php if (trim($item)): ?>
+                        <div class="accordion-content">
+                            <ul class="pricing-list">
+                                <?php 
+                                $no_incluidos = explode("\n", $precios['precio_no_incluye']);
+                                foreach ($no_incluidos as $item): 
+                                    $item = trim($item);
+                                    if (empty($item)) continue;
+                                ?>
                                 <li>
-                                    <i class="fas fa-times"></i>
-                                    <span><?= htmlspecialchars(trim($item)) ?></span>
+                                    <i class="fas fa-times" style="color: #e74c3c;"></i>
+                                    <?= nl2br(htmlspecialchars($item)) ?>
                                 </li>
-                                <?php endif; ?>
                                 <?php endforeach; ?>
                             </ul>
                         </div>
                     </div>
                     <?php endif; ?>
                     
-                    <!-- Condiciones Generales -->
-                    <?php if ($precios['condiciones_generales']): ?>
+                    <!-- Condiciones generales -->
+                    <?php if (!empty($precios['condiciones_generales'])): ?>
                     <div class="pricing-accordion">
-                        <div class="accordion-header" onclick="toggleAccordion('condiciones')">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
                             <div class="accordion-title">
                                 <i class="fas fa-file-contract" style="color: #3498db;"></i>
                                 <span>Condiciones Generales</span>
                             </div>
-                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-condiciones"></i>
+                            <i class="fas fa-chevron-down accordion-icon"></i>
                         </div>
-                        <div class="accordion-content" id="content-condiciones">
+                        <div class="accordion-content">
                             <div class="conditions-text">
                                 <?= nl2br(htmlspecialchars($precios['condiciones_generales'])) ?>
                             </div>
@@ -4137,17 +4518,17 @@ body {
                     <?php endif; ?>
                     
                     <!-- Información de Pasaporte -->
-                    <?php if ($precios['info_pasaporte']): ?>
+                    <?php if (!empty($precios['info_pasaporte'])): ?>
                     <div class="pricing-accordion">
-                        <div class="accordion-header" onclick="toggleAccordion('pasaporte')">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
                             <div class="accordion-title">
-                                <i class="fas fa-passport" style="color: #8e44ad;"></i>
-                                <span>Requisitos de Pasaporte y Documentación</span>
+                                <i class="fas fa-passport" style="color: #9b59b6;"></i>
+                                <span>Información de Pasaporte</span>
                             </div>
-                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-pasaporte"></i>
+                            <i class="fas fa-chevron-down accordion-icon"></i>
                         </div>
-                        <div class="accordion-content" id="content-pasaporte">
-                            <div class="passport-info">
+                        <div class="accordion-content">
+                            <div class="passport-text">
                                 <?= nl2br(htmlspecialchars($precios['info_pasaporte'])) ?>
                             </div>
                         </div>
@@ -4155,69 +4536,30 @@ body {
                     <?php endif; ?>
                     
                     <!-- Información de Seguros -->
-                    <?php if ($precios['info_seguros']): ?>
+                    <?php if (!empty($precios['info_seguros'])): ?>
                     <div class="pricing-accordion">
-                        <div class="accordion-header" onclick="toggleAccordion('seguros')">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
                             <div class="accordion-title">
                                 <i class="fas fa-shield-alt" style="color: #16a085;"></i>
                                 <span>Información de Seguros</span>
                             </div>
-                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-seguros"></i>
+                            <i class="fas fa-chevron-down accordion-icon"></i>
                         </div>
-                        <div class="accordion-content" id="content-seguros">
-                            <div class="insurance-info">
+                        <div class="accordion-content">
+                            <div class="insurance-text">
                                 <?= nl2br(htmlspecialchars($precios['info_seguros'])) ?>
                             </div>
                         </div>
                     </div>
                     <?php endif; ?>
                     
-                    <!-- Accesibilidad -->
-                    <div class="pricing-accordion">
-                        <div class="accordion-header" onclick="toggleAccordion('accesibilidad')">
-                            <div class="accordion-title">
-                                <i class="fas fa-universal-access" style="color: #f39c12;"></i>
-                                <span>Accesibilidad para Personas con Movilidad Reducida</span>
-                            </div>
-                            <i class="fas fa-chevron-down accordion-arrow" id="arrow-accesibilidad"></i>
-                        </div>
-                        <div class="accordion-content" id="content-accesibilidad">
-                            <div class="accessibility-info">
-                                <div class="accessibility-status">
-                                    <div class="status-badge <?= $precios['movilidad_reducida'] ? 'fully-accessible' : 'not-accessible' ?>">
-                                        <i class="fas fa-<?= $precios['movilidad_reducida'] ? 'check' : 'times' ?>"></i>
-                                        <span>
-                                            <?= $precios['movilidad_reducida'] 
-                                                ? 'Viaje adaptado para movilidad reducida' 
-                                                : 'Este viaje no está adaptado para movilidad reducida' ?>
-                                        </span>
-                                    </div>
-                                </div>
-                                
-                                <div class="accessibility-details">
-                                    <?php if ($precios['movilidad_reducida']): ?>
-                                    <p><strong>Servicios incluidos para movilidad reducida:</strong></p>
-                                    <ul>
-                                        <li>Alojamientos con acceso para sillas de ruedas</li>
-                                        <li>Transporte adaptado cuando sea necesario</li>
-                                        <li>Actividades modificadas según necesidades</li>
-                                        <li>Acompañamiento especializado si se requiere</li>
-                                    </ul>
-                                    <p><em>Recomendamos contactar con nuestro equipo para personalizar los servicios según necesidades específicas.</em></p>
-                                    <?php else: ?>
-                                    <p>Este itinerario incluye actividades y ubicaciones que pueden no ser accesibles para personas con movilidad reducida:</p>
-                                    <ul>
-                                        <li>Caminatas en terrenos irregulares</li>
-                                        <li>Escalones y accesos sin rampa</li>
-                                        <li>Transportes no adaptados</li>
-                                        <li>Sitios históricos con limitaciones arquitectónicas</li>
-                                    </ul>
-                                    <p><em>Si necesitas adaptaciones, contacta con nuestro equipo para evaluar alternativas viables.</em></p>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- Movilidad Reducida -->
+                    <?php if ($precios['movilidad_reducida']): ?>
+                    <div class="accessibility-badge">
+                        <i class="fas fa-wheelchair"></i>
+                        <span>Este programa está adaptado para personas con movilidad reducida</span>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </section>
